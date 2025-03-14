@@ -1,0 +1,19 @@
+printing tests/
+__pycache__/
+backup/
+build/
+dist/
+venv-back/
+conner-back-1.2/
+db/
+logs.txt
+.env
+*.spec
+*.ico
+*.png
+*.html
+*.css
+*.js
+*.jpg
+*.db
+*.env
