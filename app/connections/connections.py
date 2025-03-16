@@ -181,6 +181,28 @@ class Products_tables:
         finally:
             DB_manager.close_products_db()
 
+    @staticmethod
+    def create_associates_codes():
+        sql = """
+            CREATE TABLE "associates_codes" (
+                "code"	TEXT NOT NULL,
+                "parent_code"	TEXT NOT NULL,
+                "tag"	TEXT,
+                PRIMARY KEY("code"),
+                FOREIGN KEY("parent_code") REFERENCES "products"("code")
+            );
+            """
+        
+        db = DB_manager.get_products_db()
+
+        try:
+            db.execute(sql)
+            db.commit()
+        except Exception as e:
+            raise "Couldn't create associates_codes table"
+        finally:
+            DB_manager.close_products_db()
+
 class Tickets_tables:
     @staticmethod
     def create_tickets():

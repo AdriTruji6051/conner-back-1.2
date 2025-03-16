@@ -1,55 +1,118 @@
-import datetime
+from datetime import datetime
+
 from app.connections.connections import DB_manager
+from app.helpers.helpers import profit_percentage
+
+# 'modified_at' is not included in data keys because is calculated into the functions
+create_product_keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code"]
+update_product_keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code", "original_code"]
+update_department_keys = ["description", "code"]
+create_associates_codes_keys = ["code", "parent_code", "tag"]
+update_associates_codes_keys = ["code", "parent_code", "tag", "original_code"]
+
+def raise_exception_if_missing_keys(data: dict, keys: list, tag: str):
+    if not set(keys).issubset(data):
+        missing = set(keys) - set(data)
+        raise KeyError(f'Keys {missing} are missing in {tag}')
+
+# raise an error if data is not valid
+def product_data_is_valid(data: dict, check_update_product_keys: bool = False):
+
+    raise_exception_if_missing_keys(data, create_product_keys, 'create product')
+    
+    if check_update_product_keys:
+        raise_exception_if_missing_keys(data, update_product_keys, 'update product')
+    
+    if(data['cost'] < 0):
+        raise ValueError('Data sended is invalid -> Cost must be greater than zero')
+    
+    if(data['cost'] > data['sale_price']):
+        raise ValueError('Data sended is invalid -> sale_price must be greater than cost')
+    
+    if(data['wholesale_price'] > data['sale_price']): 
+        raise ValueError('Data sended is invalid -> sale_price must be greater than wholesale_price')
+    
+    if(data['sale_type'] != 'U' and data['sale_type'] != 'D'):
+        raise ValueError('Data sended is invalid -> sale_type must have values of "U" or "D"')
 
 class Products:
     @staticmethod
     def create(data: dict):
-        # 'modified_at' is not included in data keys because is calculated into this function
-        keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "profit_margin", "parent_code"]
+        product_data_is_valid(data)
 
-        if set(keys).issubset(data):
-            raise KeyError('Not all the keys were sented')
+        params = [data[key] for key in create_product_keys]
 
-        params = [data[key] for key in keys]
+        # Profit and modifiet_at are calculated inside the server, they don't have to be sent by the client
+        params.append(profit_percentage(data['cost'], data['sale_price']))
         params.append(datetime.now().strftime('%Y-%m-%d'))
 
         sql = """
             INSERT INTO products 
-            (code, description, sale_type, cost, sale_price, department, wholesale_price, priority, inventory, profit_margin, parent_code, modified_at) 
+            (code, description, sale_type, cost, sale_price, department, wholesale_price, priority, inventory, parent_code, profit_margin, modified_at) 
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         db = DB_manager.get_products_db()
-        db.execute(sql, params)
-        db.commit()
-        DB_manager.close_products_db()
-    
-    def update(data: dict):
-        # 'modified_at' is not included in data keys because is calculated into this function
-        keys = ["description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "inventory", "profit_margin", "parent_code", "code", "priority", "original_code"]
-
-        if set(keys).issubset(data):
-            raise KeyError('Not all the keys were sented')
-
-        # 'original_code' is poped to append at the last place
-        keys.pop()
-
-        params = [data[key] for key in keys]
-        params.append(datetime.now().strftime('%Y-%m-%d'))
-        params.append(data['original_code'])
-
-        sql = """
-            UPDATE products SET description = ?, sale_type = ?, cost = ?, sale_price = ?, department = ?, wholesale_price = ?, inventory = ?, profit_margin = ?, parent_code = ?, code = ?, priority = ?, modified_at = ? WHERE code = ?;
-        """
-        db = DB_manager.get_products_db()
+        db.execute("PRAGMA foreign_keys = ON;")
         db.execute(sql, params)
         db.commit()
         DB_manager.close_products_db()
 
     @staticmethod
-    def get_by_id(id: str) -> dict:
-        sql = 'SELECT * FROM products WHERE code = ?;'
+    def delete(code: str):
+        sql = 'DELETE FROM products WHERE code = ?;'
         db = DB_manager.get_products_db()
-        ans = dict(db.execute(sql, [id]).fetchone())
+        db.execute(sql, [code])
+        db.commit()
+        DB_manager.close_products_db()
+    
+    def update(data: dict):
+        product_data_is_valid(data, True)
+        
+        # 'original_code' isn't used because it is appended at the last place
+        params = [data[key] for key in create_product_keys[:len(update_product_keys) -1]]
+
+        params.append(profit_percentage(data['cost'], data['sale_price']))
+        params.append(datetime.now().strftime('%Y-%m-%d'))
+        params.append(data['original_code'])
+
+        sql = """
+            UPDATE products SET code = ?, description = ?, sale_type = ?, cost = ?,  sale_price = ?, department = ?, wholesale_price = ?, priority = ?, inventory = ?, parent_code = ?, profit_margin = ?, modified_at = ? WHERE code = ?;
+        """
+        db = DB_manager.get_products_db()
+        db.execute("PRAGMA foreign_keys = ON;")
+        db.execute(sql, params)
+        db.commit()
+        DB_manager.close_products_db()
+
+    @staticmethod
+    def get(code: str) -> dict:
+        # Check if code is in associates codes (linked products to retrieve the parent data product),
+        # if not, search if the product is the main product
+
+        tag = '' # Used for linked products
+        id_associate = code
+        is_associate = False
+
+        sql = 'SELECT * FROM associates_codes WHERE code = ?;'
+        db = DB_manager.get_products_db()
+        ans = db.execute(sql, [code]).fetchone()
+
+        if ans:
+            tag += ' ' + dict(ans)['tag']
+            code = dict(ans)['parent_code']   
+            is_associate = True
+
+        sql = 'SELECT * FROM products WHERE code = ?;'
+        
+        ans = db.execute(sql, [code]).fetchone()
+        if ans:
+            ans = dict(ans)
+            ans['description']+= tag
+            ans['code'] = id_associate # if not associate found, code will be the original code
+            ans['is_associate'] = is_associate
+        else:
+            raise Exception('Product not found')
+            
         DB_manager.close_products_db()
 
         return ans
@@ -94,3 +157,103 @@ class Products:
         DB_manager.close_products_db()
 
         return ans
+    
+    class Departments:
+        @staticmethod
+        def get(code: str) -> dict:
+            sql = 'SELECT * FROM departments WHERE code = ?;'
+            db = DB_manager.get_products_db()
+            ans = db.execute(sql, [code]).fetchone()
+
+            if ans:
+                ans = dict(ans)
+            else:
+                raise Exception('Not department finded')
+            
+            DB_manager.close_products_db()
+            return ans
+        
+        @staticmethod
+        def get_all() -> list[dict]:
+            sql = 'SELECT * FROM departments;'
+            db = DB_manager.get_products_db()
+            rows = db.execute(sql).fetchall()
+            ans = list()
+
+            if rows:
+                for row in rows:
+                    ans.append(dict(row))
+            else:
+                raise Exception('Not department finded')
+            
+            DB_manager.close_products_db()
+            return ans
+
+        @staticmethod
+        def create(description: str):
+            sql = 'INSERT INTO departments (description) values (?);'
+
+            db = DB_manager.get_products_db()
+            db.execute(sql, [description])
+            db.commit()
+            DB_manager.close_products_db()
+
+        @staticmethod
+        def update(data: dict):
+            
+            raise_exception_if_missing_keys(data, update_department_keys, 'update departments')
+            
+            params = [data[key] for key in update_department_keys]
+            sql = 'UPDATE departments SET description = ? WHERE code = ?;'
+
+            db = DB_manager.get_products_db()
+            db.execute("PRAGMA foreign_keys = ON;")
+            db.execute(sql, params)
+            db.commit()
+            DB_manager.close_products_db()
+        
+        @staticmethod
+        def delete(code: str):
+            sql = 'DELETE FROM departments WHERE code = ?;'
+
+            db = DB_manager.get_products_db()
+            db.execute("PRAGMA foreign_keys = ON;")
+            db.execute(sql, [code])
+            db.commit()
+            DB_manager.close_products_db()
+        
+    class Associates_codes:
+        @staticmethod
+        def get(code: str) -> dict:
+            sql = """
+                SELECT ac.code, ac.parent_code, ac.tag, p.description, p.sale_type, p.cost, p.sale_price, 
+                p.department, p.wholesale_price, p.priority, p.inventory, p.modified_at, p.profit_margin, 
+                p.parent_code FROM associates_codes ac JOIN products p ON ac.parent_code = p.code 
+                WHERE ac.code = ?;
+            """
+            db = DB_manager.get_products_db()
+            ans = db.execute(sql, [code]).fetchone()
+
+            if ans:
+                ans = dict(ans)
+                ans['is_associate'] = True
+            else:
+                raise Exception('Not associate_code finded')
+            
+            DB_manager.close_products_db()
+            return ans
+
+        @staticmethod
+        def create(data: dict):
+            raise_exception_if_missing_keys(data, create_associates_codes_keys, 'create associate_codes')
+            return
+
+        @staticmethod
+        def update():
+            return
+        
+        @staticmethod
+        def delete():
+            return
+
+
