@@ -14,9 +14,16 @@ def raise_exception_if_missing_keys(data: dict, keys: list, tag: str):
     if not set(keys).issubset(data):
         missing = set(keys) - set(data)
         raise KeyError(f'Keys {missing} are missing in {tag}')
+    
+def execute_sql_and_close_db(sql: str, params: list) -> None:
+    db = DB_manager.get_products_db()
+    db.execute("PRAGMA foreign_keys = ON;")
+    db.execute(sql, params)
+    db.commit()
+    DB_manager.close_products_db()
 
 # raise an error if data is not valid
-def product_data_is_valid(data: dict, check_update_product_keys: bool = False):
+def product_data_is_valid(data: dict, check_update_product_keys: bool = False) -> None:
 
     raise_exception_if_missing_keys(data, create_product_keys, 'create product')
     
@@ -37,58 +44,9 @@ def product_data_is_valid(data: dict, check_update_product_keys: bool = False):
 
 class Products:
     @staticmethod
-    def create(data: dict):
-        product_data_is_valid(data)
-
-        params = [data[key] for key in create_product_keys]
-
-        # Profit and modifiet_at are calculated inside the server, they don't have to be sent by the client
-        params.append(profit_percentage(data['cost'], data['sale_price']))
-        params.append(datetime.now().strftime('%Y-%m-%d'))
-
-        sql = """
-            INSERT INTO products 
-            (code, description, sale_type, cost, sale_price, department, wholesale_price, priority, inventory, parent_code, profit_margin, modified_at) 
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-        """
-        db = DB_manager.get_products_db()
-        db.execute("PRAGMA foreign_keys = ON;")
-        db.execute(sql, params)
-        db.commit()
-        DB_manager.close_products_db()
-
-    @staticmethod
-    def delete(code: str):
-        sql = 'DELETE FROM products WHERE code = ?;'
-        db = DB_manager.get_products_db()
-        db.execute(sql, [code])
-        db.commit()
-        DB_manager.close_products_db()
-    
-    def update(data: dict):
-        product_data_is_valid(data, True)
-        
-        # 'original_code' isn't used because it is appended at the last place
-        params = [data[key] for key in create_product_keys[:len(update_product_keys) -1]]
-
-        params.append(profit_percentage(data['cost'], data['sale_price']))
-        params.append(datetime.now().strftime('%Y-%m-%d'))
-        params.append(data['original_code'])
-
-        sql = """
-            UPDATE products SET code = ?, description = ?, sale_type = ?, cost = ?,  sale_price = ?, department = ?, wholesale_price = ?, priority = ?, inventory = ?, parent_code = ?, profit_margin = ?, modified_at = ? WHERE code = ?;
-        """
-        db = DB_manager.get_products_db()
-        db.execute("PRAGMA foreign_keys = ON;")
-        db.execute(sql, params)
-        db.commit()
-        DB_manager.close_products_db()
-
-    @staticmethod
     def get(code: str) -> dict:
         # Check if code is in associates codes (linked products to retrieve the parent data product),
         # if not, search if the product is the main product
-
         tag = '' # Used for linked products
         id_associate = code
         is_associate = False
@@ -118,7 +76,7 @@ class Products:
         return ans
     
     @staticmethod
-    def search_by_description(description: str, called_before: bool = False) -> list[dict]:
+    def get_by_description(description: str, called_before: bool = False) -> list[dict]:
         db = DB_manager.get_products_db()
         description_split = description.split()
 
@@ -158,6 +116,80 @@ class Products:
 
         return ans
     
+    @staticmethod
+    def get_siblings(code: str) -> None:
+        # check if parent product, if not, search his parent code, 
+        # if not has anything linked, raise not found exception
+        sql = 'SELECT * FROM products WHERE parent_code = ?;'
+        db = DB_manager.get_products_db()
+        siblings_rows = db.execute(sql, [code]).fetchall()
+
+        if not len(siblings_rows):
+            # 
+            sql_child = 'SELECT parent_code FROM products WHERE code = ?;'
+            child = db.execute(sql_child, [code]).fetchone()
+
+            if not child:
+                raise Exception('Product not exist')
+            
+            # check again, if the product has siblings 
+            code = dict(child)['parent_code']
+            siblings_rows = db.execute(sql, [code]).fetchall()
+            
+            if not len(siblings_rows):
+                raise Exception('Product has not parent linked')
+            
+        childs = list()
+        for row in siblings_rows:
+            childs.append(dict(row))
+
+        sql = 'SELECT * FROM products WHERE code = ?;'
+        parent = dict(db.execute(sql, [code]))
+
+        return {
+            'parent_product' : parent,
+            'child_products' : childs
+        }
+
+    @staticmethod
+    def create(data: dict) -> None:
+        product_data_is_valid(data)
+
+        params = [data[key] for key in create_product_keys]
+
+        # Profit and modifiet_at are calculated inside the server, they don't have to be sent by the client
+        params.append(profit_percentage(data['cost'], data['sale_price']))
+        params.append(datetime.now().strftime('%Y-%m-%d'))
+
+        sql = """
+            INSERT INTO products 
+            (code, description, sale_type, cost, sale_price, department, wholesale_price, priority, inventory, parent_code, profit_margin, modified_at) 
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """
+        execute_sql_and_close_db(sql, params)
+
+    @staticmethod
+    def delete(code: str) -> None:
+        sql = 'DELETE FROM products WHERE code = ?;'
+        execute_sql_and_close_db(sql, [code])
+    
+    def update(data: dict):
+        product_data_is_valid(data=data, check_update_product_keys=True)
+        
+        # 'original_code' isn't used because it is appended at the last place
+        params = [data[key] for key in create_product_keys[:len(update_product_keys) -1]]
+
+        params.append(profit_percentage(data['cost'], data['sale_price']))
+        params.append(datetime.now().strftime('%Y-%m-%d'))
+        params.append(data['original_code'])
+
+        sql = """
+            UPDATE products SET code = ?, description = ?, sale_type = ?, cost = ?,  sale_price = ?, department = ?, 
+            wholesale_price = ?, priority = ?, inventory = ?, parent_code = ?, profit_margin = ?, modified_at = ? 
+            WHERE code = ?;
+        """
+        execute_sql_and_close_db(sql, params)
+    
     class Departments:
         @staticmethod
         def get(code: str) -> dict:
@@ -190,37 +222,21 @@ class Products:
             return ans
 
         @staticmethod
-        def create(description: str):
+        def create(description: str) -> None:
             sql = 'INSERT INTO departments (description) values (?);'
-
-            db = DB_manager.get_products_db()
-            db.execute(sql, [description])
-            db.commit()
-            DB_manager.close_products_db()
+            execute_sql_and_close_db(sql, [description])
 
         @staticmethod
-        def update(data: dict):
-            
+        def update(data: dict): 
             raise_exception_if_missing_keys(data, update_department_keys, 'update departments')
-            
             params = [data[key] for key in update_department_keys]
             sql = 'UPDATE departments SET description = ? WHERE code = ?;'
-
-            db = DB_manager.get_products_db()
-            db.execute("PRAGMA foreign_keys = ON;")
-            db.execute(sql, params)
-            db.commit()
-            DB_manager.close_products_db()
+            execute_sql_and_close_db(sql, params)
         
         @staticmethod
-        def delete(code: str):
+        def delete(code: str) -> None:
             sql = 'DELETE FROM departments WHERE code = ?;'
-
-            db = DB_manager.get_products_db()
-            db.execute("PRAGMA foreign_keys = ON;")
-            db.execute(sql, [code])
-            db.commit()
-            DB_manager.close_products_db()
+            execute_sql_and_close_db(sql, [code])
         
     class Associates_codes:
         @staticmethod
@@ -244,16 +260,24 @@ class Products:
             return ans
 
         @staticmethod
-        def create(data: dict):
+        def create(data: dict) -> None:
             raise_exception_if_missing_keys(data, create_associates_codes_keys, 'create associate_codes')
-            return
+            
+            params = [data[key] for key in create_associates_codes_keys]
+            sql = 'INSERT INTO associates_codes (code, parent_code, tag) values (?, ?, ?);'
+
+            execute_sql_and_close_db(sql, params)
 
         @staticmethod
-        def update():
-            return
+        def update(data: dict) -> None:
+            raise_exception_if_missing_keys(data, update_associates_codes_keys, 'create associate_codes')
+            
+            params = [data[key] for key in update_associates_codes_keys]
+            sql = 'UPDATE associates_codes SET code = ?, parent_code = ?, tag = ? WHERE code = ?;'
+
+            execute_sql_and_close_db(sql, params)
         
         @staticmethod
-        def delete():
-            return
-
-
+        def delete(code: str) -> None:
+            sql = 'DELETE FROM associates_codes WHERE code = ?;'
+            execute_sql_and_close_db(sql, [code])

@@ -57,7 +57,6 @@ product_bad = {
     'original_code': 'TESTCODE123'
 }
 
-
 class TestProducts(unittest.TestCase):
     app = create_app()
 
@@ -85,8 +84,10 @@ class TestProducts(unittest.TestCase):
             # it´s possible to these could fail it theres not registers with the same id's in the database
             Products.get(2)
             Products.get(3)
-            Products.search_by_description('test')
-            Products.search_by_description('2 test')
+            Products.get_by_description('test')
+            Products.get_by_description('2 test')
+
+            # TEST PRODUCTS SIBLINGS -> TO DO
 
     def test_departments_crud_and_access(self):
         with self.app.app_context():
@@ -97,7 +98,11 @@ class TestProducts(unittest.TestCase):
             Products.Departments.delete(ans['code'])
 
     def test_associates_codes_crud_and_access(self):
-        print
+        with self.app.app_context():
+            Products.Associates_codes.create({'code' : 'test_code', 'parent_code' : '1', 'tag' : 'test tag'})
+            Products.Associates_codes.update({'code' : 'test_code_update', 'parent_code' : '2', 'tag' : 'test tag update', 'original_code' : 'test_code'})
+            Products.Associates_codes.get('test_code_update')
+            Products.Associates_codes.delete('test_code_update')
 
 if __name__ == "__main__":
     unittest.main()

@@ -18,7 +18,7 @@ def get_product_by_id(code):
 @routesProducts.route('/api/product/description/<string:description>', methods=['GET'])
 def search_products_by_description(description):
     try:
-        ans = Products.search_by_description(description)
+        ans = Products.get_by_description(description)
         if len(ans) < 1:
             raise 'Not finded'
         
