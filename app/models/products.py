@@ -9,8 +9,9 @@ update_product_keys = ["code", "description", "sale_type", "cost", "sale_price",
 update_department_keys = ["description", "code"]
 create_associates_codes_keys = ["code", "parent_code", "tag"]
 update_associates_codes_keys = ["code", "parent_code", "tag", "original_code"]
+update_siblings_keys = ["sale_type", "cost", "sale_price", "department", "wholesale_price",  "parent_code"]
 
-def raise_exception_if_missing_keys(data: dict, keys: list, tag: str):
+def raise_exception_if_missing_keys(data: dict, keys: list[str], tag: str):
     if not set(keys).issubset(data):
         missing = set(keys) - set(data)
         raise KeyError(f'Keys {missing} are missing in {tag}')
@@ -21,6 +22,17 @@ def execute_sql_and_close_db(sql: str, params: list) -> None:
     db.execute(sql, params)
     db.commit()
     DB_manager.close_products_db()
+
+def update_siblings_products(data: dict, siblings_codes: list[str]):
+    if len(siblings_codes):
+        for sibling_code in siblings_codes:
+            ans = Products.get(sibling_code)
+            if ans:
+                for key in update_siblings_keys:
+                    ans[key] = data[key]
+                Products.update(ans)
+            else:
+                continue     
 
 # raise an error if data is not valid
 def product_data_is_valid(data: dict, check_update_product_keys: bool = False) -> None:
@@ -146,6 +158,7 @@ class Products:
         sql = 'SELECT * FROM products WHERE code = ?;'
         parent = dict(db.execute(sql, [code]))
 
+        # print related products
         return {
             'parent_product' : parent,
             'child_products' : childs
@@ -168,11 +181,10 @@ class Products:
         """
         execute_sql_and_close_db(sql, params)
 
+        if 'siblings_codes' in data:
+            update_siblings_products(data, data['siblings_codes'])
+
     @staticmethod
-    def delete(code: str) -> None:
-        sql = 'DELETE FROM products WHERE code = ?;'
-        execute_sql_and_close_db(sql, [code])
-    
     def update(data: dict):
         product_data_is_valid(data=data, check_update_product_keys=True)
         
@@ -189,6 +201,14 @@ class Products:
             WHERE code = ?;
         """
         execute_sql_and_close_db(sql, params)
+
+        if 'siblings_codes' in data:
+            update_siblings_products(data, data['siblings_codes'])
+
+    @staticmethod
+    def delete(code: str) -> None:
+        sql = 'DELETE FROM products WHERE code = ?;'
+        execute_sql_and_close_db(sql, [code])
     
     class Departments:
         @staticmethod

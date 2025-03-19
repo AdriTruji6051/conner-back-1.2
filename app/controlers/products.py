@@ -12,7 +12,7 @@ def get_product_by_id(code):
     try:
         return jsonify(Products.get(code))
     except Exception as e:
-        logging.info(f'/api/product/id/<string:id>: {e}. Code: {code}')
+        logging.info(f'/api/product/code/<string:id>: {e}. Code: {code}')
         return jsonify({"error": "not product finded"}), 404
     
 @routesProducts.route('/api/product/description/<string:description>', methods=['GET'])
