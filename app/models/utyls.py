@@ -1,5 +1,8 @@
 from app.connections.connections import DB_manager
 
+def build_create_sql_sequence(table_name: str, values: list[str]) -> str:
+    return f'INSERT INTO {table_name} ({', '.join(values)}) values ({', '.join(['?'] * len(values))});'
+
 def raise_exception_if_missing_keys(data: dict, keys: list[str], tag: str):
     if not set(keys).issubset(data):
         missing = set(keys) - set(data)

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from app.connections.connections import DB_manager
 from app.helpers.helpers import profit_percentage
-from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db
+from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db, build_create_sql_sequence
 
 # 'modified_at' is not included in data keys because is calculated into the functions
 create_product_keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code"]
@@ -11,8 +11,6 @@ update_department_keys = ["description", "code"]
 create_associates_codes_keys = ["code", "parent_code", "tag"]
 update_associates_codes_keys = ["code", "parent_code", "tag", "original_code"]
 update_siblings_keys = ["sale_type", "cost", "sale_price", "department", "wholesale_price",  "parent_code"]
-
-
 
 def update_siblings_products(data: dict, siblings_codes: list[str]):
     if len(siblings_codes):
@@ -165,11 +163,8 @@ class Products:
         params.append(profit_percentage(data['cost'], data['sale_price']))
         params.append(datetime.now().strftime('%Y-%m-%d'))
 
-        sql = """
-            INSERT INTO products 
-            (code, description, sale_type, cost, sale_price, department, wholesale_price, priority, inventory, parent_code, profit_margin, modified_at) 
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-        """
+        sql = build_create_sql_sequence('products', create_product_keys + ['profit_margin', 'modified_at'])
+        
         execute_sql_and_close_db(sql, params, 'products')
 
         if 'siblings_codes' in data:
@@ -275,7 +270,7 @@ class Products:
             raise_exception_if_missing_keys(data, create_associates_codes_keys, 'create associate_codes')
             
             params = [data[key] for key in create_associates_codes_keys]
-            sql = 'INSERT INTO associates_codes (code, parent_code, tag) values (?, ?, ?);'
+            sql = build_create_sql_sequence('associates_codes', create_associates_codes_keys)
 
             execute_sql_and_close_db(sql, params, 'products')
 

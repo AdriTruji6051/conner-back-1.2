@@ -1,7 +1,7 @@
 import unittest
-from flask_cors import CORS
 
 from run import create_app
+from app.models.utyls import build_create_sql_sequence
 from app.models.products import product_data_is_valid, raise_exception_if_missing_keys, Products
 
 keys_good= ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code"]
@@ -103,6 +103,9 @@ class TestProducts(unittest.TestCase):
             Products.Associates_codes.update({'code' : 'test_code_update', 'parent_code' : '2', 'tag' : 'test tag update', 'original_code' : 'test_code'})
             Products.Associates_codes.get('test_code_update')
             Products.Associates_codes.delete('test_code_update')
+
+    def test_utyls(self):
+        self.assertEqual(build_create_sql_sequence('product_changes', ['code', 'original_code', 'cost', 'sale_price', 'wholesale_price', 'modified_at', 'method']), 'INSERT INTO product_changes (code, original_code, cost, sale_price, wholesale_price, modified_at, method) values (?, ?, ?, ?, ?, ?, ?);')
 
 if __name__ == "__main__":
     unittest.main()

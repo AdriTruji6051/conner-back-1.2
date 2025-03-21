@@ -1,5 +1,5 @@
 from app.connections.connections import DB_manager
-from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db
+from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db, build_create_sql_sequence
 
 allowed_methods = ['POST', 'PUT', 'DELETE']
 create_drawer_logs_keys = ['open_at', 'user_id', 'method', 'transaction_type', 'transaction_id']
@@ -48,7 +48,7 @@ class Analytics:
         def create(data: dict):
             raise_excepciton_if_invalid_drawer_log(data)
 
-            sql = 'INSERT INTO drawer_logs (open_at, user_id, method, transaction_type, transaction_id) values (?, ?, ?, ?, ?);'
+            sql = build_create_sql_sequence('drawer_logs', create_drawer_logs_keys)
             params = [data[key] for key in create_drawer_logs_keys]
 
             execute_sql_and_close_db(sql, params, 'analitycs')
@@ -85,7 +85,7 @@ class Analytics:
         
         def create(data: dict):
             raise_exception_if_missing_keys(data, create_products_changes_keys, 'Create products_changes keys')
-            sql = 'INSERT INTO product_changes (code, original_code, cost, sale_price, wholesale_price, modified_at, method) values (?, ?, ?, ?, ?, ?, ?);'
+            sql = build_create_sql_sequence('product_changes', create_products_changes_keys)
             params = [data[key] for key in create_products_changes_keys]
 
             execute_sql_and_close_db(sql, params, 'analitycs')
