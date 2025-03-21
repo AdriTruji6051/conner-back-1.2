@@ -14,6 +14,7 @@ class DB_builder:
 
         Products_tables.create_departments()
         Products_tables.create_products()
+        Products_tables.create_associates_codes()
     
     @staticmethod
     def create_tickets_db():
@@ -30,11 +31,16 @@ class DB_builder:
         conn = sqlite3.connect(Config.ANALITYCS_DB_DIR)
         conn.close()
 
+        Analitycs_tables.create_drawer_logs()
+        Analitycs_tables.create_products_changes()
+
     @staticmethod
     def create_config_db():
         os.makedirs(os.path.dirname(Config.CONFIG_DB_DIR), exist_ok=True)
         conn = sqlite3.connect(Config.CONFIG_DB_DIR)
         conn.close()
+
+
 # DB Manager methods
 class DB_manager:
     @staticmethod
@@ -146,7 +152,7 @@ class Products_tables:
             db.execute(sql)
             db.commit()
         except Exception as e:
-            raise "Couldn't create departments table"
+            raise Exception(f"Couldn't create departments table: {e}")
         finally:
             DB_manager.close_products_db()
 
@@ -177,7 +183,7 @@ class Products_tables:
             db.execute(sql)
             db.commit()
         except Exception as e:
-            raise "Couldn't create products table"
+            raise   Exception(f"Couldn't create products table: {e}")
         finally:
             DB_manager.close_products_db()
 
@@ -199,7 +205,7 @@ class Products_tables:
             db.execute(sql)
             db.commit()
         except Exception as e:
-            raise "Couldn't create associates_codes table"
+            raise Exception(f"Couldn't create associates_codes table: {e}")
         finally:
             DB_manager.close_products_db()
 
@@ -228,7 +234,7 @@ class Tickets_tables:
             db.execute(sql)
             db.commit()
         except Exception as e:
-            raise "Couldn't create tickets table"
+            raise Exception(f"Couldn't create tickets table:  {e}")
         finally:
             DB_manager.close_tickets_db()
 
@@ -255,6 +261,64 @@ class Tickets_tables:
             db.execute(sql)
             db.commit()
         except Exception as e:
-            raise "Couldn't create product_in_ticket table"
+            raise Exception(f"Couldn't create product_in_ticket table: {e}")
         finally:
             DB_manager.close_tickets_db()
+
+class Analitycs_tables:
+    @staticmethod
+    def create_products_changes():
+        sql = """
+            CREATE TABLE "products_changes" (
+            "code"	BLOB NOT NULL,
+            "original_code"	TEXT,
+            "cost"	REAL,
+            "sale_price"	REAL NOT NULL,
+            "wholesale_price"	INTEGER,
+            "modified_at"	TEXT NOT NULL,
+            "id"	INTEGER NOT NULL,
+            "method"	TEXT,
+            PRIMARY KEY("id" AUTOINCREMENT)
+        );
+        """
+        db = DB_manager.get_tickets_db()
+
+        try:
+            db.execute(sql)
+            db.commit()
+        except Exception as e:
+            raise Exception(f"Couldn't create product_changes table: {e}")
+        finally:
+            DB_manager.close_tickets_db()
+
+    @staticmethod
+    def create_drawer_logs():
+        sql = """
+            CREATE TABLE "drawer_logs" (
+                "id"	INTEGER NOT NULL,
+                "open_at"	TEXT NOT NULL,
+                "user_id"	INTEGER NOT NULL,
+                "method"	INTEGER NOT NULL,
+                "transaction_type"	INTEGER NOT NULL,
+                "transaction_id"	INTEGER,
+                PRIMARY KEY("id" AUTOINCREMENT)
+            );
+        """
+        db = DB_manager.get_tickets_db()
+
+        try:
+            db.execute(sql)
+            db.commit()
+        except Exception as e:
+            raise Exception(f"Couldn't create drawer_logs table: {e}")
+        finally:
+            DB_manager.close_tickets_db()
+
+class Config_tables:
+    @staticmethod
+    def create_ticket_text():
+        return
+    
+    @staticmethod
+    def create_users():
+        return

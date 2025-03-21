@@ -16,7 +16,7 @@ def get_product_by_id(code):
         return jsonify({"error": "not product finded"}), 404
     
 @routesProducts.route('/api/product/description/<string:description>', methods=['GET'])
-def search_products_by_description(description):
+def get_product_by_description(description):
     try:
         ans = Products.get_by_description(description)
         if len(ans) < 1:

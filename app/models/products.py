@@ -2,6 +2,7 @@ from datetime import datetime
 
 from app.connections.connections import DB_manager
 from app.helpers.helpers import profit_percentage
+from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db
 
 # 'modified_at' is not included in data keys because is calculated into the functions
 create_product_keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code"]
@@ -11,17 +12,7 @@ create_associates_codes_keys = ["code", "parent_code", "tag"]
 update_associates_codes_keys = ["code", "parent_code", "tag", "original_code"]
 update_siblings_keys = ["sale_type", "cost", "sale_price", "department", "wholesale_price",  "parent_code"]
 
-def raise_exception_if_missing_keys(data: dict, keys: list[str], tag: str):
-    if not set(keys).issubset(data):
-        missing = set(keys) - set(data)
-        raise KeyError(f'Keys {missing} are missing in {tag}')
-    
-def execute_sql_and_close_db(sql: str, params: list) -> None:
-    db = DB_manager.get_products_db()
-    db.execute("PRAGMA foreign_keys = ON;")
-    db.execute(sql, params)
-    db.commit()
-    DB_manager.close_products_db()
+
 
 def update_siblings_products(data: dict, siblings_codes: list[str]):
     if len(siblings_codes):
@@ -179,7 +170,7 @@ class Products:
             (code, description, sale_type, cost, sale_price, department, wholesale_price, priority, inventory, parent_code, profit_margin, modified_at) 
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
-        execute_sql_and_close_db(sql, params)
+        execute_sql_and_close_db(sql, params, 'products')
 
         if 'siblings_codes' in data:
             update_siblings_products(data, data['siblings_codes'])
@@ -200,7 +191,7 @@ class Products:
             wholesale_price = ?, priority = ?, inventory = ?, parent_code = ?, profit_margin = ?, modified_at = ? 
             WHERE code = ?;
         """
-        execute_sql_and_close_db(sql, params)
+        execute_sql_and_close_db(sql, params, 'products')
 
         if 'siblings_codes' in data:
             update_siblings_products(data, data['siblings_codes'])
@@ -208,7 +199,7 @@ class Products:
     @staticmethod
     def delete(code: str) -> None:
         sql = 'DELETE FROM products WHERE code = ?;'
-        execute_sql_and_close_db(sql, [code])
+        execute_sql_and_close_db(sql, [code], 'products')
     
     class Departments:
         @staticmethod
@@ -244,19 +235,19 @@ class Products:
         @staticmethod
         def create(description: str) -> None:
             sql = 'INSERT INTO departments (description) values (?);'
-            execute_sql_and_close_db(sql, [description])
+            execute_sql_and_close_db(sql, [description], 'products')
 
         @staticmethod
         def update(data: dict): 
             raise_exception_if_missing_keys(data, update_department_keys, 'update departments')
             params = [data[key] for key in update_department_keys]
             sql = 'UPDATE departments SET description = ? WHERE code = ?;'
-            execute_sql_and_close_db(sql, params)
+            execute_sql_and_close_db(sql, params, 'products')
         
         @staticmethod
         def delete(code: str) -> None:
             sql = 'DELETE FROM departments WHERE code = ?;'
-            execute_sql_and_close_db(sql, [code])
+            execute_sql_and_close_db(sql, [code], 'products')
         
     class Associates_codes:
         @staticmethod
@@ -286,7 +277,7 @@ class Products:
             params = [data[key] for key in create_associates_codes_keys]
             sql = 'INSERT INTO associates_codes (code, parent_code, tag) values (?, ?, ?);'
 
-            execute_sql_and_close_db(sql, params)
+            execute_sql_and_close_db(sql, params, 'products')
 
         @staticmethod
         def update(data: dict) -> None:
@@ -295,9 +286,9 @@ class Products:
             params = [data[key] for key in update_associates_codes_keys]
             sql = 'UPDATE associates_codes SET code = ?, parent_code = ?, tag = ? WHERE code = ?;'
 
-            execute_sql_and_close_db(sql, params)
+            execute_sql_and_close_db(sql, params, 'products')
         
         @staticmethod
         def delete(code: str) -> None:
             sql = 'DELETE FROM associates_codes WHERE code = ?;'
-            execute_sql_and_close_db(sql, [code])
+            execute_sql_and_close_db(sql, [code], 'products')
