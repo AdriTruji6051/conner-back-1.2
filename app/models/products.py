@@ -1,8 +1,9 @@
 from datetime import datetime
 
+from app.models.analitycs import Analytics, create_products_changes_keys
 from app.connections.connections import DB_manager
 from app.helpers.helpers import profit_percentage
-from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db, build_create_sql_sequence
+from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db, build_create_sql_sequence, build_update_sql_sequence
 
 # 'modified_at' is not included in data keys because is calculated into the functions
 create_product_keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code"]
@@ -43,12 +44,26 @@ def product_data_is_valid(data: dict, check_update_product_keys: bool = False) -
     if(data['sale_type'] != 'U' and data['sale_type'] != 'D'):
         raise ValueError('Data sended is invalid -> sale_type must have values of "U" or "D"')
 
+def build_product_log_dict(data: dict, method: str, modified_date: str) -> dict:
+    change_log = dict()
+    # Using all the keys, except by the last three because they are not in data dict
+    for key in create_products_changes_keys[:len(create_products_changes_keys) - 3]:
+        change_log[key] = data[key]
+    
+    change_log['original_code'] = None
+    change_log['modified_at'] = modified_date
+    change_log['method'] = method
+    if 'original_code' in data:
+        change_log['original_code'] = data['original_code']
+
+    return change_log
+
 class Products:
     @staticmethod
     def get(code: str) -> dict:
         # Check if code is in associates codes (linked products to retrieve the parent data product),
         # if not, search if the product is the main product
-        tag = '' # Used for linked products
+        tag = '' # Used for label at linked products
         id_associate = code
         is_associate = False
 
@@ -156,16 +171,18 @@ class Products:
     @staticmethod
     def create(data: dict) -> None:
         product_data_is_valid(data)
-
+        modified_date = datetime.now().strftime('%Y-%m-%d')
         params = [data[key] for key in create_product_keys]
 
         # Profit and modifiet_at are calculated inside the server, they don't have to be sent by the client
         params.append(profit_percentage(data['cost'], data['sale_price']))
-        params.append(datetime.now().strftime('%Y-%m-%d'))
+        params.append(modified_date)
 
         sql = build_create_sql_sequence('products', create_product_keys + ['profit_margin', 'modified_at'])
         
         execute_sql_and_close_db(sql, params, 'products')
+
+        Analytics.Products_changes.create(build_product_log_dict(data, 'PUT', modified_date))
 
         if 'siblings_codes' in data:
             update_siblings_products(data, data['siblings_codes'])
@@ -173,20 +190,19 @@ class Products:
     @staticmethod
     def update(data: dict):
         product_data_is_valid(data=data, check_update_product_keys=True)
-        
+        modified_date = datetime.now().strftime('%Y-%m-%d')
         # 'original_code' isn't used because it is appended at the last place
-        params = [data[key] for key in create_product_keys[:len(update_product_keys) -1]]
+        params = [data[key] for key in update_product_keys[:len(update_product_keys) -1]]
 
         params.append(profit_percentage(data['cost'], data['sale_price']))
-        params.append(datetime.now().strftime('%Y-%m-%d'))
+        params.append(modified_date)
         params.append(data['original_code'])
 
-        sql = """
-            UPDATE products SET code = ?, description = ?, sale_type = ?, cost = ?,  sale_price = ?, department = ?, 
-            wholesale_price = ?, priority = ?, inventory = ?, parent_code = ?, profit_margin = ?, modified_at = ? 
-            WHERE code = ?;
-        """
+        update_keys = create_product_keys[:len(update_product_keys) -1] + ['profit_margin', 'modified_at']
+        sql = build_update_sql_sequence('products', update_keys, 'code')
         execute_sql_and_close_db(sql, params, 'products')
+        
+        Analytics.Products_changes.create(build_product_log_dict(data, 'PUT', modified_date))
 
         if 'siblings_codes' in data:
             update_siblings_products(data, data['siblings_codes'])
@@ -279,7 +295,8 @@ class Products:
             raise_exception_if_missing_keys(data, update_associates_codes_keys, 'create associate_codes')
             
             params = [data[key] for key in update_associates_codes_keys]
-            sql = 'UPDATE associates_codes SET code = ?, parent_code = ?, tag = ? WHERE code = ?;'
+            update_keys = update_associates_codes_keys[:len(update_associates_codes_keys) - 1]
+            sql = build_update_sql_sequence('associates_codes', update_keys, 'code')
 
             execute_sql_and_close_db(sql, params, 'products')
         

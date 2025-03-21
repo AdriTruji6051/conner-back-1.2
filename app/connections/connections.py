@@ -173,7 +173,7 @@ class Products_tables:
                 "profit_margin"	INTEGER,
                 "parent_code"	TEXT,
                 PRIMARY KEY("code"),
-                FOREIGN KEY("department") REFERENCES "departments"("code")
+                FOREIGN KEY("department") REFERENCES "departments"("code") ON UPDATE CASCADE ON DELETE SET NULL
             );
             """
         
@@ -195,7 +195,7 @@ class Products_tables:
                 "parent_code"	TEXT NOT NULL,
                 "tag"	TEXT,
                 PRIMARY KEY("code"),
-                FOREIGN KEY("parent_code") REFERENCES "products"("code")
+                FOREIGN KEY("parent_code") REFERENCES "products"("code") ON UPDATE CASCADE ON DELETE CASCADE
             );
             """
         
@@ -270,18 +270,18 @@ class Analitycs_tables:
     def create_products_changes():
         sql = """
             CREATE TABLE "products_changes" (
-            "code"	BLOB NOT NULL,
+            "id"	INTEGER NOT NULL,
+            "code"	TEXT NOT NULL,
             "original_code"	TEXT,
             "cost"	REAL,
             "sale_price"	REAL NOT NULL,
             "wholesale_price"	INTEGER,
             "modified_at"	TEXT NOT NULL,
-            "id"	INTEGER NOT NULL,
             "method"	TEXT,
             PRIMARY KEY("id" AUTOINCREMENT)
         );
         """
-        db = DB_manager.get_tickets_db()
+        db = DB_manager.get_analitycs_db()
 
         try:
             db.execute(sql)
@@ -289,7 +289,7 @@ class Analitycs_tables:
         except Exception as e:
             raise Exception(f"Couldn't create product_changes table: {e}")
         finally:
-            DB_manager.close_tickets_db()
+            DB_manager.close_analitycs_db()
 
     @staticmethod
     def create_drawer_logs():
@@ -304,7 +304,7 @@ class Analitycs_tables:
                 PRIMARY KEY("id" AUTOINCREMENT)
             );
         """
-        db = DB_manager.get_tickets_db()
+        db = DB_manager.get_analitycs_db()
 
         try:
             db.execute(sql)
@@ -312,7 +312,7 @@ class Analitycs_tables:
         except Exception as e:
             raise Exception(f"Couldn't create drawer_logs table: {e}")
         finally:
-            DB_manager.close_tickets_db()
+            DB_manager.close_analitycs_db()
 
 class Config_tables:
     @staticmethod
