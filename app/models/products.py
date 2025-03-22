@@ -24,26 +24,6 @@ def update_siblings_products(data: dict, siblings_codes: list[str]):
             else:
                 continue     
 
-# raise an error if data is not valid
-def product_data_is_valid(data: dict, check_update_product_keys: bool = False) -> None:
-
-    raise_exception_if_missing_keys(data, create_product_keys, 'create product')
-    
-    if check_update_product_keys:
-        raise_exception_if_missing_keys(data, update_product_keys, 'update product')
-    
-    if(data['cost'] < 0):
-        raise ValueError('Data sended is invalid -> Cost must be greater than zero')
-    
-    if(data['cost'] > data['sale_price']):
-        raise ValueError('Data sended is invalid -> sale_price must be greater than cost')
-    
-    if(data['wholesale_price'] > data['sale_price']): 
-        raise ValueError('Data sended is invalid -> sale_price must be greater than wholesale_price')
-    
-    if(data['sale_type'] != 'U' and data['sale_type'] != 'D'):
-        raise ValueError('Data sended is invalid -> sale_type must have values of "U" or "D"')
-
 def build_product_log_dict(data: dict, method: str, modified_date: str) -> dict:
     change_log = dict()
     # Using all the keys, except by the last three because they are not in data dict
@@ -59,6 +39,27 @@ def build_product_log_dict(data: dict, method: str, modified_date: str) -> dict:
     return change_log
 
 class Products:
+    # raise an error if data is not valid
+    @staticmethod
+    def product_data_is_valid(data: dict, check_update_product_keys: bool = False) -> None:
+
+        raise_exception_if_missing_keys(data, create_product_keys, 'create product')
+        
+        if check_update_product_keys:
+            raise_exception_if_missing_keys(data, update_product_keys, 'update product')
+        
+        if(data['cost'] < 0):
+            raise ValueError('Data sended is invalid -> Cost must be greater than zero')
+        
+        if(data['cost'] > data['sale_price']):
+            raise ValueError('Data sended is invalid -> sale_price must be greater than cost')
+        
+        if(data['wholesale_price'] > data['sale_price']): 
+            raise ValueError('Data sended is invalid -> sale_price must be greater than wholesale_price')
+        
+        if(data['sale_type'] != 'U' and data['sale_type'] != 'D'):
+            raise ValueError('Data sended is invalid -> sale_type must have values of "U" or "D"')
+
     @staticmethod
     def get(code: str) -> dict:
         # Check if code is in associates codes (linked products to retrieve the parent data product),
@@ -170,7 +171,7 @@ class Products:
 
     @staticmethod
     def create(data: dict) -> None:
-        product_data_is_valid(data)
+        Products.product_data_is_valid(data)
         modified_date = datetime.now().strftime('%Y-%m-%d')
         params = [data[key] for key in create_product_keys]
 
@@ -182,14 +183,14 @@ class Products:
         
         execute_sql_and_close_db(sql, params, 'products')
 
-        Analytics.Products_changes.create(build_product_log_dict(data, 'PUT', modified_date))
+        Analytics.Products_changes.create(build_product_log_dict(data, 'POST', modified_date))
 
         if 'siblings_codes' in data:
             update_siblings_products(data, data['siblings_codes'])
 
     @staticmethod
     def update(data: dict):
-        product_data_is_valid(data=data, check_update_product_keys=True)
+        Products.product_data_is_valid(data=data, check_update_product_keys=True)
         modified_date = datetime.now().strftime('%Y-%m-%d')
         # 'original_code' isn't used because it is appended at the last place
         params = [data[key] for key in update_product_keys[:len(update_product_keys) -1]]

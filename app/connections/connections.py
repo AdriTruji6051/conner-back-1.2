@@ -40,6 +40,8 @@ class DB_builder:
         conn = sqlite3.connect(Config.CONFIG_DB_DIR)
         conn.close()
 
+        Config_tables.create_ticket_text()
+        Config_tables.create_users()
 
 # DB Manager methods
 class DB_manager:
@@ -74,66 +76,56 @@ class DB_manager:
 
     @staticmethod
     def get_products_db():
-        try:
-            if 'products_db' not in g:
-                g.db = sqlite3.connect(Config.PRODUCTS_DB_DIR)
-                g.db.row_factory = sqlite3.Row
-            return g.db
-        
-        except Exception as e:
-            raise(e)
+        if 'products_db' not in g:
+            g.db = sqlite3.connect(Config.PRODUCTS_DB_DIR)
+            g.db.row_factory = sqlite3.Row
+        return g.db
     
     @staticmethod
     def close_products_db():
-        try:
-            db = g.pop('products_db', None)
-            if db is not None:
-                db.close()
-
-        except Exception as e:
-            raise(e)
+        db = g.pop('products_db', None)
+        if db is not None:
+            db.close()
         
     @staticmethod
     def get_tickets_db():
-        try:
-            if 'tickets_db' not in g:
-                g.db = sqlite3.connect(Config.TICKETS_DB_DIR)
-                g.db.row_factory = sqlite3.Row
-            return g.db
-        
-        except Exception as e:
-            raise(e)
+        if 'tickets_db' not in g:
+            g.db = sqlite3.connect(Config.TICKETS_DB_DIR)
+            g.db.row_factory = sqlite3.Row
+        return g.db
     
     @staticmethod
     def close_tickets_db():
-        try:
-            db = g.pop('tickets_db', None)
-            if db is not None:
-                db.close()
-
-        except Exception as e:
-            raise(e)
+        db = g.pop('tickets_db', None)
+        if db is not None:
+            db.close()
         
     @staticmethod
     def get_analitycs_db():
-        try:
-            if 'analitycs_db' not in g:
-                g.db = sqlite3.connect(Config.ANALITYCS_DB_DIR)
-                g.db.row_factory = sqlite3.Row
-            return g.db
-        
-        except Exception as e:
-            raise(e)
+        if 'analitycs_db' not in g:
+            g.db = sqlite3.connect(Config.ANALITYCS_DB_DIR)
+            g.db.row_factory = sqlite3.Row
+        return g.db
+    
     
     @staticmethod
     def close_analitycs_db():
-        try:
-            db = g.pop('analitycs_db', None)
-            if db is not None:
-                db.close()
+        db = g.pop('analitycs_db', None)
+        if db is not None:
+            db.close()
 
-        except Exception as e:
-            raise(e)
+    @staticmethod
+    def get_config_db():
+        if 'config_db' not in g:
+            g.db = sqlite3.connect(Config.CONFIG_DB_DIR)
+            g.db.row_factory = sqlite3.Row
+        return g.db
+    
+    @staticmethod
+    def close_config_db():
+        db = g.pop('config_db', None)
+        if db is not None:
+            db.close()
         
 class Products_tables:
     @staticmethod
@@ -275,7 +267,7 @@ class Analitycs_tables:
             "original_code"	TEXT,
             "cost"	REAL,
             "sale_price"	REAL NOT NULL,
-            "wholesale_price"	INTEGER,
+            "wholesale_price"	REAL,
             "modified_at"	TEXT NOT NULL,
             "method"	TEXT,
             PRIMARY KEY("id" AUTOINCREMENT)
@@ -317,8 +309,46 @@ class Analitycs_tables:
 class Config_tables:
     @staticmethod
     def create_ticket_text():
-        return
+        sql = """
+            CREATE TABLE "ticket_text" (
+                "id"	INTEGER NOT NULL,
+                "text"	TEXT NOT NULL,
+                "font"	TEXT NOT NULL,
+                "size"	INTEGER NOT NULL,
+                "weight"	INTEGER NOT NULL,
+                "line"	INTEGER NOT NULL,
+                "is_header"	INTEGER NOT NULL,
+                PRIMARY KEY("id" AUTOINCREMENT)
+            );
+        """
+        db = DB_manager.get_config_db()
+
+        try:
+            db.execute(sql)
+            db.commit()
+        except Exception as e:
+            raise Exception(f"Couldn't create ticket_text table: {e}")
+        finally:
+            DB_manager.close_config_db()
     
     @staticmethod
     def create_users():
-        return
+        sql = """
+            CREATE TABLE "users" (
+                "id"	INTEGER NOT NULL,
+                "user"	TEXT NOT NULL UNIQUE,
+                "user_name"	TEXT NOT NULL,
+                "password"	TEXT NOT NULL,
+                "role_type"	TEXT NOT NULL,
+                PRIMARY KEY("id" AUTOINCREMENT)
+            );
+        """
+        db = DB_manager.get_config_db()
+
+        try:
+            db.execute(sql)
+            db.commit()
+        except Exception as e:
+            raise Exception(f"Couldn't create users table: {e}")
+        finally:
+            DB_manager.close_config_db()

@@ -2,7 +2,7 @@ import unittest
 
 from run import create_app
 from app.models.utyls import build_create_sql_sequence, build_update_sql_sequence
-from app.models.products import product_data_is_valid, raise_exception_if_missing_keys, Products
+from app.models.products import raise_exception_if_missing_keys, Products
 from app.connections.connections import DB_manager
 
 keys_good= ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code"]
@@ -74,9 +74,9 @@ class TestProducts(unittest.TestCase):
 
     # App context is used to manage the same db connections with flask, but used before of the app running 
     def test_not_in_class_func(self):
-        product_data_is_valid(product_good)
+        Products.product_data_is_valid(product_good)
         with self.assertRaises(ValueError):
-            product_data_is_valid(product_bad)
+            Products.product_data_is_valid(product_bad)
 
         raise_exception_if_missing_keys(product_good, keys_good, 'test keys tag')
         with self.assertRaises(KeyError):
