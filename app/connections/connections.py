@@ -3,6 +3,33 @@ import sqlite3
 from flask import g
 import os 
 
+def execute_table_sql(sql: str, data_base: str, table_name: str = 'Not specified'):
+    allowed_data_bases = ['products', 'analytics', 'config', 'tickets']
+
+    if data_base not in allowed_data_bases:
+        raise Exception('Specified data_base value is not allowed')
+    
+    db = object()
+
+    if data_base == allowed_data_bases[0]:
+        db = DB_manager.get_products_db()
+    elif data_base == allowed_data_bases[1]:
+        db = DB_manager.get_analitycs_db()
+    elif data_base == allowed_data_bases[2]:
+        db = DB_manager.get_config_db()
+    elif data_base == allowed_data_bases[3]:
+        db == DB_manager.get_tickets_db()
+
+    try:
+        db.execute(sql)
+        db.commit()
+    except Exception as e:
+        raise Exception(f"Couldn't create {table_name} table: {e}")
+    finally:
+        DB_manager.close_products_db()
+        DB_manager.close_tickets_db()
+        DB_manager.close_analitycs_db()
+
 from config.config import Config
 # DB Builder methods
 class DB_builder:
@@ -41,6 +68,7 @@ class DB_builder:
         conn.close()
 
         Config_tables.create_ticket_text()
+        Config_tables.create_ticket_font_configs()
         Config_tables.create_users()
 
 # DB Manager methods
@@ -137,16 +165,7 @@ class Products_tables:
                 PRIMARY KEY("code" AUTOINCREMENT)
             );
             """
-        
-        db = DB_manager.get_products_db()
-
-        try:
-            db.execute(sql)
-            db.commit()
-        except Exception as e:
-            raise Exception(f"Couldn't create departments table: {e}")
-        finally:
-            DB_manager.close_products_db()
+        execute_table_sql(sql, 'products', 'departments')
 
     @staticmethod
     def create_products():
@@ -168,16 +187,7 @@ class Products_tables:
                 FOREIGN KEY("department") REFERENCES "departments"("code") ON UPDATE CASCADE ON DELETE SET NULL
             );
             """
-        
-        db = DB_manager.get_products_db()
-
-        try:
-            db.execute(sql)
-            db.commit()
-        except Exception as e:
-            raise   Exception(f"Couldn't create products table: {e}")
-        finally:
-            DB_manager.close_products_db()
+        execute_table_sql(sql, 'products', 'products')
 
     @staticmethod
     def create_associates_codes():
@@ -190,16 +200,7 @@ class Products_tables:
                 FOREIGN KEY("parent_code") REFERENCES "products"("code") ON UPDATE CASCADE ON DELETE CASCADE
             );
             """
-        
-        db = DB_manager.get_products_db()
-
-        try:
-            db.execute(sql)
-            db.commit()
-        except Exception as e:
-            raise Exception(f"Couldn't create associates_codes table: {e}")
-        finally:
-            DB_manager.close_products_db()
+        execute_table_sql(sql, 'products', 'associates_codes')
 
 class Tickets_tables:
     @staticmethod
@@ -273,15 +274,7 @@ class Analitycs_tables:
             PRIMARY KEY("id" AUTOINCREMENT)
         );
         """
-        db = DB_manager.get_analitycs_db()
-
-        try:
-            db.execute(sql)
-            db.commit()
-        except Exception as e:
-            raise Exception(f"Couldn't create product_changes table: {e}")
-        finally:
-            DB_manager.close_analitycs_db()
+        execute_table_sql(sql, 'analytics', 'products_changes')
 
     @staticmethod
     def create_drawer_logs():
@@ -296,40 +289,36 @@ class Analitycs_tables:
                 PRIMARY KEY("id" AUTOINCREMENT)
             );
         """
-        db = DB_manager.get_analitycs_db()
-
-        try:
-            db.execute(sql)
-            db.commit()
-        except Exception as e:
-            raise Exception(f"Couldn't create drawer_logs table: {e}")
-        finally:
-            DB_manager.close_analitycs_db()
+        execute_table_sql(sql, 'analytics', 'drawer_logs')
 
 class Config_tables:
+    @staticmethod
+    def create_ticket_font_configs():
+        sql = """
+            CREATE TABLE "ticket_font_configs" (
+                "id"	INTEGER NOT NULL,
+                "font"	TEXT NOT NULL,
+                "weigh"	TEXT NOT NULL,
+                "size"	INTEGER NOT NULL,
+                PRIMARY KEY("id" AUTOINCREMENT)
+            );
+        """
+        execute_table_sql(sql, 'config', 'ticket_font_configs')
+
     @staticmethod
     def create_ticket_text():
         sql = """
             CREATE TABLE "ticket_text" (
                 "id"	INTEGER NOT NULL,
                 "text"	TEXT NOT NULL,
-                "font"	TEXT NOT NULL,
-                "size"	INTEGER NOT NULL,
-                "weight"	INTEGER NOT NULL,
                 "line"	INTEGER NOT NULL,
                 "is_header"	INTEGER NOT NULL,
-                PRIMARY KEY("id" AUTOINCREMENT)
+                "font_config"	INTEGER,
+                PRIMARY KEY("id" AUTOINCREMENT),
+                FOREIGN KEY("font_config") REFERENCES "ticket_font_configs"("id") ON UPDATE CASCADE ON DELETE SET NULL
             );
         """
-        db = DB_manager.get_config_db()
-
-        try:
-            db.execute(sql)
-            db.commit()
-        except Exception as e:
-            raise Exception(f"Couldn't create ticket_text table: {e}")
-        finally:
-            DB_manager.close_config_db()
+        execute_table_sql(sql, 'config', 'ticket_text')
     
     @staticmethod
     def create_users():
@@ -343,12 +332,4 @@ class Config_tables:
                 PRIMARY KEY("id" AUTOINCREMENT)
             );
         """
-        db = DB_manager.get_config_db()
-
-        try:
-            db.execute(sql)
-            db.commit()
-        except Exception as e:
-            raise Exception(f"Couldn't create users table: {e}")
-        finally:
-            DB_manager.close_config_db()
+        execute_table_sql(sql, 'config', 'users')
