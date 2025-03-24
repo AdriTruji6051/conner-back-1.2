@@ -1,6 +1,6 @@
 from app.connections.connections import DB_manager
 
-def build_create_sql_sequence(table_name: str, values: list[str]) -> str:
+def build_insert_sql_sequence(table_name: str, values: list[str]) -> str:
     return f'INSERT INTO {table_name} ({', '.join(values)}) values ({', '.join(['?'] * len(values))});'
 
 def build_update_sql_sequence(table_name: str, values: list[str], where_value: str) -> str:
@@ -28,6 +28,7 @@ def execute_sql_and_close_db(sql: str, params: list, data_base: str) -> None:
 
     elif data_base == allowed_data_bases[2]:
         db = DB_manager.get_config_db()
+        db.execute("PRAGMA foreign_keys = ON;")
 
     elif data_base == allowed_data_bases[3]:
         db = DB_manager.get_tickets_db()

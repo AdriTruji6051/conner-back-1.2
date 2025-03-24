@@ -3,7 +3,7 @@ from datetime import datetime
 from app.models.analitycs import Analytics, create_products_changes_keys
 from app.connections.connections import DB_manager
 from app.helpers.helpers import profit_percentage
-from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db, build_create_sql_sequence, build_update_sql_sequence
+from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db, build_insert_sql_sequence, build_update_sql_sequence
 
 # 'modified_at' is not included in data keys because is calculated into the functions
 create_product_keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code"]
@@ -179,7 +179,7 @@ class Products:
         params.append(profit_percentage(data['cost'], data['sale_price']))
         params.append(modified_date)
 
-        sql = build_create_sql_sequence('products', create_product_keys + ['profit_margin', 'modified_at'])
+        sql = build_insert_sql_sequence('products', create_product_keys + ['profit_margin', 'modified_at'])
         
         execute_sql_and_close_db(sql, params, 'products')
 
@@ -210,6 +210,9 @@ class Products:
 
     @staticmethod
     def delete(code: str) -> None:
+        if not code:
+            raise ValueError('Not code sended')
+        
         sql = 'DELETE FROM products WHERE code = ?;'
         execute_sql_and_close_db(sql, [code], 'products')
     
@@ -258,6 +261,9 @@ class Products:
         
         @staticmethod
         def delete(code: str) -> None:
+            if not code:
+                raise ValueError('Not code sended')
+            
             sql = 'DELETE FROM departments WHERE code = ?;'
             execute_sql_and_close_db(sql, [code], 'products')
         
@@ -287,7 +293,7 @@ class Products:
             raise_exception_if_missing_keys(data, create_associates_codes_keys, 'create associate_codes')
             
             params = [data[key] for key in create_associates_codes_keys]
-            sql = build_create_sql_sequence('associates_codes', create_associates_codes_keys)
+            sql = build_insert_sql_sequence('associates_codes', create_associates_codes_keys)
 
             execute_sql_and_close_db(sql, params, 'products')
 
@@ -303,5 +309,8 @@ class Products:
         
         @staticmethod
         def delete(code: str) -> None:
+            if not code:
+                raise ValueError('Not code sended')
+            
             sql = 'DELETE FROM associates_codes WHERE code = ?;'
             execute_sql_and_close_db(sql, [code], 'products')
