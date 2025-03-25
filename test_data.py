@@ -230,3 +230,46 @@ associates_codes_update_after_update = [
         'original_code' : 'ass_4_AU',
     },
 ]
+
+users_create_array = [
+    {
+        'user': 'erika123', 
+        'user_name': 'Erika Trujillo', 
+        'password': '123456', 
+        'role_type': 'user', 
+    },
+    {
+        'user': 'adrian123', 
+        'user_name': 'Adrian Ramirez', 
+        'password': '654321', 
+        'role_type': 'admin', 
+    },
+    {
+        'user': '12jimin34', 
+        'user_name': 'Jimin Robles', 
+        'password': 'password', 
+        'role_type': 'invited', 
+    },
+]
+
+users_update_array_missing_id = [
+    {
+        'user': 'erika123_UPDATE', 
+        'user_name': 'Erika Trujillo UPDATE', 
+        'password': '123456UPDATE', 
+        'role_type': 'admin', 
+    },
+    {
+        'user': 'adrian123UPDATE', 
+        'user_name': 'Adrian Ramirez UPDATE', 
+        'password': '654321', 
+        'role_type': 'admin', 
+    },
+    {
+        'user': '12jimin34UPDATE', 
+        'user_name': 'Jimin Robles UPDATE', 
+        'password': 'passwordUPDATE', 
+        'role_type': 'admin', 
+    },
+]
+

@@ -56,18 +56,18 @@ class Config:
             execute_sql_and_close_db(sql, params, 'config')
         
         @staticmethod
-        def update(data: dict):
-            raise_exception_if_missing_keys(data, update_keys, 'create users data')
+        def update(data: dict):            
             update_keys = update_user_keys[:len(update_user_keys) - 1]
+            raise_exception_if_missing_keys(data, update_user_keys, 'update users data')
 
             sql = build_update_sql_sequence('users', update_keys, 'id')
-            params = [data[key] for key in create_user_keys]
+            params = [data[key] for key in update_user_keys]
             execute_sql_and_close_db(sql, params, 'config')
         
         @staticmethod
-        def delete(id: dict):
+        def delete(id: int):
             sql = 'DELETE FROM users WHERE id = ?;'
-            execute_sql_and_close_db(sql, [id])
+            execute_sql_and_close_db(sql, [id], 'config')
 
     class Ticket_text:
         @staticmethod
