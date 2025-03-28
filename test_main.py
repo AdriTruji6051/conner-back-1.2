@@ -4,7 +4,10 @@ from test_data import *
 
 from run import create_app
 from app.models.products import Products
+from app.models.analytics import Analytics
 from app.models.config import Config
+from app.models.tickets import Tickets
+
 from app.connections.connections import DB_manager
 
 SHOW_GET_LOGS = False
@@ -15,6 +18,12 @@ def db_builder():
     with app.app_context():
         if(not DB_manager.all_db_exist()):
             DB_manager.create_missing_db()
+
+def show_logs(logs_obj_name: str, logs: list):
+    if SHOW_GET_LOGS:
+        print(f'\n\n{logs_obj_name} OBJECT tests results:')
+        for i in range(len(logs)):
+            print(f'Log {i + 1}° -> {str(logs[i])[:LOGS_CHAR_LEN]} ... LOG TYPE: {type(logs[i])}')
 
 class Main_test(unittest.TestCase):
     app = create_app()
@@ -32,7 +41,9 @@ class Main_test(unittest.TestCase):
         
         return users_id
     
-    def test_Products_obj(self):
+
+    
+    def test_b_Products_obj(self):
         with self.app.app_context():
             #Delete test codes if data base already were running
             logs = list()
@@ -92,10 +103,7 @@ class Main_test(unittest.TestCase):
                 Products.update()
                 Products.delete()
             
-            if SHOW_GET_LOGS:
-                print('\n\nProducts OBJECT tests results:')
-                for i in range(len(logs)):
-                    print(f'Log {i + 1}° -> {str(logs[i])[:LOGS_CHAR_LEN]} ... LOG TYPE: {type(logs[i])}')
+            show_logs('Products', logs)
 
     def test_Config_obj(self):
         with self.app.app_context():
@@ -122,13 +130,31 @@ class Main_test(unittest.TestCase):
                     ans = Config.Users.login(user['user'], user['password'])
                     logs.append(ans)
 
-            if SHOW_GET_LOGS:
-                print('\n\nProducts USERS tests results:')
-                for i in range(len(logs)):
-                    print(f'Log {i + 1}° -> {str(logs[i])[:LOGS_CHAR_LEN]} ... LOG TYPE: {type(logs[i])}')
+            show_logs('Config', logs)
+
+    def test_Analitycs_obj(self):
+        # Product_changes sub object is not tested there because it is called
+        # and tested by Products object
+        with self.app.app_context():
+            logs = list()
+            for obj in drawer_logs_create_array:
+                Analytics.Drawer_logs.create(obj)
+            
+            ans1 = Analytics.Drawer_logs.get_all()
+            ans2 = Analytics.Drawer_logs.get(ans1[0]['id'])
+            logs.append(ans1)
+            logs.append(ans2)
+
+            show_logs('Analytics', logs)
+
+    def test_z_Tickets_obj(self):
+        logs = list()
+        with self.app.app_context():
+            for tickets in tickets_create_array:
+                logs.append(Tickets.create(tickets))
+        
+        show_logs('Tickets', logs)
 
 if __name__ == "__main__":
-    # db builder is not inside test because data bases must 
-    # be initialized before tests execution
     db_builder()
     unittest.main()

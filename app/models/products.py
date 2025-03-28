@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.models.analitycs import Analytics, create_products_changes_keys
+from app.models.analytics import Analytics, create_products_changes_keys
 from app.connections.connections import DB_manager
 from app.helpers.helpers import profit_percentage
 from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db, build_insert_sql_sequence, build_update_sql_sequence
@@ -59,6 +59,50 @@ class Products:
         
         if(data['sale_type'] != 'U' and data['sale_type'] != 'D'):
             raise ValueError('Data sended is invalid -> sale_type must have values of "U" or "D"')
+
+    @staticmethod 
+    def get_update_inventory_params(data: list[dict]) -> list[tuple]:
+        """
+            check if the data could be enough to validate the 
+            data -> Product {}
+        """
+        update_inventory_params_array = list()
+
+        for product in data:
+            product_inventory = 0
+            try:
+                product_inventory = Products.get(product['code'])['inventory']
+            except:
+                product_inventory = None
+            finally:
+                if product_inventory < product['cantity'] and product_inventory != None:
+                    raise Exception(f'Inventory insuficient for product! {product['code'], product['description']}')
+                        
+                if product_inventory != None:
+                    # if the product not has inventory or product has not been finded just continue
+                    continue
+                else:
+                    product_inventory -= product['cantity']
+                    update_inventory_params_array.append((product_inventory, product['code'])) 
+        return update_inventory_params_array
+    
+    @staticmethod
+    def enough_inventory(code: str, cantity: float) -> bool:
+        """ Check if the product with the given code has at least the given cantity in stock. """
+        if cantity < 0:
+            raise ValueError('Cantity must be greater than zero.')
+        
+        product_inventory = 0
+        try:
+            product_inventory = Products.get(code)['inventory']
+        except:
+            # If product not exist, inventory always will be enough.
+            return True
+            
+        if product_inventory < cantity:
+            return False
+        else:           
+            return True
 
     @staticmethod
     def get(code: str) -> dict:
@@ -207,6 +251,19 @@ class Products:
 
         if 'siblings_codes' in data:
             update_siblings_products(data, data['siblings_codes'])
+
+    @staticmethod
+    def update_inventory(code: str, cantity: float):
+        """ Product code and cantity to substract """
+        if Products.enough_inventory(code, cantity):
+            new_inventory = 0
+            try:
+                new_inventory = Products.get(code)['inventory'] - cantity
+            except:
+                new_inventory = None
+                
+            sql = 'UPDATE products SET inventory = ? WHERE code = ?;'
+            execute_sql_and_close_db(sql, [code, new_inventory], 'products')
 
     @staticmethod
     def delete(code: str) -> None:

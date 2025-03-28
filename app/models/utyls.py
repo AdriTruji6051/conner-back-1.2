@@ -11,7 +11,7 @@ def raise_exception_if_missing_keys(data: dict, keys: list[str], description_tag
         missing = set(keys) - set(data)
         raise KeyError(f'Keys {missing} are missing in {description_tag}')
     
-def execute_sql_and_close_db(sql: str, params: list, data_base: str) -> None:
+def execute_sql_and_close_db(sql: str, params: list, data_base: str, execute_many: bool = False) -> None:
     allowed_data_bases = ['products', 'analytics', 'config', 'tickets']
     
     if data_base not in allowed_data_bases:
@@ -34,7 +34,10 @@ def execute_sql_and_close_db(sql: str, params: list, data_base: str) -> None:
         db = DB_manager.get_tickets_db()
         
     try:
-        db.execute(sql, params)
+        if execute_many:
+            db.executemany(sql, params)
+        else:
+            db.execute(sql, params)
         db.commit()
     except Exception as e:
         raise Exception(f"Couldn't execute sql sequence: {sql}. With params: {params}. In the {data_base} database. ERROR: {e}")

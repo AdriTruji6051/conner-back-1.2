@@ -209,12 +209,13 @@ class Tickets_tables:
             CREATE TABLE "tickets" (
                 "id"	INTEGER NOT NULL,
                 "created_at"	TEXT NOT NULL,
+                'modified_at' TEXT,
                 "sub_total"	REAL NOT NULL,
                 "total"	REAL NOT NULL,
                 "profit"	REAL NOT NULL,
                 "articles_count"	INTEGER NOT NULL,
                 "notes"	TEXT,
-                "username"	TEXT NOT NULL, 
+                "user_id"	INTEGER NOT NULL, 
                 "ipv4_sender" TEXT NOT NULL,
                 "discount"	REAL,
                 PRIMARY KEY("id" AUTOINCREMENT)

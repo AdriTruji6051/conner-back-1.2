@@ -273,3 +273,80 @@ users_update_array_missing_id = [
     },
 ]
 
+drawer_logs_create_array = [
+    {
+        'open_at': 'YYYY-MM-DD',
+        'user_id': '1',
+        'method': 'POST', 
+        'transaction_type': 1, 
+        'transaction_id': 10,
+    },
+    {
+        'open_at': 'YYYY-MM-DD',
+        'user_id': '2',
+        'method': 'POST', 
+        'transaction_type': 1, 
+        'transaction_id': 11,
+    },
+    {
+        'open_at': 'YYYY-MM-DD',
+        'user_id': '3',
+        'method': 'DELETE', 
+        'transaction_type': 1, 
+        'transaction_id': 12,
+    },
+    {
+        'open_at': 'YYYY-MM-DD',
+        'user_id': '4',
+        'method': 'PUT', 
+        'transaction_type': 1, 
+        'transaction_id': 13,
+    },
+]
+
+tickets_create_array = [
+    {
+        'sub_total': 300,
+        'total': 400, 
+        'profit': 80,
+        'discount': 0,
+        'articles_count': 12,
+        'notes': 'Testing notes 1',
+        'user_id': 1,
+        'ipv4_sender': '192.168.1.100',
+        'products': [
+                    {
+                        'code': '1',
+                        'description': 'TEST1',
+                        'cantity': 3,
+                        'profit': 10,
+                        'used_wholesale': 1,
+                        'used_price': 20,
+                    },
+                    {
+                        'code': '2',
+                        'description': 'TEST2',
+                        'cantity': 3,
+                        'profit': 10,
+                        'used_wholesale': 1,
+                        'used_price': 20,
+                    },
+                    {
+                        'code': '3',
+                        'description': 'TEST3',
+                        'cantity': 3,
+                        'profit': 10,
+                        'used_wholesale': 1,
+                        'used_price': 20,
+                    },
+                    {
+                        'code': '4',
+                        'description': 'TEST4',
+                        'cantity': 3,
+                        'profit': 10,
+                        'used_wholesale': 1,
+                        'used_price': 20,
+                    },
+        ]
+    }
+]
