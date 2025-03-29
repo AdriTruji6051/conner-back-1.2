@@ -95,10 +95,14 @@ class Products:
         product_inventory = 0
         try:
             product_inventory = Products.get(code)['inventory']
+            # If inventory set to null, return True because the product 
+            # didn't use inventory
+            if not product_inventory:
+                return True
         except:
             # If product not exist, inventory always will be enough.
             return True
-            
+        
         if product_inventory < cantity:
             return False
         else:           
@@ -253,17 +257,8 @@ class Products:
             update_siblings_products(data, data['siblings_codes'])
 
     @staticmethod
-    def update_inventory(code: str, cantity: float):
-        """ Product code and cantity to substract """
-        if Products.enough_inventory(code, cantity):
-            new_inventory = 0
-            try:
-                new_inventory = Products.get(code)['inventory'] - cantity
-            except:
-                new_inventory = None
-                
-            sql = 'UPDATE products SET inventory = ? WHERE code = ?;'
-            execute_sql_and_close_db(sql, [code, new_inventory], 'products')
+    def update_inventoryssss(code: str, cantity: float):
+        return
 
     @staticmethod
     def delete(code: str) -> None:
@@ -272,6 +267,44 @@ class Products:
         
         sql = 'DELETE FROM products WHERE code = ?;'
         execute_sql_and_close_db(sql, [code], 'products')
+
+    @staticmethod
+    def add_inventory(code: str, cantity: float):
+        """ Product code and cantity to substract. """
+        try:
+            query_product = Products.get(code)
+            new_inventory = query_product['inventory'] + cantity
+
+            # If is an associate code, it doesnt manage inventory, so, update his parent inventory
+            if query_product['is_associate']:
+                code = Products.Associates_codes.get_raw_data(code)['parent_code']
+        except:
+            # If no product or inventory is None, (Product not use) return
+            return
+            
+        sql = 'UPDATE products SET inventory = ? WHERE code = ?;'
+        execute_sql_and_close_db(sql, [new_inventory, code], 'products')
+    
+    @staticmethod
+    def remove_inventory(code: str, cantity: float):
+        """ Product code and cantity to substract. """
+        if Products.enough_inventory(code, cantity):
+            new_inventory = 0
+            try:
+                query_product = Products.get(code)
+                new_inventory = query_product['inventory'] - cantity
+
+                # If is an associate code, it doesnt manage inventory, so, update his parent inventory
+                if query_product['is_associate']:
+                    code = Products.Associates_codes.get_raw_data(code)['parent_code']
+            except:
+                new_inventory = None
+                
+            sql = 'UPDATE products SET inventory = ? WHERE code = ?;'
+            execute_sql_and_close_db(sql, [new_inventory, code], 'products')
+        else:
+            raise Exception(f'Not enough inventory for product with code: {code}')
+
     
     class Departments:
         @staticmethod
@@ -344,7 +377,18 @@ class Products:
             
             DB_manager.close_products_db()
             return ans
+        
+        @staticmethod
+        def get_raw_data(code: str) -> dict:
+            sql ='SELECT * FROM associates_codes WHERE code = ?;'
+            ans = DB_manager.get_products_db().execute(sql, [code]).fetchone()
+            DB_manager.close_products_db()
 
+            if not ans:
+                raise Exception('Not associate_code finded')
+            
+            return ans
+        
         @staticmethod
         def create(data: dict) -> None:
             raise_exception_if_missing_keys(data, create_associates_codes_keys, 'create associate_codes')

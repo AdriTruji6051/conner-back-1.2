@@ -93,7 +93,7 @@ class Tickets:
 
             sql = build_insert_sql_sequence('tickets', create_ticket_keys + ['created_at'])
             params = [data[key] for key in create_ticket_keys]
-            params.append(datetime.now().strftime('%Y-%m-%d'))
+            params.append(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
             
             Tickets.Product_in_ticket.create(data['products'], ticket_id)
 
@@ -171,9 +171,11 @@ class Tickets:
             for prod in data:
                 if Products.enough_inventory(prod['code'], prod['cantity']):
                     create_params.append((prod['code'], prod['cantity']))
+                else:
+                    raise Exception(f'The product {prod['code'], prod['description']} not have the enough inventory for create.')
 
             for params in create_params:
-                Products.update_inventory(params[0], params[1])
+                Products.remove_inventory(params[0], params[1])
 
             sql = build_insert_sql_sequence('product_in_ticket', create_product_in_tickets_keys)
 
@@ -205,29 +207,40 @@ class Tickets:
                 except:
                     continue
                 
-                # Change sign, decrement inventory when modify cantity has increase
-                # Increment inventory if cantity has decrement
-                update_cantity = (query_inventory - prod['cantity']) * -1
+                update_cantity = (query_inventory - prod['cantity'])
                 
                 if Products.enough_inventory(prod['code'], update_cantity):
                     update_params.append((prod['code'], update_cantity))
+                else:
+                    raise Exception(f'The product {prod['code'], prod['description']} not have the enough inventory for update.')
 
             for params in update_params:
-                Products.update_inventory(params[0], params[1])
+                if params[1] < 0:
+                    Products.remove_inventory(params[0], params[1] * - 1)
+                else:
+                    Products.add_inventory(params[0], params[1])
 
-            sql = build_insert_sql_sequence('product_in_ticket', create_product_in_tickets_keys)
+            sql = build_update_sql_sequence('product_in_ticket', update_product_in_tickets_keys, 'id')
 
-            params_keys = create_product_in_tickets_keys[:len(create_product_in_tickets_keys) - 1]
             for prod in data:
-                params = [prod[key] for key in params_keys].append(ticket_id)
+                params = [prod[key] for key in update_product_in_tickets_keys]
                 execute_sql_and_close_db(sql, params, 'tickets')
         
         @staticmethod
         def delete(id: int):
+            sql = 'SELECT code, cantity FROM product_in_ticket WHERE id = ?;'
+            product = dict(DB_manager.get_tickets_db().execute(sql, [id]).fetchone())
+
+            if not product:
+                return
+            
+            Products.add_inventory(product['code'], product['cantity'])
+
             sql = 'DELETE FROM product_in_ticket WHERE id = ?;'
             execute_sql_and_close_db(sql, [id], 'tickets')
         
         @staticmethod
         def delete_by_ticket(ticket_id: int):
-            sql = 'DELETE FROM product_in_ticket WHERE ticket_id = ?;'
-            execute_sql_and_close_db(sql, [ticket_id], 'tickets')
+            products_to_delete = Tickets.Product_in_ticket.get_by_ticket(ticket_id)
+            for product in products_to_delete:
+                Tickets.Product_in_ticket.delete(product['id'])

@@ -100,7 +100,7 @@ products_update_good_array = [
         'department' : None,
         'wholesale_price': 8554,
         'priority': 1,
-        'inventory': 1654,
+        'inventory': None,
         'parent_code': None,
         'original_code': '4'
     }
@@ -305,6 +305,8 @@ drawer_logs_create_array = [
 ]
 
 tickets_create_array = [
+    # at this moment of the test, codes of the first test did not exist at database,
+    # so, they do not use inventory
     {
         'sub_total': 300,
         'total': 400, 
@@ -347,6 +349,144 @@ tickets_create_array = [
                         'used_wholesale': 1,
                         'used_price': 20,
                     },
+        ]
+    },
+    # There were using an associate code, so, the inventory at parent product must be modified at testing
+    {
+        'sub_total': 666,
+        'total': 777, 
+        'profit': 55,
+        'discount': 44,
+        'articles_count': 33,
+        'notes': 'Testing notes 2',
+        'user_id': 2,
+        'ipv4_sender': '192.168.1.100',
+        'products': [
+                    {
+                        'code': '11',
+                        'description': 'TEST1',
+                        'cantity': 11,
+                        'profit': 10,
+                        'used_wholesale': 1,
+                        'used_price': 20,
+                    },
+                    {
+                        'code': '22',
+                        'description': 'TEST2',
+                        'cantity': 165,
+                        'profit': 10,
+                        'used_wholesale': 1,
+                        'used_price': 20,
+                    },
+                    {
+                        'code': 'ass_2_U_3',
+                        'description': 'TEST3 ASSOCIATE',
+                        'cantity': 1650,
+                        'profit': 10,
+                        'used_wholesale': 1,
+                        'used_price': 20,
+                    },
+                    {
+                        'code': '44',
+                        'description': 'TEST4',
+                        'cantity': 30,
+                        'profit': 10,
+                        'used_wholesale': 1,
+                        'used_price': 20,
+                    },
+        ]
+    }
+]
+
+tickets_create_bad_array = [
+    # at this moment of the test, the products will not have enough stock
+
+    # Missing keys error
+    {
+        'sub_total': 300,
+        'total': 400, 
+        'profit': 80,
+        'discount': 0,
+        'articles_count': 12,
+    },
+    # Value error in sub_total
+    {
+        'sub_total': 900,
+        'total': 400, 
+        'profit': 80,
+        'discount': 0,
+        'articles_count': 12,
+        'notes': 'Testing notes SUB TOTAL ERROR',
+        'user_id': 1,
+        'ipv4_sender': '192.168.1.100',
+        'products': [
+            {
+                'code': '1',
+                'description': 'TEST1',
+                'cantity': 3,
+                'profit': 10,
+                'used_wholesale': 1,
+                'used_price': 20,
+            }
+        ]
+    },
+    # Negative not valid value error
+    {
+        'sub_total': -400,
+        'total': -400, 
+        'profit': -80,
+        'discount': -10,
+        'articles_count': -12,
+        'notes': 'Testing notes ERROR NEGATIVE VALUES',
+        'user_id': 1,
+        'ipv4_sender': '192.168.1.100',
+        'products': [
+            {
+                'code': '1',
+                'description': 'TEST1',
+                'cantity': 3,
+                'profit': 10,
+                'used_wholesale': 1,
+                'used_price': 20,
+            }
+        ]
+    },
+
+    # Product keys error
+    {
+        'sub_total': 400,
+        'total': 400, 
+        'profit': 80,
+        'discount': 0,
+        'articles_count': 12,
+        'notes': 'Testing notes ERROR PRODUCT KEYS',
+        'user_id': 1,
+        'ipv4_sender': '192.168.1.100',
+        'products': [
+                    {
+                        'code': '1',
+                    }
+        ]
+    },
+    # Insuficient inventory error
+    {
+        'sub_total': 666,
+        'total': 777, 
+        'profit': 55,
+        'discount': 44,
+        'articles_count': 33,
+        'notes': 'Testing notes ERROR INVENTORY',
+        'user_id': 2,
+        'ipv4_sender': '192.168.1.100',
+        'products': [
+                    {
+                        'code': 'ass_2_U_3',
+                        'description': 'TEST3 ASSOCIATE',
+                        'cantity': 165000000,
+                        'profit': 10,
+                        'used_wholesale': 1,
+                        'used_price': 20,
+                    }
         ]
     }
 ]

@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime
 
 from test_data import *
 
@@ -10,8 +11,8 @@ from app.models.tickets import Tickets
 
 from app.connections.connections import DB_manager
 
-SHOW_GET_LOGS = False
-LOGS_CHAR_LEN = 40
+SHOW_GET_LOGS = True
+LOGS_CHAR_LEN = None
 
 def db_builder():
     app = create_app()
@@ -147,14 +148,29 @@ class Main_test(unittest.TestCase):
 
             show_logs('Analytics', logs)
 
+    
     def test_z_Tickets_obj(self):
         logs = list()
         with self.app.app_context():
-            for tickets in tickets_create_array:
-                logs.append(Tickets.create(tickets))
+            for ticket in tickets_create_array:
+                logs.append(Tickets.create(ticket))
+
+            tickets = Tickets.list_created_at(datetime.now().strftime('%Y-%m-%d'))
+            logs.append(tickets)
+
+            for ticket in tickets:
+                Tickets.delete(ticket['id'])
+            
+            with self.assertRaises(Exception):
+                for ticket in tickets_create_bad_array:
+                    Tickets.create(ticket)
+        
         
         show_logs('Tickets', logs)
 
 if __name__ == "__main__":
+    SHOW_GET_LOGS = False
+    LOGS_CHAR_LEN = None
+
     db_builder()
     unittest.main()
