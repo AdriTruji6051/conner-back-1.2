@@ -131,6 +131,12 @@ class Main_test(unittest.TestCase):
                     ans = Config.Users.login(user['user'], user['password'])
                     logs.append(ans)
 
+            for user in users_create_bad_array:
+                with self.assertRaises(Exception):
+                    Config.Users.create(user)
+                    ans = Config.Users.login(user['user'], user['password'])
+                    logs.append(ans)
+
             show_logs('Config', logs)
 
     def test_Analitycs_obj(self):

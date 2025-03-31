@@ -1,5 +1,7 @@
 import bcrypt # TODO check later
 
+from app.models.core_classes import user_create, user_update, user, user_logged, text_ticket, create_text_ticket
+
 from app.connections.connections import DB_manager
 from app.models.utyls import raise_exception_if_missing_keys, build_insert_sql_sequence, build_update_sql_sequence, execute_sql_and_close_db
 
@@ -10,7 +12,7 @@ create_text_keys = ['text', 'line', 'is_header', 'font_config']
 class Config:
     class Users:
         @staticmethod
-        def get_all() -> list[dict]:
+        def get_all() -> list[user]:
             sql = 'SELECT id, user, user_name, role_type FROM users;'
             db = DB_manager.get_config_db()
             rows = db.execute(sql).fetchall()
@@ -27,7 +29,7 @@ class Config:
             return ans
         
         @staticmethod
-        def login(user: str, password: str) -> dict:
+        def login(user: str, password: str) -> user_logged:
             sql = 'SELECT * FROM users WHERE user = ?;'
             db = DB_manager.get_config_db()
             user = db.execute(sql, [user]).fetchone()
@@ -49,14 +51,14 @@ class Config:
             }
 
         @staticmethod
-        def create(data: dict):
+        def create(data: user_create):
             raise_exception_if_missing_keys(data, create_user_keys, 'create users data')
             sql = build_insert_sql_sequence('users', create_user_keys)
             params = [data[key] for key in create_user_keys]
             execute_sql_and_close_db(sql, params, 'config')
         
         @staticmethod
-        def update(data: dict):            
+        def update(data: user_update):            
             update_keys = update_user_keys[:len(update_user_keys) - 1]
             raise_exception_if_missing_keys(data, update_user_keys, 'update users data')
 
@@ -74,7 +76,6 @@ class Config:
         def raise_exception_if_text_not_valid(data: list[dict], is_header: bool = False):
             if not data:
                 raise ValueError('Text array must have values, not be empty')
-            
             try:
                 for row in data:
                     row = dict(row)
@@ -90,12 +91,11 @@ class Config:
                         raise ValueError('If this line value is footer, value is_header must be seated with value int(0)')
                     if row['is_header'] != 1 or row['is_header'] != 0:
                         raise ValueError('Error, is_header value must be seated with int(0) or int(1)')
-
             except Exception as e:
                 raise Exception(f'Invalid text, with ERROR: {e}')
 
         @staticmethod
-        def get_headers() -> list[dict]:
+        def get_headers() -> list[text_ticket]:
             sql = """
                 SELECT tt.text, tt.line, tc.font, tc.size, tc.weigh 
                 FROM ticket_text tt JOIN ticket_font_configs tc 
@@ -115,7 +115,7 @@ class Config:
             return ans
         
         @staticmethod
-        def get_footers() -> list[dict]:
+        def get_footers() -> list[text_ticket]:
             sql = """
                 SELECT tt.text, tt.line, tc.font, tc.size, tc.weigh 
                 FROM ticket_text tt JOIN ticket_font_configs tc 
@@ -135,7 +135,7 @@ class Config:
             return ans
 
         @staticmethod
-        def insert_headers(data: list[dict]):
+        def insert_headers(data: list[create_text_ticket]):
             Config.Ticket_text.raise_exception_if_text_not_valid(data, True)
             Config.Ticket_text.drop_headers()
 
@@ -146,7 +146,7 @@ class Config:
                 execute_sql_and_close_db(sql, params, 'config')
         
         @staticmethod
-        def insert_footers(data: list[dict]):
+        def insert_footers(data: list[create_text_ticket]):
             Config.Ticket_text.raise_exception_if_text_not_valid(data, False)
             Config.Ticket_text.drop_footers()
 

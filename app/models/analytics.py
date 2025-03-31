@@ -1,3 +1,5 @@
+from app.models.core_classes import drawer_log, drawer_log_create
+
 from app.connections.connections import DB_manager
 from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db, build_insert_sql_sequence
 
@@ -14,7 +16,7 @@ def raise_excepciton_if_invalid_drawer_log(data: dict):
 class Analytics:
     class Drawer_logs:
         @staticmethod
-        def get(id: int) -> dict:
+        def get(id: int) -> drawer_log:
             sql = 'SELECT * FROM drawer_logs WHERE id = ?;'
             db = DB_manager.get_analitycs_db()
             ans = db.execute(sql, [id]).fetchone()
@@ -28,7 +30,7 @@ class Analytics:
             return ans
         
         @staticmethod
-        def get_all() -> list[dict]:
+        def get_all() -> list[drawer_log]:
             sql = 'SELECT * FROM drawer_logs;'
             db = DB_manager.get_analitycs_db()
             rows = db.execute(sql).fetchall()
@@ -45,7 +47,7 @@ class Analytics:
             return ans
         
         @staticmethod
-        def create(data: dict):
+        def create(data: drawer_log_create):
             raise_excepciton_if_invalid_drawer_log(data)
 
             sql = build_insert_sql_sequence('drawer_logs', create_drawer_logs_keys)

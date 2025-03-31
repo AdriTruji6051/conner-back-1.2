@@ -252,6 +252,17 @@ users_create_array = [
     },
 ]
 
+users_create_bad_array = [
+    {
+        'user': 'erika123', 
+        'user_name': 'Erika Trujillo', 
+    },
+    {
+        'password': '654321', 
+        'role_type': 'admin', 
+    },
+]
+
 users_update_array_missing_id = [
     {
         'user': 'erika123_UPDATE', 
