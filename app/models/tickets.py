@@ -1,4 +1,5 @@
 from datetime import datetime
+from flask import g
 
 from app.connections.connections import DB_manager
 from app.models.products import Products
@@ -59,7 +60,7 @@ class Tickets:
     @staticmethod
     def get(ticket_id: int) -> dict:
         sql = 'SELECT * tickets WHERE id = ?;'
-        ticket = DB_manager.get_tickets_db().execute(sql, [ticket_id]).fetchone()
+        ticket = DB_manager.get_main_db().execute(sql, [ticket_id]).fetchone()
 
         if not ticket:
             raise Exception("Ticket id not exists.")
@@ -71,10 +72,7 @@ class Tickets:
     @staticmethod
     def list_created_at(date: str) -> list[dict]:
         sql = 'SELECT * FROM tickets WHERE created_at LIKE ? OR modified_at LIKE ?;'
-        rows = DB_manager.get_tickets_db().execute(sql, [f'{date}%', f'{date}%']).fetchall()
-        
-        if not len(rows):
-            raise Exception(f'Not product_in_ticket with ticket_id: {date} finded.')
+        rows = DB_manager.get_main_db().execute(sql, [f'{date}%', f'{date}%']).fetchall()
         
         ans = list()
 
@@ -87,25 +85,25 @@ class Tickets:
     def create(data: dict):
         raise_exception_if_ticket_invalid_data(data, False)
         try:
-            ticket_id = dict(DB_manager.get_tickets_db().execute('SELECT MAX (id) FROM tickets;').fetchone())['MAX (id)']
+            ticket_id = dict(DB_manager.get_main_db().execute('SELECT MAX (id) FROM tickets;').fetchone())['MAX (id)']
             ticket_id = ticket_id + 1 if ticket_id != None else 1 
             data['id'] = ticket_id
 
             sql = build_insert_sql_sequence('tickets', create_ticket_keys + ['created_at'])
             params = [data[key] for key in create_ticket_keys]
             params.append(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-            
+
             Tickets.Product_in_ticket.create(data['products'], ticket_id)
 
-            execute_sql_and_close_db(sql, params, 'tickets')
-            
+            execute_sql_and_close_db(sql, params, 'main')
+
             return ticket_id
         
         except Exception as e:
             Tickets.delete(ticket_id)
             raise e
         finally:
-            DB_manager.close_tickets_db()
+            DB_manager.close_main_db()
     
     @staticmethod
     def update(data: dict):
@@ -119,28 +117,28 @@ class Tickets:
             
             Tickets.Product_in_ticket.update(data['products'], ticket_id)
 
-            execute_sql_and_close_db(sql, params, 'tickets')
+            execute_sql_and_close_db(sql, params, 'main')
             
             return ticket_id
         
         except Exception as e:
             raise e
         finally:
-            DB_manager.close_tickets_db()
+            DB_manager.close_main_db()
     
     @staticmethod
     def delete(ticket_id: int):
-        sql = 'DELETE FROM tickets WHERE id = ?;'
-        execute_sql_and_close_db(sql, [ticket_id], 'tickets')
-
         Tickets.Product_in_ticket.delete_by_ticket(ticket_id)
+
+        sql = 'DELETE FROM tickets WHERE id = ?;'
+        execute_sql_and_close_db(sql, [ticket_id], 'main')
     
     # Product_in_ticket Subclass --------------->
     class Product_in_ticket:
         @staticmethod
         def get(code: int, ticket_id) -> dict:
             sql = 'SELECT * FROM product_in_ticket WHERE code = ? AND ticket_id = ?;'
-            product = DB_manager.get_tickets_db().execute(sql, [code, ticket_id]).fetchone()
+            product = DB_manager.get_main_db().execute(sql, [code, ticket_id]).fetchone()
             
             if not product:
                 raise Exception(f'Not product_in_ticket with code: {code} and ticket id {ticket_id} finded.')
@@ -150,10 +148,7 @@ class Tickets:
         @staticmethod
         def get_by_ticket(ticket_id: int) -> list[dict]:
             sql = 'SELECT * FROM product_in_ticket WHERE ticket_id = ?;'
-            rows = DB_manager.get_tickets_db().execute(sql, [ticket_id]).fetchall()
-            
-            if not len(rows):
-                raise Exception(f'Not product_in_ticket with ticket_id: {ticket_id} finded.')
+            rows = DB_manager.get_main_db().execute(sql, [ticket_id]).fetchall()
             
             ans = list()
 
@@ -186,9 +181,10 @@ class Tickets:
             for prod in data:
                 prod_params = [prod[key] for key in params_keys]
                 prod_params.append(ticket_id)
-                params.append(prod_params) 
-
-            execute_sql_and_close_db(sql=sql, params=params, data_base='tickets', execute_many=True)
+                params.append(prod_params)
+            
+            execute_sql_and_close_db(sql, params, 'main_db', True, False)
+            
 
         @staticmethod
         def update(data: dict, ticket_id: int):
@@ -224,12 +220,12 @@ class Tickets:
 
             for prod in data:
                 params = [prod[key] for key in update_product_in_tickets_keys]
-                execute_sql_and_close_db(sql, params, 'tickets')
+                execute_sql_and_close_db(sql, params, 'main')
         
         @staticmethod
         def delete(id: int):
             sql = 'SELECT code, cantity FROM product_in_ticket WHERE id = ?;'
-            product = dict(DB_manager.get_tickets_db().execute(sql, [id]).fetchone())
+            product = dict(DB_manager.get_main_db().execute(sql, [id]).fetchone())
 
             if not product:
                 return
@@ -237,7 +233,7 @@ class Tickets:
             Products.add_inventory(product['code'], product['cantity'])
 
             sql = 'DELETE FROM product_in_ticket WHERE id = ?;'
-            execute_sql_and_close_db(sql, [id], 'tickets')
+            execute_sql_and_close_db(sql, [id], 'main')
         
         @staticmethod
         def delete_by_ticket(ticket_id: int):

@@ -117,7 +117,7 @@ class Products:
         is_associate = False
 
         sql = 'SELECT * FROM associates_codes WHERE code = ?;'
-        db = DB_manager.get_products_db()
+        db = DB_manager.get_main_db()
         ans = db.execute(sql, [code]).fetchone()
 
         if ans:
@@ -136,13 +136,13 @@ class Products:
         else:
             raise Exception('Product not found')
             
-        DB_manager.close_products_db()
+        DB_manager.close_main_db()
 
         return ans
     
     @staticmethod
     def get_by_description(description: str, called_before: bool = False) -> list[dict]:
-        db = DB_manager.get_products_db()
+        db = DB_manager.get_main_db()
         description_split = description.split()
 
         # if description has several words, we will create a dinamyc search for include all
@@ -177,7 +177,7 @@ class Products:
         elif 'Ñ' in description and not called_before:
             ans.extend(Products.search_by_description(description.replace('Ñ', 'ñ'), True))
 
-        DB_manager.close_products_db()
+        DB_manager.close_main_db()
 
         return ans
     
@@ -186,7 +186,7 @@ class Products:
         # check if parent product, if not, search his parent code, 
         # if not has anything linked, raise not found exception
         sql = 'SELECT * FROM products WHERE parent_code = ?;'
-        db = DB_manager.get_products_db()
+        db = DB_manager.get_main_db()
         siblings_rows = db.execute(sql, [code]).fetchall()
 
         if not len(siblings_rows):
@@ -229,7 +229,7 @@ class Products:
 
         sql = build_insert_sql_sequence('products', create_product_keys + ['profit_margin', 'modified_at'])
         
-        execute_sql_and_close_db(sql, params, 'products')
+        execute_sql_and_close_db(sql, params, 'main')
 
         Analytics.Products_changes.create(build_product_log_dict(data, 'POST', modified_date))
 
@@ -249,7 +249,7 @@ class Products:
 
         update_keys = create_product_keys[:len(update_product_keys) -1] + ['profit_margin', 'modified_at']
         sql = build_update_sql_sequence('products', update_keys, 'code')
-        execute_sql_and_close_db(sql, params, 'products')
+        execute_sql_and_close_db(sql, params, 'main')
         
         Analytics.Products_changes.create(build_product_log_dict(data, 'PUT', modified_date))
 
@@ -266,7 +266,7 @@ class Products:
             raise ValueError('Not code sended')
         
         sql = 'DELETE FROM products WHERE code = ?;'
-        execute_sql_and_close_db(sql, [code], 'products')
+        execute_sql_and_close_db(sql, [code], 'main')
 
     @staticmethod
     def add_inventory(code: str, cantity: float):
@@ -283,7 +283,7 @@ class Products:
             return
             
         sql = 'UPDATE products SET inventory = ? WHERE code = ?;'
-        execute_sql_and_close_db(sql, [new_inventory, code], 'products')
+        execute_sql_and_close_db(sql, [new_inventory, code], 'main')
     
     @staticmethod
     def remove_inventory(code: str, cantity: float):
@@ -301,7 +301,7 @@ class Products:
                 new_inventory = None
                 
             sql = 'UPDATE products SET inventory = ? WHERE code = ?;'
-            execute_sql_and_close_db(sql, [new_inventory, code], 'products')
+            execute_sql_and_close_db(sql, [new_inventory, code], 'main')
         else:
             raise Exception(f'Not enough inventory for product with code: {code}')
 
@@ -310,7 +310,7 @@ class Products:
         @staticmethod
         def get(code: str) -> dict:
             sql = 'SELECT * FROM departments WHERE code = ?;'
-            db = DB_manager.get_products_db()
+            db = DB_manager.get_main_db()
             ans = db.execute(sql, [code]).fetchone()
 
             if ans:
@@ -318,13 +318,13 @@ class Products:
             else:
                 raise Exception('Not department finded')
             
-            DB_manager.close_products_db()
+            DB_manager.close_main_db()
             return ans
         
         @staticmethod
         def get_all() -> list[dict]:
             sql = 'SELECT * FROM departments;'
-            db = DB_manager.get_products_db()
+            db = DB_manager.get_main_db()
             rows = db.execute(sql).fetchall()
             ans = list()
 
@@ -334,20 +334,20 @@ class Products:
             else:
                 raise Exception('Not department finded')
             
-            DB_manager.close_products_db()
+            DB_manager.close_main_db()
             return ans
 
         @staticmethod
         def create(description: str) -> None:
             sql = 'INSERT INTO departments (description) values (?);'
-            execute_sql_and_close_db(sql, [description], 'products')
+            execute_sql_and_close_db(sql, [description], 'main')
 
         @staticmethod
         def update(data: dict): 
             raise_exception_if_missing_keys(data, update_department_keys, 'update departments')
             params = [data[key] for key in update_department_keys]
             sql = 'UPDATE departments SET description = ? WHERE code = ?;'
-            execute_sql_and_close_db(sql, params, 'products')
+            execute_sql_and_close_db(sql, params, 'main')
         
         @staticmethod
         def delete(code: str) -> None:
@@ -355,7 +355,7 @@ class Products:
                 raise ValueError('Not code sended')
             
             sql = 'DELETE FROM departments WHERE code = ?;'
-            execute_sql_and_close_db(sql, [code], 'products')
+            execute_sql_and_close_db(sql, [code], 'main')
         
     class Associates_codes:
         @staticmethod
@@ -366,7 +366,7 @@ class Products:
                 p.parent_code FROM associates_codes ac JOIN products p ON ac.parent_code = p.code 
                 WHERE ac.code = ?;
             """
-            db = DB_manager.get_products_db()
+            db = DB_manager.get_main_db()
             ans = db.execute(sql, [code]).fetchone()
 
             if ans:
@@ -375,14 +375,14 @@ class Products:
             else:
                 raise Exception('Not associate_code finded')
             
-            DB_manager.close_products_db()
+            DB_manager.close_main_db()
             return ans
         
         @staticmethod
         def get_raw_data(code: str) -> dict:
             sql ='SELECT * FROM associates_codes WHERE code = ?;'
-            ans = DB_manager.get_products_db().execute(sql, [code]).fetchone()
-            DB_manager.close_products_db()
+            ans = DB_manager.get_main_db().execute(sql, [code]).fetchone()
+            DB_manager.close_main_db()
 
             if not ans:
                 raise Exception('Not associate_code finded')
@@ -396,7 +396,7 @@ class Products:
             params = [data[key] for key in create_associates_codes_keys]
             sql = build_insert_sql_sequence('associates_codes', create_associates_codes_keys)
 
-            execute_sql_and_close_db(sql, params, 'products')
+            execute_sql_and_close_db(sql, params, 'main')
 
         @staticmethod
         def update(data: dict) -> None:
@@ -406,7 +406,7 @@ class Products:
             update_keys = update_associates_codes_keys[:len(update_associates_codes_keys) - 1]
             sql = build_update_sql_sequence('associates_codes', update_keys, 'code')
 
-            execute_sql_and_close_db(sql, params, 'products')
+            execute_sql_and_close_db(sql, params, 'main')
         
         @staticmethod
         def delete(code: str) -> None:
@@ -414,4 +414,4 @@ class Products:
                 raise ValueError('Not code sended')
             
             sql = 'DELETE FROM associates_codes WHERE code = ?;'
-            execute_sql_and_close_db(sql, [code], 'products')
+            execute_sql_and_close_db(sql, [code], 'main')

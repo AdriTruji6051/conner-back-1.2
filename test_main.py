@@ -158,25 +158,29 @@ class Main_test(unittest.TestCase):
     def test_z_Tickets_obj(self):
         logs = list()
         with self.app.app_context():
+            tickets = Tickets.list_created_at(datetime.now().strftime('%Y-%m-%d'))
+            logs.append(tickets)
+            
+            for ticket in tickets:
+                Tickets.delete(ticket['id'])
+
             for ticket in tickets_create_array:
                 logs.append(Tickets.create(ticket))
 
-            tickets = Tickets.list_created_at(datetime.now().strftime('%Y-%m-%d'))
-            logs.append(tickets)
-
-            for ticket in tickets:
-                Tickets.delete(ticket['id'])
+            # Delete a product in ticket should not raise an error
+            Products.delete(products_update_good_array[0]['code'])
             
             with self.assertRaises(Exception):
                 for ticket in tickets_create_bad_array:
                     Tickets.create(ticket)
-        
+
+
         
         show_logs('Tickets', logs)
 
 if __name__ == "__main__":
     SHOW_GET_LOGS = False
     LOGS_CHAR_LEN = None
-
     db_builder()
+
     unittest.main()

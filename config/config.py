@@ -14,6 +14,7 @@ class Config:
     TICKETS_DB_DIR = os.getenv('TICKETS_DB', './tickets.db')
     ANALITYCS_DB_DIR = os.getenv('ANALITYCS_DB', './analitycs.db')
     CONFIG_DB_DIR = os.getenv('CONFIG_DB', './config.db')
+    MAIN_DB_DIR = os.getenv('MAIN_DB', './main.db')
 
     HOST = os.getenv("HOST", "127.0.0.1")
     PORT = int(os.getenv("PORT", "5000"))

@@ -4,7 +4,7 @@ from flask import g
 import os 
 
 def execute_table_sql(sql: str, data_base: str, table_name: str = 'Not specified'):
-    allowed_data_bases = ['products', 'analytics', 'config', 'tickets']
+    allowed_data_bases = ['analytics', 'config', 'main']
 
     if data_base not in allowed_data_bases:
         raise Exception('Specified data_base value is not allowed')
@@ -12,13 +12,11 @@ def execute_table_sql(sql: str, data_base: str, table_name: str = 'Not specified
     db = object()
 
     if data_base == allowed_data_bases[0]:
-        db = DB_manager.get_products_db()
-    elif data_base == allowed_data_bases[1]:
         db = DB_manager.get_analitycs_db()
-    elif data_base == allowed_data_bases[2]:
+    elif data_base == allowed_data_bases[1]:
         db = DB_manager.get_config_db()
-    elif data_base == allowed_data_bases[3]:
-        db == DB_manager.get_tickets_db()
+    elif data_base == allowed_data_bases[2]:
+        db = DB_manager.get_main_db()
 
     try:
         db.execute(sql)
@@ -26,17 +24,16 @@ def execute_table_sql(sql: str, data_base: str, table_name: str = 'Not specified
     except Exception as e:
         raise Exception(f"Couldn't create {table_name} table: {e}")
     finally:
-        DB_manager.close_products_db()
-        DB_manager.close_tickets_db()
         DB_manager.close_analitycs_db()
+        DB_manager.close_main_db()
 
 from config.config import Config
 # DB Builder methods
 class DB_builder:
     @staticmethod
     def create_products_db():
-        os.makedirs(os.path.dirname(Config.PRODUCTS_DB_DIR), exist_ok=True)
-        conn = sqlite3.connect(Config.PRODUCTS_DB_DIR)
+        os.makedirs(os.path.dirname(Config.MAIN_DB_DIR), exist_ok=True)
+        conn = sqlite3.connect(Config.MAIN_DB_DIR)
         conn.close()
 
         Products_tables.create_departments()
@@ -45,8 +42,8 @@ class DB_builder:
     
     @staticmethod
     def create_tickets_db():
-        os.makedirs(os.path.dirname(Config.TICKETS_DB_DIR), exist_ok=True)
-        conn = sqlite3.connect(Config.TICKETS_DB_DIR)
+        os.makedirs(os.path.dirname(Config.MAIN_DB_DIR), exist_ok=True)
+        conn = sqlite3.connect(Config.MAIN_DB_DIR)
         conn.close()
 
         Tickets_tables.create_tickets()
@@ -75,58 +72,42 @@ class DB_builder:
 class DB_manager:
     @staticmethod
     def all_db_exist() -> bool:
-        if not os.path.exists(Config.PRODUCTS_DB_DIR):
-            return False
-        if not os.path.exists(Config.TICKETS_DB_DIR):
-            return False
         if not os.path.exists(Config.ANALITYCS_DB_DIR):
             return False
         if not os.path.exists(Config.CONFIG_DB_DIR):
+            return False
+        if not os.path.exists(Config.MAIN_DB_DIR):
             return False
         
         return True
     
     @staticmethod
     def create_missing_db():
-        if not os.path.exists(Config.PRODUCTS_DB_DIR):
-            DB_builder.create_products_db()
-
-        if not os.path.exists(Config.TICKETS_DB_DIR):
-            DB_builder.create_tickets_db()
-
         if not os.path.exists(Config.ANALITYCS_DB_DIR):
             DB_builder.create_analytics_db()
 
         if not os.path.exists(Config.CONFIG_DB_DIR):
             DB_builder.create_config_db()
 
+        if not os.path.exists(Config.MAIN_DB_DIR):
+            DB_builder.create_products_db()
+            DB_builder.create_tickets_db()
+
     # DB Getters and closers ------->
 
     @staticmethod
-    def get_products_db():
-        if 'products_db' not in g:
-            g.db = sqlite3.connect(Config.PRODUCTS_DB_DIR)
+    def get_main_db():
+        if 'main_db' not in g:
+            g.db = sqlite3.connect(Config.MAIN_DB_DIR)
             g.db.row_factory = sqlite3.Row
         return g.db
     
     @staticmethod
-    def close_products_db():
-        db = g.pop('products_db', None)
+    def close_main_db():
+        db = g.pop('main_db', None)
         if db is not None:
             db.close()
-        
-    @staticmethod
-    def get_tickets_db():
-        if 'tickets_db' not in g:
-            g.db = sqlite3.connect(Config.TICKETS_DB_DIR)
-            g.db.row_factory = sqlite3.Row
-        return g.db
-    
-    @staticmethod
-    def close_tickets_db():
-        db = g.pop('tickets_db', None)
-        if db is not None:
-            db.close()
+
         
     @staticmethod
     def get_analitycs_db():
@@ -165,7 +146,7 @@ class Products_tables:
                 PRIMARY KEY("code" AUTOINCREMENT)
             );
             """
-        execute_table_sql(sql, 'products', 'departments')
+        execute_table_sql(sql, 'main', 'departments')
 
     @staticmethod
     def create_products():
@@ -187,7 +168,7 @@ class Products_tables:
                 FOREIGN KEY("department") REFERENCES "departments"("code") ON UPDATE CASCADE ON DELETE SET NULL
             );
             """
-        execute_table_sql(sql, 'products', 'products')
+        execute_table_sql(sql, 'main', 'products')
 
     @staticmethod
     def create_associates_codes():
@@ -200,7 +181,7 @@ class Products_tables:
                 FOREIGN KEY("parent_code") REFERENCES "products"("code") ON UPDATE CASCADE ON DELETE CASCADE
             );
             """
-        execute_table_sql(sql, 'products', 'associates_codes')
+        execute_table_sql(sql, 'main', 'associates_codes')
 
 class Tickets_tables:
     @staticmethod
@@ -222,15 +203,7 @@ class Tickets_tables:
             );
             """
         
-        db = DB_manager.get_tickets_db()
-
-        try:
-            db.execute(sql)
-            db.commit()
-        except Exception as e:
-            raise Exception(f"Couldn't create tickets table:  {e}")
-        finally:
-            DB_manager.close_tickets_db()
+        execute_table_sql(sql, 'main', 'tickets')
 
     @staticmethod
     def create_products_in_tickets():
@@ -238,26 +211,19 @@ class Tickets_tables:
             CREATE TABLE "product_in_ticket" (
                 "id"	INTEGER NOT NULL,
                 "ticket_id"	INTEGER NOT NULL,
-                "code"	VARCHAR(50) NOT NULL,
+                "code"	TEXT,
                 "description"	TEXT NOT NULL,
                 "cantity"	REAL NOT NULL,
                 "profit"	REAL,
                 "used_wholesale"	REAL,
                 "used_price"	REAL NOT NULL,
                 PRIMARY KEY("id" AUTOINCREMENT),
+                FOREIGN KEY("code") REFERENCES "products"("code") ON UPDATE CASCADE ON DELETE SET NULL,
                 FOREIGN KEY("ticket_id") REFERENCES "tickets"("id")
             );
             """
         
-        db = DB_manager.get_tickets_db()
-
-        try:
-            db.execute(sql)
-            db.commit()
-        except Exception as e:
-            raise Exception(f"Couldn't create product_in_ticket table: {e}")
-        finally:
-            DB_manager.close_tickets_db()
+        execute_table_sql(sql, 'main', 'product_in_ticket')
 
 class Analitycs_tables:
     @staticmethod
