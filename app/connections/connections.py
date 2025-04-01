@@ -170,6 +170,41 @@ class Products_tables:
             """
         execute_table_sql(sql, 'main', 'products')
 
+        sql = """
+            CREATE TABLE inventory_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_code TEXT NOT NULL,
+                old_inventory REAL,
+                new_inventory REAL,
+                change REAL,
+                change_type TEXT CHECK(change_type IN ('INCREASE', 'DECREASE')),
+                modified_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (product_code) REFERENCES products(code) ON DELETE CASCADE
+            );
+        """
+        execute_table_sql(sql, 'main', 'products')
+
+        sql = """
+            CREATE TRIGGER track_inventory_changes
+            AFTER UPDATE OF inventory ON products
+            FOR EACH ROW
+            WHEN OLD.inventory <> NEW.inventory
+            BEGIN
+                INSERT INTO inventory_log (product_code, old_inventory, new_inventory, change, change_type)
+                VALUES (
+                    NEW.code,
+                    OLD.inventory,
+                    NEW.inventory,
+                    NEW.inventory - OLD.inventory,
+                    CASE 
+                        WHEN NEW.inventory > OLD.inventory THEN 'INCREASE'
+                        ELSE 'DECREASE'
+                    END
+                );
+            END;
+        """
+        execute_table_sql(sql, 'main', 'products')
+
     @staticmethod
     def create_associates_codes():
         sql = """

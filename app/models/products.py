@@ -257,8 +257,11 @@ class Products:
             update_siblings_products(data, data['siblings_codes'])
 
     @staticmethod
-    def update_inventoryssss(code: str, cantity: float):
-        return
+    def update_inventory(code: str, cantity: float):
+        if cantity < 0:
+            raise Exception('Inventory cannot be zero or lower.')
+        sql = 'UPDATE products SET inventory = ? WHERE code = ?;'
+        execute_sql_and_close_db(sql, [cantity, code], 'main')
 
     @staticmethod
     def delete(code: str) -> None:

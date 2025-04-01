@@ -14,7 +14,7 @@ def create_app():
 
     JWTManager(app)
 
-    from app.controlers.products import routesProducts
+    from app.views.products import routesProducts
     app.register_blueprint(routesProducts)
 
     return app
