@@ -7,7 +7,7 @@ def build_insert_sql_sequence(table_name: str, values: list[str]) -> str:
 def build_update_sql_sequence(table_name: str, values: list[str], where_value: str) -> str:
     return f'UPDATE {table_name} SET {' = ?, '.join(values)} = ? WHERE {where_value} = ?;'
 
-def raise_exception_if_missing_keys(data: dict, keys: list[str], description_tag: str):
+def raise_exception_if_missing_keys(data: dict, keys: list[str], description_tag: str = 'Not specified'):
     if not set(keys).issubset(data):
         missing = set(keys) - set(data)
         raise KeyError(f'Keys {missing} are missing in {description_tag}')
