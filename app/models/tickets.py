@@ -4,10 +4,11 @@ from flask import g
 from app.connections.connections import DB_manager
 from app.models.products import Products
 from app.models.utyls import execute_sql_and_close_db, raise_exception_if_missing_keys, build_insert_sql_sequence, build_update_sql_sequence
+from app.models.core_classes import ticket_create
 
-create_ticket_keys = ['sub_total', 'total',  'discount', 'profit', 'articles_count', 'notes', 'user_id', 'ipv4_sender', 'id']
-create_product_in_tickets_keys = ['code' , 'description', 'cantity', 'profit', 'used_wholesale', 'used_price', 'ticket_id']
-update_ticket_keys = ['sub_total', 'total', 'discount', 'profit', 'articles_count', 'id']
+create_ticket_keys = ['sub_total', 'total',  'discount', 'profit', 'products_count', 'notes', 'user_id', 'ipv4_sender', 'id']
+create_product_in_tickets_keys = ['code' , 'description', 'cantity', 'profit', 'wholesale_price', 'sale_price', 'ticket_id']
+update_ticket_keys = ['sub_total', 'total', 'discount', 'profit', 'products_count', 'id']
 update_product_in_tickets_keys = ['cantity', 'profit', 'id']
 
 def raise_exception_if_ticket_invalid_data(data: dict, is_update: bool = False):
@@ -16,7 +17,7 @@ def raise_exception_if_ticket_invalid_data(data: dict, is_update: bool = False):
     else:
         raise_exception_if_missing_keys(data, update_ticket_keys + ['products'], 'ticket update data')
 
-    if data['articles_count'] < 0:
+    if data['products_count'] < 0:
         raise ValueError(f'Articles count must be greater than zero in data: {data}')
     
     if data['sub_total'] < 0:
@@ -42,9 +43,9 @@ def raise_exception_if_product_in_ticket_invalid_data(data_array: list[dict], is
     for data in data_array:
         if not is_update:
             raise_exception_if_missing_keys(data, create_product_in_tickets_keys[:len(create_product_in_tickets_keys)-1], 'product_in_ticket create data')
-            if data['used_wholesale'] < 0: 
+            if data['wholesale_price'] < 0: 
                 raise ValueError(f'Used wholesale price must be greater than zero in data: {data}')
-            if data['used_price'] < 0: 
+            if data['sale_price'] < 0: 
                 raise ValueError(f'Used price must be greater than zero in data: {data}')
         else:
             raise_exception_if_missing_keys(data, update_product_in_tickets_keys, 'product_in_ticket update data')
@@ -82,7 +83,7 @@ class Tickets:
         return ans
 
     @staticmethod
-    def create(data: dict):
+    def create(data: ticket_create) -> int:
         raise_exception_if_ticket_invalid_data(data, False)
         try:
             ticket_id = dict(DB_manager.get_main_db().execute('SELECT MAX (id) FROM tickets;').fetchone())['MAX (id)']

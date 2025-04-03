@@ -1,4 +1,5 @@
 from typing import TypedDict
+from app.controlers.core_classes import product_ticket
 
 class user(TypedDict):
     id: int
@@ -50,3 +51,16 @@ class drawer_log_create(TypedDict):
     method: str
     transaction_type: int
     transaction_id: object
+
+
+class ticket_create(TypedDict):
+    products: list[product_ticket]
+    products_count: float
+    sub_total: float
+    discount: float
+    profit: float
+
+    ipv4_sender: str
+    total: float
+    notes: str
+    user_id: int

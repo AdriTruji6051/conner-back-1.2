@@ -1,8 +1,11 @@
 from app.models.products import Products
+from app.models.tickets import Tickets
 from app.controlers.core_classes import product_ticket, ticket_info
 from app.models.utyls import raise_exception_if_missing_keys
 
 import math
+
+UNDEFINED_PROFIT_MARGIN = 0.20
 
 def custom_round(number: float):
     return round(number * 2) / 2
@@ -34,6 +37,7 @@ class Ticket:
     __products_count: float
     __articles_count: int
     __is_discount_applied: bool
+    __profit: float
     
     def __init__(self):
         self.__products = list()
@@ -42,6 +46,7 @@ class Ticket:
         self.__products_count = 0
         self.__articles_count = 0
         self.__is_discount_applied = False
+        self.__profit = 0
 
     def __calculate(self):
         self.__total = 0
@@ -68,6 +73,15 @@ class Ticket:
                     else product['sale_price'] * product['cantity']
                 )
             )
+
+            product['profit'] = (
+
+                product['total_price'] - (product['cost'] * product['cantity']) 
+                if product['cost'] 
+                else product['total_price'] * UNDEFINED_PROFIT_MARGIN 
+            )
+
+            self.__profit += product['profit']
 
         if self.__is_discount_applied:
            self.__total -= self.__discount
@@ -141,9 +155,10 @@ class Ticket:
             'products': self.__products,
             'products_count': self.__products_count,
             'articles_count': self.__articles_count,
-            'total': self.__total,
+            'sub_total': self.__total,
             'discount': self.__discount,
-            'wholesale_active': self.__is_discount_applied
+            'wholesale_active': self.__is_discount_applied,
+            'profit': self.__profit
         }
     
 class Tickets_manager:
@@ -155,6 +170,7 @@ class Tickets_manager:
     }
 
     def __get(self, ticket_key: int) -> Ticket:
+        """Return the Ticket object in the has map whith ticket_key as key value"""
         return Tickets_manager.tickets_dict[ticket_key]['ticket']
     
     def add(self, ipv4: str = '127.0.0.1'):
@@ -169,6 +185,19 @@ class Tickets_manager:
 
     def reset(self, ticket_key: int):
         Tickets_manager.tickets_dict[ticket_key]['ticket'] = Ticket()
+
+    def save(self, ticket_key: int, notes: str, total: float = 0,  ipv4: str = '127.0.0.1', user_id: int = 0):
+        """Save at database the Ticket object with the ticket_key"""
+        ticket_info = self.__get(ticket_key).get_all_info()
+        ticket_info['ipv4_sender'] = ipv4
+        ticket_info['total'] = total
+        ticket_info['notes'] = notes
+        ticket_info['user_id'] = user_id
+
+        ticket_id = Tickets.create(ticket_info)
+        self.reset(ticket_key)
+        
+        return ticket_id
 
     def get_keys(self, ipv4 = None) -> set:
         """Return all keys by default. If ipv4 is specified return only the tickets with that ipv4"""

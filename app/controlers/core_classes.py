@@ -10,10 +10,13 @@ class product_ticket(TypedDict):
     cantity: float
     inventory: float
     total_price: float
+    profit: float
 
 class ticket_info(TypedDict):
     products: list[product_ticket]
     products_count: float
     articles_count: int
-    total: float
+    sub_total: float
     discount: float
+    wholesale_active: bool
+    profit: float

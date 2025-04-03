@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime
 
-from test_data import *
+from test_models_data import *
 
 from run import create_app
 from app.models.products import Products
