@@ -20,3 +20,4 @@ class Config:
     PORT = int(os.getenv("PORT", "5000"))
 
     DEBUG = os.getenv("DEBUG", True)
+    LOGGING = os.getenv("LOGGING", True)

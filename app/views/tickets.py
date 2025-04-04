@@ -4,7 +4,9 @@ import logging
 
 from app.controlers.tickets import Tickets_manager
 
-routesTickets = Blueprint('routes-products', __name__)
+TICKET_MANAGER = Tickets_manager()
+
+routesTickets = Blueprint('routes-tickets', __name__)
 
 @routesTickets.route('/api/ticket/new', methods=['POST'])
 def create_ticket():
@@ -16,13 +18,56 @@ def create_ticket():
         logging.info(f'/api/ticket/new. Catch: {e}.')
         return jsonify({"error": "could not create new ticket"}), 500
     
+@routesTickets.route('/api/ticket/get/keys', methods=['GET'])
+def get_keys_by_ipv4():
+    try:
+        ipv4 = request.remote_addr
+        return jsonify(
+            {'keys' : list(TICKET_MANAGER.get_keys(ipv4))}
+        )
+    except Exception as e:
+        logging.info(f'/api/ticket/get/keys. Catch: {e}. Key: {ipv4}.')
+        return jsonify({"error": f"could not fetch the ticket keys for {ipv4}"}), 500
+
+@routesTickets.route('/api/ticket/get/keys/shared', methods=['GET'])
+def get_all_keys():
+    try:
+        return jsonify(
+            {'keys' : list(TICKET_MANAGER.get_keys())}
+        )
+    except Exception as e:
+        logging.info(f'/api/ticket/get/keys/shared. Catch: {e}.')
+        return jsonify({"error": "could not fetch the shared ticket keys"}), 500
+
+@routesTickets.route('/api/ticket/get/<int:key>', methods=['GET'])
+def get_ticket(key):
+    try:
+        return jsonify(
+            TICKET_MANAGER.get_ticket_info(key)
+        )
+    except Exception as e:
+        logging.info(f'/api/ticket/save. Catch: {e}. Key: {key}. Avaliable keys: {TICKET_MANAGER.get_keys()}')
+        return jsonify({"error": "could not fetch the ticket"}), 404
+
+@routesTickets.route('/api/ticket/toogle/wholesale/<int:ticket_key>', methods=['POST'])
+def toogle_wholesale(ticket_key):
+    try:
+        return jsonify(
+            TICKET_MANAGER.toogle_ticket_wholesale(ticket_key)
+        )
+    except Exception as e:
+        logging.info(f'/api/ticket/toogle/wholesale/<int>. Catch: {e}. Ticket key: {ticket_key}. Avaliable keys: {TICKET_MANAGER.get_keys()}')
+        return jsonify({"error": f"could not save toogle wholesale at ticket with key {ticket_key}"}), 500
+    
 @routesTickets.route('/api/ticket/add', methods=['POST'])
 def add_product():
     try:
         product_code = request.args.get('product_code')
         ticket_key = request.args.get('ticket_key', type=int)
         cantity = request.args.get('cantity', type=float)
-        return jsonify(Tickets_manager.add_product(ticket_key, product_code, cantity))
+        return jsonify(
+            TICKET_MANAGER.add_product(ticket_key, product_code, cantity)
+        )
     except Exception as e:
         logging.info(f'/api/ticket/add. Catch: {e}. Product_code: {product_code}. Ticket_key: {ticket_key}. Cantity: {cantity}')
         return jsonify({"error": "could not add product to ticket"}), 400
@@ -33,7 +78,22 @@ def remove_product():
         product_code = request.args.get('product_code')
         ticket_key = request.args.get('ticket_key', type=int)
         cantity = request.args.get('cantity', type=float)
-        return jsonify(Tickets_manager.remove_product(ticket_key, product_code, cantity))
+        return jsonify(
+            TICKET_MANAGER.remove_product(ticket_key, product_code, cantity)
+        )
     except Exception as e:
         logging.info(f'/api/ticket/remove. Catch: {e}. Product_code: {product_code}. Ticket_key: {ticket_key}')
         return jsonify({"error": "could not remove product from ticket"}), 400
+    
+@routesTickets.route('/api/ticket/save', methods=['POST'])
+def save_ticket():
+    try:
+        notes = request.args.get('notes')
+        ticket_key = request.args.get('ticket_key', type=int)
+        total = request.args.get('total', type=float)
+        return jsonify(
+            TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total)
+        )
+    except Exception as e:
+        logging.info(f'/api/ticket/save. Catch: {e}. Notes: {notes}. Ticket_key: {ticket_key}. Total: {total}')
+        return jsonify({"error": "could not save ticket"}), 400

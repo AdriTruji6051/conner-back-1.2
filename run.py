@@ -6,6 +6,19 @@ import os
 from config.config import Config
 from app.connections.connections import DB_manager
 
+import logging
+
+if Config.LOGGING:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(message)s',
+        handlers=[
+            logging.FileHandler("app.log"),
+            logging.StreamHandler()         
+        ]
+    )
+
+
 def create_app():
     app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), 'templates'),
                     static_folder=os.path.join(os.path.dirname(__file__), 'static'))
@@ -15,7 +28,10 @@ def create_app():
     JWTManager(app)
 
     from app.views.products import routesProducts
+    from app.views.tickets import routesTickets
+
     app.register_blueprint(routesProducts)
+    app.register_blueprint(routesTickets)
 
     return app
 

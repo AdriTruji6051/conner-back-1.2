@@ -150,7 +150,7 @@ class Ticket:
         self.__is_discount_applied = not self.__is_discount_applied
         self.__calculate()
     
-    def get_all_info(self) -> ticket_info:
+    def get_info(self) -> ticket_info:
         return {
             'products': self.__products,
             'products_count': self.__products_count,
@@ -172,6 +172,9 @@ class Tickets_manager:
     def __get(self, ticket_key: int) -> Ticket:
         """Return the Ticket object in the has map whith ticket_key as key value"""
         return Tickets_manager.tickets_dict[ticket_key]['ticket']
+
+    def __reset(self, ticket_key: int):
+        Tickets_manager.tickets_dict[ticket_key]['ticket'] = Ticket()
     
     def add(self, ipv4: str = '127.0.0.1') -> int:
         """Create a Ticket object and return his Key to access it."""
@@ -186,26 +189,23 @@ class Tickets_manager:
     def remove(self, ticket_key: int):
         Tickets_manager.tickets_dict.pop(ticket_key)
 
-    def reset(self, ticket_key: int):
-        Tickets_manager.tickets_dict[ticket_key]['ticket'] = Ticket()
-
     def save(self, ticket_key: int, notes: str, total: float = 0,  ipv4: str = '127.0.0.1', user_id: int = 0):
-        """Save at database the Ticket object with the ticket_key"""
-        ticket_info = self.__get(ticket_key).get_all_info()
+        """Save at database the Ticket object with the ticket_key and return the ticket id saved at the database"""
+        ticket_info = self.__get(ticket_key).get_info()
         ticket_info['ipv4_sender'] = ipv4
         ticket_info['total'] = total
         ticket_info['notes'] = notes
         ticket_info['user_id'] = user_id
 
         ticket_id = Tickets.create(ticket_info)
-        self.reset(ticket_key)
+        self.__reset(ticket_key)
         
         return ticket_id
 
-    def get_keys(self, ipv4 = None) -> set:
+    def get_keys(self, ipv4: str = '127.0.0.1') -> set:
         """Return all keys by default. If ipv4 is specified return only the tickets with that ipv4"""
         keys = set(Tickets_manager.tickets_dict)
-        if ipv4 == None:
+        if ipv4 == '127.0.0.1':
             return keys
         
         keys_ipv4 = set()
@@ -217,7 +217,7 @@ class Tickets_manager:
     
     def get_ticket_info(self, ticket_key: int) -> ticket_info:
         ticket = self.__get(ticket_key)
-        return ticket.get_all_info()
+        return ticket.get_info()
     
     def add_product(self, ticket_key: int, product_code: str, cantity: int = 1):
         """Append or update product cantity from Ticket object with given ticket_key, if a cantity is not given, increment by one."""
@@ -235,3 +235,4 @@ class Tickets_manager:
         """Change between True or False in discount operations. Recalculate all the total in base in wholesale price or sale price"""
         ticket = self.__get(ticket_key)
         ticket.toogle_wholesale()
+        return ticket.get_info()
