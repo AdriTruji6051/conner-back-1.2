@@ -173,12 +173,15 @@ class Tickets_manager:
         """Return the Ticket object in the has map whith ticket_key as key value"""
         return Tickets_manager.tickets_dict[ticket_key]['ticket']
     
-    def add(self, ipv4: str = '127.0.0.1'):
+    def add(self, ipv4: str = '127.0.0.1') -> int:
+        """Create a Ticket object and return his Key to access it."""
         Tickets_manager.tickets_dict[Tickets_manager.ticket_id_new] = {
             'ipv4': ipv4,
             'ticket': Ticket()
         }
         Tickets_manager.ticket_id_new += 1
+        
+        return Tickets_manager.ticket_id_new - 1
 
     def remove(self, ticket_key: int):
         Tickets_manager.tickets_dict.pop(ticket_key)
@@ -217,18 +220,18 @@ class Tickets_manager:
         return ticket.get_all_info()
     
     def add_product(self, ticket_key: int, product_code: str, cantity: int = 1):
+        """Append or update product cantity from Ticket object with given ticket_key, if a cantity is not given, increment by one."""
         ticket = self.__get(ticket_key)
         ticket.add(product_code, cantity)
         return self.get_ticket_info(ticket_key)
 
     def remove_product(self, ticket_key: int, product_code: str, cantity: int = 0):
+        """Remove from Ticket object with given ticket_key, the given product code and cantity. If cantity not specified all the product cantity will be removed."""
         ticket = self.__get(ticket_key)
         ticket.remove(product_code, cantity)
         return self.get_ticket_info(ticket_key)
     
     def toogle_ticket_wholesale(self, ticket_key: int):
+        """Change between True or False in discount operations. Recalculate all the total in base in wholesale price or sale price"""
         ticket = self.__get(ticket_key)
         ticket.toogle_wholesale()
-
-        
-        

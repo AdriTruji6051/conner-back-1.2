@@ -1,6 +1,5 @@
 from flask import jsonify, Blueprint, request
 from flask_jwt_extended import jwt_required
-from app.connections.connections import DB_manager
 import logging
 
 from app.models.products import Products
