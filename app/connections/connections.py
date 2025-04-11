@@ -114,8 +114,7 @@ class DB_manager:
         if 'analitycs_db' not in g:
             g.db = sqlite3.connect(Config.ANALITYCS_DB_DIR)
             g.db.row_factory = sqlite3.Row
-        return g.db
-    
+        return g.db  
     
     @staticmethod
     def close_analitycs_db():

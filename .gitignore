@@ -7,7 +7,6 @@ venv-back/
 conner-back-1.2/
 db/
 logs.txt
-app.log
 my_stuff.py
 .env
 *.spec
@@ -19,3 +18,4 @@ my_stuff.py
 *.jpg
 *.db
 *.env
+*.log

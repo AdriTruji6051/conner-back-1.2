@@ -5,6 +5,8 @@ from app.connections.connections import DB_manager
 from app.helpers.helpers import profit_percentage
 from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db, build_insert_sql_sequence, build_update_sql_sequence
 
+from app.models.core_classes import product_create, product_update, product, siblings, department, associates_codes, associates_codes_update
+
 # 'modified_at' is not included in data keys because is calculated into the functions
 create_product_keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code"]
 update_product_keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code", "original_code"]
@@ -62,10 +64,7 @@ class Products:
 
     @staticmethod 
     def get_update_inventory_params(data: list[dict]) -> list[tuple]:
-        """
-            check if the data could be enough to validate the 
-            data -> Product {}
-        """
+        """ Check if the data could be enough to validate the data -> Product {} """
         update_inventory_params_array = list()
 
         for product in data:
@@ -109,7 +108,7 @@ class Products:
             return True
 
     @staticmethod
-    def get(code: str) -> dict:
+    def get(code: str) -> product:
         # Check if code is in associates codes (linked products to retrieve the parent data product),
         # if not, search if the product is the main product
         tag = '' # Used for label at linked products
@@ -141,7 +140,7 @@ class Products:
         return ans
     
     @staticmethod
-    def get_by_description(description: str, called_before: bool = False) -> list[dict]:
+    def get_by_description(description: str, called_before: bool = False) -> list[product]:
         db = DB_manager.get_main_db()
         description_split = description.split()
 
@@ -150,7 +149,7 @@ class Products:
         params = list()
         sql = 'SELECT * FROM products WHERE '
 
-        if len(description_split) > 2:
+        if len(description_split) < 2:
             sql += 'description LIKE ? ORDER BY priority DESC, CASE WHEN description LIKE ? THEN 0 ELSE 1 END, description;'
             params.append(f'%{description}%')
             params.append(f'{description}%')
@@ -182,7 +181,7 @@ class Products:
         return ans
     
     @staticmethod
-    def get_siblings(code: str) -> None:
+    def get_siblings(code: str) -> siblings:
         # check if parent product, if not, search his parent code, 
         # if not has anything linked, raise not found exception
         sql = 'SELECT * FROM products WHERE parent_code = ?;'
@@ -208,8 +207,7 @@ class Products:
         for row in siblings_rows:
             childs.append(dict(row))
 
-        sql = 'SELECT * FROM products WHERE code = ?;'
-        parent = dict(db.execute(sql, [code]))
+        parent = Products.get(code)
 
         # print related products
         return {
@@ -218,7 +216,7 @@ class Products:
         }
 
     @staticmethod
-    def create(data: dict) -> None:
+    def create(data: product_create):
         Products.product_data_is_valid(data)
         modified_date = datetime.now().strftime('%Y-%m-%d')
         params = [data[key] for key in create_product_keys]
@@ -237,7 +235,7 @@ class Products:
             update_siblings_products(data, data['siblings_codes'])
 
     @staticmethod
-    def update(data: dict):
+    def update(data: product_update):
         Products.product_data_is_valid(data=data, check_update_product_keys=True)
         modified_date = datetime.now().strftime('%Y-%m-%d')
         # 'original_code' isn't used because it is appended at the last place
@@ -264,9 +262,9 @@ class Products:
         execute_sql_and_close_db(sql, [cantity, code], 'main')
 
     @staticmethod
-    def delete(code: str) -> None:
+    def delete(code: str):
         if not code:
-            raise ValueError('Not code sended')
+            raise ValueError('Not code sended.')
         
         sql = 'DELETE FROM products WHERE code = ?;'
         execute_sql_and_close_db(sql, [code], 'main')
@@ -311,7 +309,7 @@ class Products:
     
     class Departments:
         @staticmethod
-        def get(code: str) -> dict:
+        def get(code: str) -> department:
             sql = 'SELECT * FROM departments WHERE code = ?;'
             db = DB_manager.get_main_db()
             ans = db.execute(sql, [code]).fetchone()
@@ -325,7 +323,7 @@ class Products:
             return ans
         
         @staticmethod
-        def get_all() -> list[dict]:
+        def get_all() -> list[department]:
             sql = 'SELECT * FROM departments;'
             db = DB_manager.get_main_db()
             rows = db.execute(sql).fetchall()
@@ -335,34 +333,29 @@ class Products:
                 for row in rows:
                     ans.append(dict(row))
             else:
-                raise Exception('Not department finded')
+                raise Exception('Not department finded.')
             
             DB_manager.close_main_db()
             return ans
 
         @staticmethod
-        def create(description: str) -> None:
+        def create(description: str):
             sql = 'INSERT INTO departments (description) values (?);'
             execute_sql_and_close_db(sql, [description], 'main')
 
         @staticmethod
-        def update(data: dict): 
-            raise_exception_if_missing_keys(data, update_department_keys, 'update departments')
-            params = [data[key] for key in update_department_keys]
+        def update(code: int, description: str): 
             sql = 'UPDATE departments SET description = ? WHERE code = ?;'
-            execute_sql_and_close_db(sql, params, 'main')
+            execute_sql_and_close_db(sql, [description, code], 'main')
         
         @staticmethod
-        def delete(code: str) -> None:
-            if not code:
-                raise ValueError('Not code sended')
-            
+        def delete(code: int):
             sql = 'DELETE FROM departments WHERE code = ?;'
             execute_sql_and_close_db(sql, [code], 'main')
         
     class Associates_codes:
         @staticmethod
-        def get(code: str) -> dict:
+        def get(code: str) -> product:
             sql = """
                 SELECT ac.code, ac.parent_code, ac.tag, p.description, p.sale_type, p.cost, p.sale_price, 
                 p.department, p.wholesale_price, p.priority, p.inventory, p.modified_at, p.profit_margin, 
@@ -382,18 +375,20 @@ class Products:
             return ans
         
         @staticmethod
-        def get_raw_data(code: str) -> dict:
-            sql ='SELECT * FROM associates_codes WHERE code = ?;'
-            ans = DB_manager.get_main_db().execute(sql, [code]).fetchone()
+        def get_raw_data(parent_code: str) -> list[associates_codes]:
+            """ Return all the associate products withe the given parent_code. """
+            sql ='SELECT * FROM associates_codes WHERE parent_code = ?;'
+            ans = DB_manager.get_main_db().execute(sql, [parent_code]).fetchall()
             DB_manager.close_main_db()
-
-            if not ans:
-                raise Exception('Not associate_code finded')
+            associates= list()
             
-            return ans
+            for row in ans:
+                associates.append(dict(row))
+            
+            return associates
         
         @staticmethod
-        def create(data: dict) -> None:
+        def create(data: associates_codes):
             raise_exception_if_missing_keys(data, create_associates_codes_keys, 'create associate_codes')
             
             params = [data[key] for key in create_associates_codes_keys]
@@ -402,17 +397,17 @@ class Products:
             execute_sql_and_close_db(sql, params, 'main')
 
         @staticmethod
-        def update(data: dict) -> None:
-            raise_exception_if_missing_keys(data, update_associates_codes_keys, 'create associate_codes')
+        def update(data: associates_codes_update):
+            raise_exception_if_missing_keys(data, update_associates_codes_keys, 'update associate_codes')
             
             params = [data[key] for key in update_associates_codes_keys]
             update_keys = update_associates_codes_keys[:len(update_associates_codes_keys) - 1]
-            sql = build_update_sql_sequence('associates_codes', update_keys, 'code')
+            sql = build_update_sql_sequence('associates_codes', update_keys, 'original_code')
 
             execute_sql_and_close_db(sql, params, 'main')
         
         @staticmethod
-        def delete(code: str) -> None:
+        def delete(code: str):
             if not code:
                 raise ValueError('Not code sended')
             

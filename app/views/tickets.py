@@ -91,8 +91,10 @@ def save_ticket():
         notes = request.args.get('notes')
         ticket_key = request.args.get('ticket_key', type=int)
         total = request.args.get('total', type=float)
+        print_many = request.args.get('print', type=int)
+        
         return jsonify(
-            TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total)
+            TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total, print_many=print_many)
         )
     except Exception as e:
         logging.info(f'/api/ticket/save. Catch: {e}. Notes: {notes}. Ticket_key: {ticket_key}. Total: {total}')

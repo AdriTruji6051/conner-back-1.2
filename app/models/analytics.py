@@ -1,4 +1,5 @@
-from app.models.core_classes import drawer_log, drawer_log_create
+from datetime import datetime
+from app.models.core_classes import drawer_log, drawer_log_create, product_changes
 
 from app.connections.connections import DB_manager
 from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db, build_insert_sql_sequence
@@ -30,10 +31,13 @@ class Analytics:
             return ans
         
         @staticmethod
-        def get_all() -> list[drawer_log]:
-            sql = 'SELECT * FROM drawer_logs;'
+        def get_all(date: str) -> list[drawer_log]:
+            if not date:
+                date = datetime.now().strftime('%Y-%m-%d')
+
+            sql = 'SELECT * FROM drawer_logs WHERE open_at LIKE ?;'
             db = DB_manager.get_analitycs_db()
-            rows = db.execute(sql).fetchall()
+            rows = db.execute(sql, [f'{date}%']).fetchall()
 
             if not len(rows):
                 raise Exception(f'Not drawer logs to show')
@@ -56,7 +60,7 @@ class Analytics:
             execute_sql_and_close_db(sql, params, 'analytics')
 
     class Products_changes:
-        def get(id):
+        def get(id) -> product_changes:
             sql = 'SELECT * FROM product_changes WHERE id = ?;'
             db = DB_manager.get_analitycs_db()
             ans = db.execute(sql, [id]).fetchone()
@@ -69,10 +73,17 @@ class Analytics:
 
             return ans
         
-        def get_all() -> list[dict]:
-            sql = 'SELECT * FROM product_changes;'
+        def get_all(date: str, exclude_delete: bool = True) -> list[product_changes]:
+            if not date:
+                date = datetime.now().strftime('%Y-%m-%d')
+
+            if exclude_delete:
+                sql = "SELECT * FROM product_changes WHERE modified_at LIKE ? AND method != 'DELETE';"
+            else:                
+                sql = 'SELECT * FROM product_changes WHERE modified_at LIKE ?;'
+
             db = DB_manager.get_analitycs_db()
-            rows = db.execute(sql).fetchall()
+            rows = db.execute(sql, [f'{date}%']).fetchall()
 
             if not len(rows):
                 raise Exception(f'Not product changes logs to show')

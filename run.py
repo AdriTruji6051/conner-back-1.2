@@ -6,14 +6,17 @@ import os
 from config.config import Config
 from app.connections.connections import DB_manager
 
-import logging
+
 
 if Config.LOGGING:
+    import logging
+
+    print('LOGGIN ACTIVE')
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s [%(levelname)s] %(message)s',
         handlers=[
-            logging.FileHandler("app.log"),
+            logging.FileHandler("app-back.log"),
             logging.StreamHandler()         
         ]
     )
@@ -29,9 +32,15 @@ def create_app():
 
     from app.views.products import routesProducts
     from app.views.tickets import routesTickets
+    from app.views.analytics import routesAnalitycs
+    from app.views.config import routesConfig
+    from app.views.printers import routesPrinters
 
     app.register_blueprint(routesProducts)
     app.register_blueprint(routesTickets)
+    app.register_blueprint(routesAnalitycs)
+    app.register_blueprint(routesConfig)
+    app.register_blueprint(routesPrinters)
 
     return app
 

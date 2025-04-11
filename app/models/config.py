@@ -135,7 +135,7 @@ class Config:
             return ans
 
         @staticmethod
-        def insert_headers(data: list[create_text_ticket]):
+        def update_headers(data: list[create_text_ticket]):
             Config.Ticket_text.raise_exception_if_text_not_valid(data, True)
             Config.Ticket_text.drop_headers()
 
@@ -146,7 +146,7 @@ class Config:
                 execute_sql_and_close_db(sql, params, 'config')
         
         @staticmethod
-        def insert_footers(data: list[create_text_ticket]):
+        def update_footers(data: list[create_text_ticket]):
             Config.Ticket_text.raise_exception_if_text_not_valid(data, False)
             Config.Ticket_text.drop_footers()
 
