@@ -240,3 +240,34 @@ class Tickets_manager:
         ticket = self.__get(ticket_key)
         ticket.toogle_wholesale()
         return ticket.get_info()
+    
+    def quicksale(self, amount: float, ipv4: str = '127.0.0.1', user_id: int = 0):
+        """ Create a new ticket with a single product with the amount of quicksale and save it."""
+        quicksale_info = {
+            'products': [
+                {
+                    'code': 'QUICKSALE',
+                    'description': 'QUICKSALE',
+                    'sale_type': 'U',
+                    'cost': amount - (amount * UNDEFINED_PROFIT_MARGIN),
+                    'sale_price': amount,
+                    'wholesale_price': amount,
+                    'cantity': 1,
+                    'inventory': 0,
+                    'total_price': amount,
+                    'profit': amount * UNDEFINED_PROFIT_MARGIN,
+                }
+            ],
+            'products_count': 1,
+            'articles_count': 1,
+            'sub_total': amount,
+            'discount': 0,
+            'wholesale_active': False,
+            'profit': amount * UNDEFINED_PROFIT_MARGIN,
+            'ipv4_sender': ipv4,
+            'total': amount,
+            'notes': '',
+            'user_id': user_id
+        }
+
+        return Tickets.create(quicksale_info)

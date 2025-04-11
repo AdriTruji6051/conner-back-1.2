@@ -6,8 +6,6 @@ import os
 from config.config import Config
 from app.connections.connections import DB_manager
 
-
-
 if Config.LOGGING:
     import logging
 

@@ -81,6 +81,14 @@ class drawer_log(TypedDict):
     transaction_type: int
     transaction_id: object
 
+class cash_flow(TypedDict):
+    id: int
+    description: str
+    amount: float
+    date: str
+    in_or_out: int
+    is_payment: int
+
 class drawer_log_create(TypedDict):
     open_at: str
     user_id: int

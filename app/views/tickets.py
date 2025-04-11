@@ -8,6 +8,17 @@ TICKET_MANAGER = Tickets_manager()
 
 routesTickets = Blueprint('routes-tickets', __name__)
 
+@routesTickets.route('/api/ticket/quicksale/<amount>', methods=['POST'])
+def quicksale_ticket(amount):
+    try:
+        amount = float(amount)
+        return jsonify({
+            'created_key': TICKET_MANAGER.quicksale(amount, request.remote_addr)
+        })
+    except Exception as e:
+        logging.info(f'/api/ticket/new. Catch: {e}.')
+        return jsonify({"error": "could not create new ticket"}), 500
+
 @routesTickets.route('/api/ticket/new', methods=['POST'])
 def create_ticket():
     try:
@@ -46,7 +57,7 @@ def get_ticket(key):
             TICKET_MANAGER.get_ticket_info(key)
         )
     except Exception as e:
-        logging.info(f'/api/ticket/save. Catch: {e}. Key: {key}. Avaliable keys: {TICKET_MANAGER.get_keys()}')
+        logging.info(f'/api/ticket/get/<int:key>. Catch: {e}. Key: {key}. Avaliable keys: {TICKET_MANAGER.get_keys()}')
         return jsonify({"error": "could not fetch the ticket"}), 404
 
 @routesTickets.route('/api/ticket/toogle/wholesale/<int:ticket_key>', methods=['POST'])

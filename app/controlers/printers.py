@@ -43,5 +43,8 @@ class Printers:
 
         return self.__query_service(query, ipv4)
     
+    def open_drawer(self, ipv4: str = '127.0.0.1'):
+        return self.__query_service('drawer/open', ipv4)
+
     def stop_service(self, ipv4: str = '127.0.0.1'):
         return self.__query_service('service/stop', ipv4)
