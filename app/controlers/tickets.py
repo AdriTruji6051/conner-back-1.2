@@ -7,10 +7,10 @@ import math
 
 UNDEFINED_PROFIT_MARGIN = 0.20
 
-def custom_round(number: float):
+def custom_round(number: float) -> float:
     return round(number * 2) / 2
 
-def custom_floor(number):
+def custom_floor(number) -> float:
     return math.floor(number * 10) / 10
 
 def validate_common_product(product: dict):
@@ -57,6 +57,7 @@ class Ticket:
         for product in self.__products:
             self.__products_count += product['cantity']
             self.__total += product['sale_price'] * product['cantity']
+
             self.__discount += (
                 (product['sale_price'] * product['cantity']) - 
                 (product['wholesale_price'] * product['cantity'] 
@@ -99,6 +100,7 @@ class Ticket:
         
         has_finded = False
         
+        # Check if the product is already at the Ticket, if it, increment cantity. If not, search for the product.
         for i in range(len(self.__products)):
             if self.__products[i]['code'] == product_code:
                 if self.__products[i]['inventory'] != None:
@@ -243,19 +245,20 @@ class Tickets_manager:
     
     def quicksale(self, amount: float, ipv4: str = '127.0.0.1', user_id: int = 0):
         """ Create a new ticket with a single product with the amount of quicksale and save it."""
+        amount = custom_floor(amount)
         quicksale_info = {
             'products': [
                 {
                     'code': 'QUICKSALE',
                     'description': 'QUICKSALE',
                     'sale_type': 'U',
-                    'cost': amount - (amount * UNDEFINED_PROFIT_MARGIN),
+                    'cost': custom_floor(amount - (amount * UNDEFINED_PROFIT_MARGIN)),
                     'sale_price': amount,
                     'wholesale_price': amount,
                     'cantity': 1,
                     'inventory': 0,
                     'total_price': amount,
-                    'profit': amount * UNDEFINED_PROFIT_MARGIN,
+                    'profit': custom_floor(amount * UNDEFINED_PROFIT_MARGIN),
                 }
             ],
             'products_count': 1,
@@ -263,7 +266,7 @@ class Tickets_manager:
             'sub_total': amount,
             'discount': 0,
             'wholesale_active': False,
-            'profit': amount * UNDEFINED_PROFIT_MARGIN,
+            'profit': custom_floor(amount * UNDEFINED_PROFIT_MARGIN),
             'ipv4_sender': ipv4,
             'total': amount,
             'notes': '',

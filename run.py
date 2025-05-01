@@ -33,12 +33,14 @@ def create_app():
     from app.views.analytics import routesAnalitycs
     from app.views.config import routesConfig
     from app.views.printers import routesPrinters
+    from app.views.templates import routesTemplates
 
     app.register_blueprint(routesProducts)
     app.register_blueprint(routesTickets)
     app.register_blueprint(routesAnalitycs)
     app.register_blueprint(routesConfig)
     app.register_blueprint(routesPrinters)
+    app.register_blueprint(routesTemplates)
 
     return app
 

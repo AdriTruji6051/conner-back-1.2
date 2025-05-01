@@ -1,6 +1,8 @@
 import json
 import socket
 
+from app.controlers.core_classes import ticket_info
+
 class Printers:
     register_printers = dict()
 
@@ -48,3 +50,13 @@ class Printers:
 
     def stop_service(self, ipv4: str = '127.0.0.1'):
         return self.__query_service('service/stop', ipv4)
+    
+
+    # TODO
+    class Tasks:
+        @staticmethod
+        def struct_ticket():
+            return
+        
+        def struct_tag():
+            return

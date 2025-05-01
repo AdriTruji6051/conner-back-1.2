@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required
 import logging
 
 from app.controlers.tickets import Tickets_manager
+from app.models.tickets import Tickets
 
 TICKET_MANAGER = Tickets_manager()
 
@@ -59,6 +60,28 @@ def get_ticket(key):
     except Exception as e:
         logging.info(f'/api/ticket/get/<int:key>. Catch: {e}. Key: {key}. Avaliable keys: {TICKET_MANAGER.get_keys()}')
         return jsonify({"error": "could not fetch the ticket"}), 404
+    
+@routesTickets.route('/api/ticket/get/date/<string:date>', methods=['GET'])
+def get_tickets_date(date):
+    try:
+        return jsonify({
+            'tickets': Tickets.list_created_at(date),
+            'date': date
+        })
+    except Exception as e:
+        logging.info(f'/api/ticket/get/date/<string:date>. Catch: {e}. Date: {date}.')
+        return jsonify({"error": f"could not fetch the tickets with date {date}"}), 404
+    
+@routesTickets.route('/api/ticket/get/products/id/<int:id>', methods=['GET'])
+def get_products_in_ticket(id):
+    try:
+        return jsonify({
+            'products': Tickets.Product_in_ticket.get_by_ticket(id),
+            'id': id
+        })
+    except Exception as e:
+        logging.info(f'/api/ticket/get/date/<string:date>. Catch: {e}. Id: {id}.')
+        return jsonify({"error": f"could not fetch the products in ticket with date {id}"}), 404
 
 @routesTickets.route('/api/ticket/toogle/wholesale/<int:ticket_key>', methods=['POST'])
 def toogle_wholesale(ticket_key):

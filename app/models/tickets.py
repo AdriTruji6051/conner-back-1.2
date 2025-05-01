@@ -78,7 +78,7 @@ class Tickets:
         ans = list()
 
         for row in rows:
-            ans.append(row)
+            ans.append(dict(row))
 
         return ans
 
@@ -154,7 +154,7 @@ class Tickets:
             ans = list()
 
             for row in rows:
-                ans.append(row)
+                ans.append(dict(row))
 
             return ans
             
