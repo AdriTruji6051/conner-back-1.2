@@ -18,7 +18,7 @@ class Config:
             rows = db.execute(sql).fetchall()
 
             if not len(rows):
-                raise Exception('No users to show!')
+                return []
             
             ans = list()
             for row in rows:
@@ -45,6 +45,7 @@ class Config:
             DB_manager.close_config_db()
 
             return {
+                'id': user['id'],
                 'user' : user['user'],
                 'user_name' : user['user_name'],
                 'role_type' : user['role_type']
@@ -89,7 +90,7 @@ class Config:
                         raise ValueError('If this line value is header, value is_header must be seated with value int(1)')
                     if not is_header and row['is_header'] != 0:
                         raise ValueError('If this line value is footer, value is_header must be seated with value int(0)')
-                    if row['is_header'] != 1 or row['is_header'] != 0:
+                    if row['is_header'] not in [0,1]:
                         raise ValueError('Error, is_header value must be seated with int(0) or int(1)')
             except Exception as e:
                 raise Exception(f'Invalid text, with ERROR: {e}')
@@ -97,7 +98,7 @@ class Config:
         @staticmethod
         def get_headers() -> list[text_ticket]:
             sql = """
-                SELECT tt.text, tt.line, tc.font, tc.size, tc.weigh 
+                SELECT tt.text, tt.line, tc.font, tc.size, tc.weigh, tt.font_config 
                 FROM ticket_text tt JOIN ticket_font_configs tc 
                 ON tt.font_config = tc.id 
                 WHERE tt.is_header = 1 ORDER BY tt.line;
@@ -106,7 +107,7 @@ class Config:
             rows = db.execute(sql).fetchall()
 
             if not rows:
-                raise Exception('No ticket headers to show')
+                return []
             
             ans = list()
             for row in rows:
@@ -117,7 +118,7 @@ class Config:
         @staticmethod
         def get_footers() -> list[text_ticket]:
             sql = """
-                SELECT tt.text, tt.line, tc.font, tc.size, tc.weigh 
+                SELECT tt.text, tt.line, tc.font, tc.size, tc.weigh, tt.font_config 
                 FROM ticket_text tt JOIN ticket_font_configs tc 
                 ON tt.font_config = tc.id 
                 WHERE tt.is_header = 0 ORDER BY tt.line;
@@ -126,7 +127,7 @@ class Config:
             rows = db.execute(sql).fetchall()
 
             if not rows:
-                raise Exception('No ticket foters to show')
+                return []
             
             ans = list()
             for row in rows:
