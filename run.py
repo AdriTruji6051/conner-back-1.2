@@ -8,7 +8,6 @@ from app.connections.connections import DB_manager
 
 if Config.LOGGING:
     import logging
-
     print('LOGGIN ACTIVE')
     logging.basicConfig(
         level=logging.INFO,

@@ -16,6 +16,9 @@ def quicksale_ticket(amount):
         return jsonify({
             'created_key': TICKET_MANAGER.quicksale(amount, request.remote_addr)
         })
+    
+    except ValueError as e:
+        return jsonify({'error': f'{e}'}), 422
     except Exception as e:
         logging.info(f'/api/ticket/new. Catch: {e}.')
         return jsonify({"error": "could not create new ticket"}), 500
@@ -26,6 +29,9 @@ def create_ticket():
         return jsonify({
             'created_key': Tickets_manager.add(request.remote_addr)
         })
+    
+    except ValueError as e:
+        return jsonify({'error': f'{e}'}), 422
     except Exception as e:
         logging.info(f'/api/ticket/new. Catch: {e}.')
         return jsonify({"error": "could not create new ticket"}), 500
@@ -37,6 +43,9 @@ def get_keys_by_ipv4():
         return jsonify(
             {'keys' : list(TICKET_MANAGER.get_keys(ipv4))}
         )
+    
+    except ValueError as e:
+        return jsonify({'error': f'{e}'}), 422
     except Exception as e:
         logging.info(f'/api/ticket/get/keys. Catch: {e}. Key: {ipv4}.')
         return jsonify({"error": f"could not fetch the ticket keys for {ipv4}"}), 500
@@ -47,6 +56,9 @@ def get_all_keys():
         return jsonify(
             {'keys' : list(TICKET_MANAGER.get_keys())}
         )
+    
+    except ValueError as e:
+        return jsonify({'error': f'{e}'}), 422
     except Exception as e:
         logging.info(f'/api/ticket/get/keys/shared. Catch: {e}.')
         return jsonify({"error": "could not fetch the shared ticket keys"}), 500
@@ -57,6 +69,9 @@ def get_ticket(key):
         return jsonify(
             TICKET_MANAGER.get_ticket_info(key)
         )
+    
+    except ValueError as e:
+        return jsonify({'error': f'{e}'}), 422
     except Exception as e:
         logging.info(f'/api/ticket/get/<int:key>. Catch: {e}. Key: {key}. Avaliable keys: {TICKET_MANAGER.get_keys()}')
         return jsonify({"error": "could not fetch the ticket"}), 404
@@ -68,6 +83,9 @@ def get_tickets_date(date):
             'tickets': Tickets.list_created_at(date),
             'date': date
         })
+    
+    except ValueError as e:
+        return jsonify({'error': f'{e}'}), 422
     except Exception as e:
         logging.info(f'/api/ticket/get/date/<string:date>. Catch: {e}. Date: {date}.')
         return jsonify({"error": f"could not fetch the tickets with date {date}"}), 404
@@ -79,6 +97,9 @@ def get_products_in_ticket(id):
             'products': Tickets.Product_in_ticket.get_by_ticket(id),
             'id': id
         })
+    
+    except ValueError as e:
+        return jsonify({'error': f'{e}'}), 422
     except Exception as e:
         logging.info(f'/api/ticket/get/date/<string:date>. Catch: {e}. Id: {id}.')
         return jsonify({"error": f"could not fetch the products in ticket with date {id}"}), 404
@@ -89,6 +110,9 @@ def toogle_wholesale(ticket_key):
         return jsonify(
             TICKET_MANAGER.toogle_ticket_wholesale(ticket_key)
         )
+    
+    except ValueError as e:
+        return jsonify({'error': f'{e}'}), 422
     except Exception as e:
         logging.info(f'/api/ticket/toogle/wholesale/<int>. Catch: {e}. Ticket key: {ticket_key}. Avaliable keys: {TICKET_MANAGER.get_keys()}')
         return jsonify({"error": f"could not save toogle wholesale at ticket with key {ticket_key}"}), 500
@@ -102,6 +126,9 @@ def add_product():
         return jsonify(
             TICKET_MANAGER.add_product(ticket_key, product_code, cantity)
         )
+    
+    except ValueError as e:
+        return jsonify({'error': f'{e}'}), 422
     except Exception as e:
         logging.info(f'/api/ticket/add. Catch: {e}. Product_code: {product_code}. Ticket_key: {ticket_key}. Cantity: {cantity}')
         return jsonify({"error": "could not add product to ticket"}), 400
@@ -115,6 +142,9 @@ def remove_product():
         return jsonify(
             TICKET_MANAGER.remove_product(ticket_key, product_code, cantity)
         )
+    
+    except ValueError as e:
+        return jsonify({'error': f'{e}'}), 422
     except Exception as e:
         logging.info(f'/api/ticket/remove. Catch: {e}. Product_code: {product_code}. Ticket_key: {ticket_key}')
         return jsonify({"error": "could not remove product from ticket"}), 400
@@ -130,6 +160,9 @@ def save_ticket():
         return jsonify(
             TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total, print_many=print_many)
         )
+    
+    except ValueError as e:
+        return jsonify({'error': f'{e}'}), 422
     except Exception as e:
         logging.info(f'/api/ticket/save. Catch: {e}. Notes: {notes}. Ticket_key: {ticket_key}. Total: {total}')
         return jsonify({"error": "could not save ticket"}), 400

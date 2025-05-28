@@ -46,13 +46,16 @@ class Products:
     def product_data_is_valid(data: dict, check_update_product_keys: bool = False) -> None:
 
         raise_exception_if_missing_keys(data, create_product_keys, 'create product')
-        
+
         if check_update_product_keys:
             raise_exception_if_missing_keys(data, update_product_keys, 'update product')
         
         if(data['cost'] < 0):
             raise ValueError('Data sended is invalid -> Cost must be greater than zero')
         
+        if(type(data['inventory']) not in [float, int] and data['inventory'] != None):
+            raise ValueError('Data sended is invalid -> Inventory must be NULL, or NUMBER')        
+
         if(data['cost'] > data['sale_price']):
             raise ValueError('Data sended is invalid -> sale_price must be greater than cost')
         

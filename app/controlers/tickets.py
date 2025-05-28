@@ -104,7 +104,7 @@ class Ticket:
         for i in range(len(self.__products)):
             if self.__products[i]['code'] == product_code:
                 if self.__products[i]['inventory'] != None:
-                    if self.__products[i]['inventory'] < self.__products[i]['inventory'] + cantity:
+                    if self.__products[i]['inventory'] < self.__products[i]['cantity'] + cantity:
                         raise ValueError('Inventory is not enough!')
                     
                 self.__products[i]['cantity'] += cantity

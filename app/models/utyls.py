@@ -10,7 +10,7 @@ def build_update_sql_sequence(table_name: str, values: list[str], where_value: s
 def raise_exception_if_missing_keys(data: dict, keys: list[str], description_tag: str = 'Not specified'):
     if not set(keys).issubset(data):
         missing = set(keys) - set(data)
-        raise KeyError(f'Keys {missing} are missing in {description_tag}')
+        raise ValueError(f'Keys {missing} are missing in {description_tag}')
     
 def execute_sql_and_close_db(sql: str, params: list, data_base: str, execute_many: bool = False, foreign_keys: bool = True, commit: bool = True) -> None:
     allowed_data_bases = ['analytics', 'config', 'main', 'main_db']
