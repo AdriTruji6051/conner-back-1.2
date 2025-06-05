@@ -32,7 +32,7 @@ class Analytics:
             return ans
         
         @staticmethod
-        def get_all(date: str) -> list[drawer_log]:
+        def get_all(date: str = '') -> list[drawer_log]:
             if not date:
                 date = datetime.now().strftime('%Y-%m-%d')
 
@@ -62,28 +62,28 @@ class Analytics:
 
     class Products_changes:
         @staticmethod
-        def get(id) -> product_changes:
-            sql = 'SELECT * FROM product_changes WHERE id = ?;'
+        def get(code) -> product_changes:
+            sql = 'SELECT * FROM products_changes WHERE code = ?;'
             db = DB_manager.get_analitycs_db()
-            ans = db.execute(sql, [id]).fetchone()
+            rows = db.execute(sql, [code]).fetchall()
 
-            if not ans:
-                raise Exception(f'Product changes log with the id {id} not exist')
+            if not rows:
+                raise Exception(f'Products changes with code {code} not exist')
             
-            ans = dict(ans)
+            ans = [dict(row) for row in rows]
             DB_manager.close_analitycs_db()
 
             return ans
         
         @staticmethod
-        def get_all(date: str, exclude_delete: bool = True) -> list[product_changes]:
+        def get_all(date: str = '', exclude_delete: bool = True) -> list[product_changes]:
             if not date:
                 date = datetime.now().strftime('%Y-%m-%d')
 
             if exclude_delete:
-                sql = "SELECT * FROM product_changes WHERE modified_at LIKE ? AND method != 'DELETE';"
+                sql = "SELECT * FROM products_changes WHERE modified_at LIKE ? AND method != 'DELETE';"
             else:                
-                sql = 'SELECT * FROM product_changes WHERE modified_at LIKE ?;'
+                sql = 'SELECT * FROM products_changes WHERE modified_at LIKE ?;'
 
             db = DB_manager.get_analitycs_db()
             rows = db.execute(sql, [f'{date}%']).fetchall()

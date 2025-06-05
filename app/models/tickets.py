@@ -5,6 +5,7 @@ from app.connections.connections import DB_manager
 from app.models.products import Products
 from app.models.utyls import execute_sql_and_close_db, raise_exception_if_missing_keys, build_insert_sql_sequence, build_update_sql_sequence
 from app.models.core_classes import ticket_create
+from app.models.analytics import Analytics
 
 create_ticket_keys = ['sub_total', 'total',  'discount', 'profit', 'products_count', 'notes', 'user_id', 'ipv4_sender', 'id']
 create_product_in_tickets_keys = ['code' , 'description', 'cantity', 'profit', 'wholesale_price', 'sale_price', 'ticket_id']
@@ -97,6 +98,22 @@ class Tickets:
             Tickets.Product_in_ticket.create(data['products'], ticket_id)
 
             execute_sql_and_close_db(sql, params, 'main')
+            
+            # open_at: str
+            # user_id: int
+            # method: str
+            # transaction_type: int
+            # transaction_id: object
+
+            log = {
+                'open_at': datetime.now().strftime('%Y-%m-%d'),
+                'user_id': 0,
+                'method': 'POST',
+                'transaction_type': 1,
+                'transaction_id': ticket_id
+            }
+            
+            Analytics.Drawer_logs.create(log)
 
             return ticket_id
         

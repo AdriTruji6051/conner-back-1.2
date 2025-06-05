@@ -194,6 +194,9 @@ class Tickets_manager:
     def save(self, ticket_key: int, notes: str, total: float = 0,  ipv4: str = '127.0.0.1', user_id: int = 0, print_many: int = 0):
         """Save at database the Ticket object with the ticket_key and return the ticket id saved at the database"""
         ticket_info = self.__get(ticket_key).get_info()
+        if len(ticket_info['products']) < 1: 
+            raise ValueError('There are not products on the ticket!')
+
         ticket_info['ipv4_sender'] = ipv4
         ticket_info['total'] = total
         ticket_info['notes'] = notes

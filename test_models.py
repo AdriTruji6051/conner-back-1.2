@@ -42,8 +42,6 @@ class Main_test(unittest.TestCase):
         
         return users_id
     
-
-    
     def test_b_Products_obj(self):
         with self.app.app_context():
             #Delete test codes if data base already were running
@@ -61,6 +59,9 @@ class Main_test(unittest.TestCase):
 
                 logs.append(ans1)
                 logs.append(ans2)
+
+            for obj in associates_codes_create_before_update:
+                Products.Associates_codes.delete(obj['code'])
 
             for obj in associates_codes_create_before_update:
                 Products.Associates_codes.create(obj)
@@ -147,10 +148,12 @@ class Main_test(unittest.TestCase):
             for obj in drawer_logs_create_array:
                 Analytics.Drawer_logs.create(obj)
             
-            ans1 = Analytics.Drawer_logs.get_all()
+            ans1 = Analytics.Drawer_logs.get_all('YYYY-MM-DD')
             ans2 = Analytics.Drawer_logs.get(ans1[0]['id'])
             logs.append(ans1)
             logs.append(ans2)
+
+            print(Analytics.Products_changes.get(1))
 
             show_logs('Analytics', logs)
 

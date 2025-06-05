@@ -405,8 +405,7 @@ class Products:
             
             params = [data[key] for key in update_associates_codes_keys]
             update_keys = update_associates_codes_keys[:len(update_associates_codes_keys) - 1]
-            sql = build_update_sql_sequence('associates_codes', update_keys, 'original_code')
-
+            sql = build_update_sql_sequence('associates_codes', update_keys, 'code')
             execute_sql_and_close_db(sql, params, 'main')
         
         @staticmethod

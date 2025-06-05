@@ -10,7 +10,7 @@ products_create_good_array = [
         'department' : None,
         'wholesale_price': 25,
         'priority': 1,
-        'inventory': 1,
+        'inventory': 100,
         'parent_code': None
     },
     {

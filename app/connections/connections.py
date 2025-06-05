@@ -178,7 +178,7 @@ class Products_tables:
                 change REAL,
                 change_type TEXT CHECK(change_type IN ('INCREASE', 'DECREASE')),
                 modified_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (product_code) REFERENCES products(code) ON DELETE CASCADE
+                FOREIGN KEY (product_code) REFERENCES products(code) ON UPDATE CASCADE ON DELETE CASCADE
             );
         """
         execute_table_sql(sql, 'main', 'products')
