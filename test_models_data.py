@@ -501,3 +501,16 @@ tickets_create_bad_array = [
         ]
     }
 ]
+
+font_configs_create = [
+    {
+        'font': 'Arial',
+        'size': 12,
+        'weigh': 500
+    },
+    {
+        'font': 'Times New Roman',
+        'size': 8,
+        'weigh': 700
+    }
+]

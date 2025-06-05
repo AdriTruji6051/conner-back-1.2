@@ -73,6 +73,12 @@ class text_ticket(TypedDict):
     weigh: int
     line: int
 
+class font_config:
+    id: int
+    font: str
+    weigh: int
+    size: int
+
 class drawer_log(TypedDict):
     id: int
     open_at: str

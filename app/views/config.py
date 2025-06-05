@@ -109,3 +109,30 @@ def update_footers():
     except Exception as e:
         logging.info(f'/api/config/ticket/text/footers. Catch: {e}.')
         return jsonify({"error": "footers not founded"}), 500
+    
+@routesConfig.route('/api/config/ticket/fonts', methods=['GET'])
+def getFonts():
+    try:
+        return jsonify({
+            'fonts': Config.Ticket_text.getFonts()
+        })
+    except Exception as e:
+        logging.info(f'/api/config/ticket/fonts. Catch: {e}.')
+        return jsonify({"error": "fonts could not been provided!"}), 500
+    
+@routesConfig.route('/api/config/ticket/fonts/create', methods=['POST'])
+def createFont():
+    try:
+        font = request.args.get('font')
+        weigh = request.args.get('weigh', type=int)
+        size = request.args.get('size', type=int)
+
+        Config.Ticket_text.createFont(font, weigh, size)
+
+        return jsonify({
+            'fonts': Config.Ticket_text.getFonts(),
+            'message': 'Succesfull font created!'
+        })
+    except Exception as e:
+        logging.info(f'/api/config/ticket/fonts. Catch: {e}.')
+        return jsonify({"error": "fonts could not been provided!"}), 500

@@ -164,7 +164,8 @@ class Products_tables:
                 "profit_margin"	INTEGER,
                 "parent_code"	TEXT,
                 PRIMARY KEY("code"),
-                FOREIGN KEY("department") REFERENCES "departments"("code") ON UPDATE CASCADE ON DELETE SET NULL
+                FOREIGN KEY("department") REFERENCES "departments"("code") ON UPDATE CASCADE ON DELETE SET NULL,
+                FOREIGN KEY("parent_code") REFERENCES "products"("code") ON UPDATE CASCADE ON DELETE SET NULL
             );
             """
         execute_table_sql(sql, 'main', 'products')
@@ -299,7 +300,7 @@ class Config_tables:
             CREATE TABLE "ticket_font_configs" (
                 "id"	INTEGER NOT NULL,
                 "font"	TEXT NOT NULL,
-                "weigh"	TEXT NOT NULL,
+                "weigh"	INTEGER NOT NULL,
                 "size"	INTEGER NOT NULL,
                 PRIMARY KEY("id" AUTOINCREMENT)
             );

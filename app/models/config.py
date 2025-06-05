@@ -1,6 +1,6 @@
 import bcrypt # TODO check later
 
-from app.models.core_classes import user_create, user_update, user, user_logged, text_ticket, create_text_ticket
+from app.models.core_classes import user_create, user_update, user, user_logged, text_ticket, create_text_ticket, font_config
 
 from app.connections.connections import DB_manager
 from app.models.utyls import raise_exception_if_missing_keys, build_insert_sql_sequence, build_update_sql_sequence, execute_sql_and_close_db
@@ -8,6 +8,7 @@ from app.models.utyls import raise_exception_if_missing_keys, build_insert_sql_s
 create_user_keys = ['user', 'user_name', 'password', 'role_type']
 update_user_keys = ['user', 'user_name', 'password', 'role_type', 'id']
 create_text_keys = ['text', 'line', 'is_header', 'font_config']
+create_font_config_keys = ['font', 'weigh', 'size']
 
 class Config:
     class Users:
@@ -165,4 +166,22 @@ class Config:
         @staticmethod
         def drop_footers():
             sql = 'DELETE FROM ticket_text WHERE is_header = 0;'
+            execute_sql_and_close_db(sql, [], 'config')
+
+        @staticmethod
+        def getFonts() -> list[font_config]:
+            sql = 'SELECT * FROM ticket_font_configs;'
+            db = DB_manager.get_config_db()
+            rows = db.execute(sql).fetchall()
+
+            return [dict(row) for row in rows]
+        
+        @staticmethod
+        def createFont(font: str, weigh: int, size: int):
+            sql = build_insert_sql_sequence('ticket_font_configs', create_font_config_keys)
+            execute_sql_and_close_db(sql, [font, weigh, size], 'config')
+        
+        @staticmethod
+        def deleteFont(id: int):
+            sql = 'DELETE FROM ticket_font_configs WHERE id = ?;'
             execute_sql_and_close_db(sql, [], 'config')

@@ -138,6 +138,12 @@ class Main_test(unittest.TestCase):
                     ans = Config.Users.login(user['user'], user['password'])
                     logs.append(ans)
 
+            for font in font_configs_create:
+                Config.Ticket_text.createFont(font['font'], font['weigh'], font['size'])
+            
+            if(len(Config.Ticket_text.getFonts()) < 2): 
+                raise Exception
+
             show_logs('Config', logs)
 
     def test_Analitycs_obj(self):
@@ -153,14 +159,12 @@ class Main_test(unittest.TestCase):
             logs.append(ans1)
             logs.append(ans2)
 
-            print(Analytics.Products_changes.get(1))
-
             show_logs('Analytics', logs)
 
     
     def test_z_Tickets_obj(self):
-        logs = list()
         with self.app.app_context():
+            logs = list()
             tickets = Tickets.list_created_at(datetime.now().strftime('%Y-%m-%d'))
             logs.append(tickets)
             
