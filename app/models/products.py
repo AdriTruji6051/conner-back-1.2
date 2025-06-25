@@ -109,6 +109,21 @@ class Products:
             return False
         else:           
             return True
+        
+    @staticmethod
+    def getAll() -> list[product]:
+        db = DB_manager.get_main_db()
+        ans = list()
+
+        sql = 'SELECT * FROM products;'
+        
+        rows = db.execute(sql).fetchall()
+        for row in rows:
+            ans.append(dict(row))
+        
+        DB_manager.close_main_db()
+
+        return ans
 
     @staticmethod
     def get(code: str) -> product:

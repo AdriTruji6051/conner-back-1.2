@@ -6,6 +6,14 @@ from app.models.products import Products
 
 routesProducts = Blueprint('routes-products', __name__)
 
+@routesProducts.route('/api/products', methods=['GET'])
+def get_all_products():
+    try:
+        return jsonify(Products.getAll())
+    except Exception as e:
+        logging.info(f'/api/products: {e}.')
+        return jsonify({"error": "could not fetch products"}), 404
+
 @routesProducts.route('/api/product/code/<string:code>', methods=['GET'])
 def get_product_by_id(code):
     try:
