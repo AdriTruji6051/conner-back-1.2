@@ -52,6 +52,22 @@ def run_app():
     with app.app_context():
         if(not DB_manager.all_db_exist()):
             DB_manager.create_missing_db()
+        
+        # Log all available endpoints
+        if Config.LOGGING:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info("=" * 80)
+            logger.info("AVAILABLE ENDPOINTS")
+            logger.info("=" * 80)
+            routes = sorted(
+                (rule.rule, ','.join(rule.methods - {'OPTIONS', 'HEAD'}))
+                for rule in app.url_map.iter_rules()
+                if rule.endpoint != 'static'
+            )
+            for route, methods in routes:
+                logger.info(f"{methods:15} {route}")
+            logger.info("=" * 80)
 
     app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)
 
