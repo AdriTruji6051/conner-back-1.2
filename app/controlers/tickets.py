@@ -40,7 +40,7 @@ class Ticket:
     __profit: float
     
     def __init__(self):
-        self.__products = list()
+        self.__products = []
         self.__total = 0
         self.__discount = 0
         self.__products_count = 0
@@ -165,7 +165,7 @@ class Ticket:
     
 class Tickets_manager:
     ticket_id_new = 1
-    tickets_dict = dict()
+    tickets_dict = {}
     tickets_dict[0] = {
         'ipv4': '127.0.0.1',
         'ticket': Ticket()

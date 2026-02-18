@@ -30,7 +30,7 @@ class Main_test(unittest.TestCase):
     app = create_app()
 
     def get_users_id(self):
-        users_id = list()
+        users_id = []
 
         with self.app.app_context():
             # get the users if exist to delete to avoid problems at testing
@@ -45,7 +45,7 @@ class Main_test(unittest.TestCase):
     def test_b_Products_obj(self):
         with self.app.app_context():
             #Delete test codes if data base already were running
-            logs = list()
+            logs = []
             for obj in products_create_good_array:
                 Products.delete(obj['code'])
             
@@ -109,7 +109,7 @@ class Main_test(unittest.TestCase):
 
     def test_Config_obj(self):
         with self.app.app_context():
-            logs = list()
+            logs = []
             # delete users if data base already where running
             users_id = self.get_users_id()
 
@@ -139,10 +139,10 @@ class Main_test(unittest.TestCase):
                     logs.append(ans)
 
             for font in font_configs_create:
-                Config.Ticket_text.createFont(font['font'], font['weigh'], font['size'])
+                Config.Ticket_text.create_font(font['font'], font['weigh'], font['size'])
             
-            if(len(Config.Ticket_text.getFonts()) < 2): 
-                raise Exception
+            if(len(Config.Ticket_text.get_fonts()) < 2): 
+                raise ValueError('There are not enough fonts in the database')
 
             show_logs('Config', logs)
 
@@ -150,7 +150,7 @@ class Main_test(unittest.TestCase):
         # Product_changes sub object is not tested there because it is called
         # and tested by Products object
         with self.app.app_context():
-            logs = list()
+            logs = []
             for obj in drawer_logs_create_array:
                 Analytics.Drawer_logs.create(obj)
             
@@ -164,7 +164,7 @@ class Main_test(unittest.TestCase):
     
     def test_z_Tickets_obj(self):
         with self.app.app_context():
-            logs = list()
+            logs = []
             tickets = Tickets.list_created_at(datetime.now().strftime('%Y-%m-%d'))
             logs.append(tickets)
             
@@ -177,7 +177,7 @@ class Main_test(unittest.TestCase):
             # Delete a product in ticket should not raise an error
             Products.delete(products_update_good_array[0]['code'])
             
-            with self.assertRaises(Exception):
+            with self.assertRaises(ValueError):
                 for ticket in tickets_create_bad_array:
                     Tickets.create(ticket)
 

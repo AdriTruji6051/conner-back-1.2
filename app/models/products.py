@@ -15,6 +15,8 @@ create_associates_codes_keys = ["code", "parent_code", "tag"]
 update_associates_codes_keys = ["code", "parent_code", "tag", "original_code"]
 update_siblings_keys = ["sale_type", "cost", "sale_price", "department", "wholesale_price",  "parent_code"]
 
+UPDATE_PRODUCT_SQL = 'UPDATE products SET inventory = ? WHERE code = ?;'
+
 def update_siblings_products(data: dict, siblings_codes: list[str]):
     if len(siblings_codes):
         for sibling_code in siblings_codes:
@@ -27,7 +29,7 @@ def update_siblings_products(data: dict, siblings_codes: list[str]):
                 continue     
 
 def build_product_log_dict(data: dict, method: str, modified_date: str) -> dict:
-    change_log = dict()
+    change_log = {}
     # Using all the keys, except by the last three because they are not in data dict
     for key in create_products_changes_keys[:len(create_products_changes_keys) - 3]:
         change_log[key] = data[key]
@@ -68,7 +70,7 @@ class Products:
     @staticmethod 
     def get_update_inventory_params(data: list[dict]) -> list[tuple]:
         """ Check if the data could be enough to validate the data -> Product {} """
-        update_inventory_params_array = list()
+        update_inventory_params_array = []
 
         for product in data:
             product_inventory = 0
@@ -78,7 +80,7 @@ class Products:
                 product_inventory = None
             finally:
                 if product_inventory < product['cantity'] and product_inventory != None:
-                    raise Exception(f'Inventory insuficient for product! {product['code'], product['description']}')
+                    raise ValueError(f'Inventory insuficient for product! {product['code'], product['description']}')
                         
                 if product_inventory != None:
                     # if the product not has inventory or product has not been finded just continue
@@ -113,7 +115,7 @@ class Products:
     @staticmethod
     def getAll() -> list[product]:
         db = DB_manager.get_main_db()
-        ans = list()
+        ans = []
 
         sql = 'SELECT * FROM products;'
         
@@ -151,7 +153,7 @@ class Products:
             ans['code'] = id_associate # if not associate found, code will be the original code
             ans['is_associate'] = is_associate
         else:
-            raise Exception('Product not found')
+            raise ValueError('Product not found')
             
         DB_manager.close_main_db()
 
@@ -164,7 +166,7 @@ class Products:
 
         # if description has several words, we will create a dinamyc search for include all
         # the words, alse if they are not ordered
-        params = list()
+        params = []
         sql = 'SELECT * FROM products WHERE '
 
         if len(description_split) < 2:
@@ -183,7 +185,7 @@ class Products:
             params.append(f'{description_split[0]}%')
 
         rows = db.execute(sql, params).fetchall()
-        ans = list()
+        ans = []
 
         for row in rows:
             ans.append(dict(row))
@@ -212,16 +214,16 @@ class Products:
             child = db.execute(sql_child, [code]).fetchone()
 
             if not child:
-                raise Exception('Product not exist')
+                raise ValueError('Product not exist')
             
             # check again, if the product has siblings 
             code = dict(child)['parent_code']
             siblings_rows = db.execute(sql, [code]).fetchall()
             
             if not len(siblings_rows):
-                raise Exception('Product has not parent linked')
+                raise ValueError('Product has not parent linked')
             
-        childs = list()
+        childs = []
         for row in siblings_rows:
             childs.append(dict(row))
 
@@ -275,8 +277,8 @@ class Products:
     @staticmethod
     def update_inventory(code: str, cantity: float):
         if cantity < 0:
-            raise Exception('Inventory cannot be zero or lower.')
-        sql = 'UPDATE products SET inventory = ? WHERE code = ?;'
+            raise ValueError('Inventory cannot be zero or lower.')
+        sql = UPDATE_PRODUCT_SQL
         execute_sql_and_close_db(sql, [cantity, code], 'main')
 
     @staticmethod
@@ -301,7 +303,7 @@ class Products:
             # If no product or inventory is None, (Product not use) return
             return
             
-        sql = 'UPDATE products SET inventory = ? WHERE code = ?;'
+        sql = UPDATE_PRODUCT_SQL
         execute_sql_and_close_db(sql, [new_inventory, code], 'main')
     
     @staticmethod
@@ -319,10 +321,10 @@ class Products:
             except:
                 new_inventory = None
                 
-            sql = 'UPDATE products SET inventory = ? WHERE code = ?;'
+            sql = UPDATE_PRODUCT_SQL
             execute_sql_and_close_db(sql, [new_inventory, code], 'main')
         else:
-            raise Exception(f'Not enough inventory for product with code: {code}')
+            raise ValueError(f'Not enough inventory for product with code: {code}')
 
     
     class Departments:
@@ -335,7 +337,7 @@ class Products:
             if ans:
                 ans = dict(ans)
             else:
-                raise Exception('Not department finded')
+                raise ValueError('Not department finded')
             
             DB_manager.close_main_db()
             return ans
@@ -345,13 +347,13 @@ class Products:
             sql = 'SELECT * FROM departments;'
             db = DB_manager.get_main_db()
             rows = db.execute(sql).fetchall()
-            ans = list()
+            ans = []
 
             if rows:
                 for row in rows:
                     ans.append(dict(row))
             else:
-                raise Exception('Not department finded.')
+                raise ValueError('Not department finded.')
             
             DB_manager.close_main_db()
             return ans
@@ -387,7 +389,7 @@ class Products:
                 ans = dict(ans)
                 ans['is_associate'] = True
             else:
-                raise Exception('Not associate_code finded')
+                raise ValueError('Not associate_code finded')
             
             DB_manager.close_main_db()
             return ans
@@ -398,7 +400,7 @@ class Products:
             sql ='SELECT * FROM associates_codes WHERE parent_code = ?;'
             ans = DB_manager.get_main_db().execute(sql, [parent_code]).fetchall()
             DB_manager.close_main_db()
-            associates= list()
+            associates= []
             
             for row in ans:
                 associates.append(dict(row))

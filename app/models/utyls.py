@@ -16,7 +16,7 @@ def execute_sql_and_close_db(sql: str, params: list, data_base: str, execute_man
     allowed_data_bases = ['analytics', 'config', 'main', 'main_db']
     
     if data_base not in allowed_data_bases:
-        raise Exception('Specified data_base value is not allowed')
+        raise ValueError('Specified data_base value is not allowed')
     
     db = object()
         
@@ -42,8 +42,8 @@ def execute_sql_and_close_db(sql: str, params: list, data_base: str, execute_man
         if commit:
             db.commit()
     except Exception as e:
-        raise Exception(f"Couldn't execute sql sequence: {sql}. With params: {params}. In the {data_base} database. ERROR: {e}")
+        raise ValueError(f"Couldn't execute sql sequence: {sql}. With params: {params}. In the {data_base} database. ERROR: {e}")
     finally:
-        DB_manager.close_main_db
+        DB_manager.close_main_db()
         DB_manager.close_analitycs_db()
         DB_manager.get_config_db()

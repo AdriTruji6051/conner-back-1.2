@@ -21,7 +21,7 @@ class Config:
             if not len(rows):
                 return []
             
-            ans = list()
+            ans = []
             for row in rows:
                 ans.append(dict(row))
 
@@ -36,12 +36,12 @@ class Config:
             user = db.execute(sql, [user]).fetchone()
 
             if not user:
-                raise Exception('User or password are incorrect!')
+                raise ValueError('User or password are incorrect!')
             
             user = dict(user)
 
-            if not password == user['password']:
-                raise Exception('User or password are incorrect!')
+            if password != user['password']:
+                raise ValueError('User or password are incorrect!')
             
             DB_manager.close_config_db()
 
@@ -110,7 +110,7 @@ class Config:
             if not rows:
                 return []
             
-            ans = list()
+            ans = []
             for row in rows:
                 ans.append(dict(row))
 
@@ -130,7 +130,7 @@ class Config:
             if not rows:
                 return []
             
-            ans = list()
+            ans = []
             for row in rows:
                 ans.append(dict(row))
 

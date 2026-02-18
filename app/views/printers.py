@@ -9,6 +9,7 @@ from app.routes_constants import (
 )
 
 PRINTERS_MANAGER = Printers()
+ERROR_MESSAGE = "A printer error has ocurred"
 
 routesPrinters = Blueprint('routes-printers', __name__)
 
@@ -28,7 +29,7 @@ def list_printers():
         }).to_flask_tuple()
     except Exception as e:
         logging.info(f'/api/print/list. Catch: {e}.')
-        return AppResponse.server_error("an error has ocurred").to_flask_tuple()
+        return AppResponse.server_error(ERROR_MESSAGE).to_flask_tuple()
     
 @routesPrinters.route(ROUTE_DICT_PRINTERS, methods=['GET'])
 def dict_printers():
@@ -46,7 +47,7 @@ def dict_printers():
         }).to_flask_tuple()
     except Exception as e:
         logging.info(f'/api/print/dict. Catch: {e}.')
-        return AppResponse.server_error("an error has ocurred").to_flask_tuple()
+        return AppResponse.server_error(ERROR_MESSAGE).to_flask_tuple()
     
 @routesPrinters.route(ROUTE_UPDATE_PRINTER, methods=['PUT'])
 def update_printer(printer):
@@ -55,4 +56,4 @@ def update_printer(printer):
         return AppResponse.success(PRINTERS_MANAGER.update_printer(printer, ipv4)).to_flask_tuple()
     except Exception as e:
         logging.info(f'/api/print/update/<string:printer>. Catch: {e}.')
-        return AppResponse.server_error("an error has ocurred").to_flask_tuple()
+        return AppResponse.server_error(ERROR_MESSAGE).to_flask_tuple()

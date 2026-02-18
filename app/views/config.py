@@ -95,7 +95,7 @@ def update_footers():
         return AppResponse.server_error("footers not founded").to_flask_tuple()
     
 @routesConfig.route(ROUTE_GET_FONTS, methods=['GET'])
-def getFonts():
+def get_fonts():
     try:
         return AppResponse.success({'fonts': Config.Ticket_text.getFonts()}).to_flask_tuple()
     except Exception as e:
@@ -103,7 +103,7 @@ def getFonts():
         return AppResponse.server_error("fonts could not been provided!").to_flask_tuple()
     
 @routesConfig.route(ROUTE_CREATE_FONT, methods=['POST'])
-def createFont():
+def create_font():
     try:
         font = request.args.get('font')
         weigh = request.args.get('weigh', type=int)

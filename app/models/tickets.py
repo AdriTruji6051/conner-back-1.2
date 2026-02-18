@@ -36,7 +36,7 @@ def raise_exception_if_ticket_invalid_data(data: dict, is_update: bool = False):
     if data['total'] < data['sub_total']:
         raise ValueError(f'Total must be greater or equal than sub_total: {data}')
     
-    if len(data['products']) < 0:
+    if len(data['products']) == 0:
         raise ValueError(f'Products were not sended in data: {data}')
     
     
@@ -65,7 +65,7 @@ class Tickets:
         ticket = DB_manager.get_main_db().execute(sql, [ticket_id]).fetchone()
 
         if not ticket:
-            raise Exception("Ticket id not exists.")
+            raise ValueError("Ticket id not exists.")
 
         ticket['products'] = Tickets.Product_in_ticket.get_by_ticket(ticket_id)
 
@@ -76,7 +76,7 @@ class Tickets:
         sql = 'SELECT * FROM tickets WHERE created_at LIKE ? OR modified_at LIKE ?;'
         rows = DB_manager.get_main_db().execute(sql, [f'{date}%', f'{date}%']).fetchall()
         
-        ans = list()
+        ans = []
 
         for row in rows:
             ans.append(dict(row))
@@ -98,12 +98,6 @@ class Tickets:
             Tickets.Product_in_ticket.create(data['products'], ticket_id)
 
             execute_sql_and_close_db(sql, params, 'main')
-            
-            # open_at: str
-            # user_id: int
-            # method: str
-            # transaction_type: int
-            # transaction_id: object
 
             log = {
                 'open_at': datetime.now().strftime('%Y-%m-%d'),
@@ -159,7 +153,7 @@ class Tickets:
             product = DB_manager.get_main_db().execute(sql, [code, ticket_id]).fetchone()
             
             if not product:
-                raise Exception(f'Not product_in_ticket with code: {code} and ticket id {ticket_id} finded.')
+                raise ValueError(f'Not product_in_ticket with code: {code} and ticket id {ticket_id} found.')
             
             return dict(product)
         
@@ -168,7 +162,7 @@ class Tickets:
             sql = 'SELECT * FROM product_in_ticket WHERE ticket_id = ?;'
             rows = DB_manager.get_main_db().execute(sql, [ticket_id]).fetchall()
             
-            ans = list()
+            ans = []
 
             for row in rows:
                 ans.append(dict(row))
@@ -178,14 +172,14 @@ class Tickets:
         @staticmethod
         def create(data: list[dict], ticket_id: int):
             raise_exception_if_product_in_ticket_invalid_data(data, False)
-            create_params = list()
+            create_params = []
 
             # check if the inventory is valid for substract
             for prod in data:
                 if Products.enough_inventory(prod['code'], prod['cantity']):
                     create_params.append((prod['code'], prod['cantity']))
                 else:
-                    raise Exception(f'The product {prod['code'], prod['description']} not have the enough inventory for create.')
+                    raise ValueError(f'The product {prod["code"]}, {prod["description"]} not have the enough inventory for create.')
 
             for params in create_params:
                 Products.remove_inventory(params[0], params[1])
@@ -194,7 +188,7 @@ class Tickets:
 
             params_keys = create_product_in_tickets_keys[:len(create_product_in_tickets_keys) - 1]
 
-            params = list()
+            params = []
 
             for prod in data:
                 prod_params = [prod[key] for key in params_keys]
@@ -208,7 +202,7 @@ class Tickets:
         def update(data: dict, ticket_id: int):
             raise_exception_if_product_in_ticket_invalid_data(data, True)
 
-            update_params = list()
+            update_params = []
 
             # check if the inventory is valid for substract
             # and if it's previous on ticket, increase or decrease 
@@ -226,7 +220,7 @@ class Tickets:
                 if Products.enough_inventory(prod['code'], update_cantity):
                     update_params.append((prod['code'], update_cantity))
                 else:
-                    raise Exception(f'The product {prod['code'], prod['description']} not have the enough inventory for update.')
+                    raise ValueError(f'The product {prod["code"]}, {prod["description"]} not have the enough inventory for update.')
 
             for params in update_params:
                 if params[1] < 0:

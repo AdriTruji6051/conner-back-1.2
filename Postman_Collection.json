@@ -1,0 +1,990 @@
+{
+  "info": {
+    "_postman_id": "conner-back-collection",
+    "name": "Conner Back API Collection",
+    "description": "Complete API collection for Conner Back application with all available endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12345678",
+    "_collectionName": "Conner Back API"
+  },
+  "item": [
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products"]
+            },
+            "description": "Retrieve all products from the database"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product by Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/code/{{product_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "code", "{{product_code}}"]
+            },
+            "description": "Get a specific product by its code"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product by Description",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/description/{{product_description}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "description", "{{product_description}}"]
+            },
+            "description": "Search for a product by its description"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product Siblings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/siblings/{{product_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "siblings", "{{product_code}}"]
+            },
+            "description": "Get sibling products related to a specific product code"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"PROD001\",\n  \"description\": \"Sample Product\",\n  \"price\": 99.99,\n  \"department\": 1,\n  \"inventory\": 100\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/product/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "create"]
+            },
+            "description": "Create a new product"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"PROD001\",\n  \"description\": \"Updated Product\",\n  \"price\": 109.99,\n  \"department\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/product/update",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "update"]
+            },
+            "description": "Update an existing product"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/delete/{{product_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "delete", "{{product_code}}"]
+            },
+            "description": "Delete a product by its code"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Inventory",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/{{product_code}}/update/inventory/{{quantity}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "{{product_code}}", "update", "inventory", "{{quantity}}"]
+            },
+            "description": "Update inventory quantity for a product"
+          },
+          "response": []
+        },
+        {
+          "name": "Add Inventory",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/{{product_code}}/add/inventory/{{quantity}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "{{product_code}}", "add", "inventory", "{{quantity}}"]
+            },
+            "description": "Add inventory to a product"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Inventory",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/{{product_code}}/remove/inventory/{{quantity}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "{{product_code}}", "remove", "inventory", "{{quantity}}"]
+            },
+            "description": "Remove inventory from a product"
+          },
+          "response": []
+        }
+      ],
+      "description": "Product management endpoints"
+    },
+    {
+      "name": "Departments",
+      "item": [
+        {
+          "name": "Get All Departments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/departments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "departments"]
+            },
+            "description": "Retrieve all product departments"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Department by Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/departments/{{department_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "departments", "{{department_code}}"]
+            },
+            "description": "Get a specific department by code"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Department",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/departments/create/New Department",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "departments", "create", "New Department"]
+            },
+            "description": "Create a new department"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Department",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/departments/update/{{department_code}}/description/Updated Department",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "departments", "update", "{{department_code}}", "description", "Updated Department"]
+            },
+            "description": "Update an existing department"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Department",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/departments/delete/{{department_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "departments", "delete", "{{department_code}}"]
+            },
+            "description": "Delete a department"
+          },
+          "response": []
+        }
+      ],
+      "description": "Department management endpoints"
+    },
+    {
+      "name": "Associates",
+      "item": [
+        {
+          "name": "Get Associates Raw Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/associates/parent/{{product_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "associates", "parent", "{{product_code}}"]
+            },
+            "description": "Get raw data for associates of a parent product"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Associate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parent_code\": \"PROD001\",\n  \"associate_code\": \"PROD002\",\n  \"quantity\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/product/associates/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "associates", "create"]
+            },
+            "description": "Create a new product associate"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Associate",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parent_code\": \"PROD001\",\n  \"associate_code\": \"PROD002\",\n  \"quantity\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/product/associates/update",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "associates", "update"]
+            },
+            "description": "Update an existing associate"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Associate",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product/associates/delete/{{product_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "product", "associates", "delete", "{{product_code}}"]
+            },
+            "description": "Delete a product associate"
+          },
+          "response": []
+        }
+      ],
+      "description": "Product associates management endpoints"
+    },
+    {
+      "name": "Tickets",
+      "item": [
+        {
+          "name": "Create Quick Sale Ticket",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/ticket/quicksale/{{amount}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "quicksale", "{{amount}}"]
+            },
+            "description": "Create a quick sale ticket with a specific amount"
+          },
+          "response": []
+        },
+        {
+          "name": "Create New Ticket",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/ticket/new",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "new"]
+            },
+            "description": "Create a new empty ticket"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Ticket Keys",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/ticket/get/keys",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "get", "keys"]
+            },
+            "description": "Get all ticket keys for the current user's IP"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Shared Ticket Keys",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/ticket/get/keys/shared",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "get", "keys", "shared"]
+            },
+            "description": "Get all shared ticket keys"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Ticket by Key",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/ticket/get/{{ticket_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "get", "{{ticket_key}}"]
+            },
+            "description": "Get a specific ticket by its key"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Tickets by Date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/ticket/get/date/{{date}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "get", "date", "{{date}}"]
+            },
+            "description": "Get all tickets for a specific date"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Products in Ticket",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/ticket/get/products/id/{{ticket_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "get", "products", "id", "{{ticket_key}}"]
+            },
+            "description": "Get all products in a specific ticket"
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle Wholesale",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/ticket/toogle/wholesale/{{ticket_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "toogle", "wholesale", "{{ticket_key}}"]
+            },
+            "description": "Toggle wholesale mode for a ticket"
+          },
+          "response": []
+        },
+        {
+          "name": "Add Product to Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticket_key\": 1,\n  \"product_code\": \"PROD001\",\n  \"quantity\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ticket/add",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "add"]
+            },
+            "description": "Add a product to a ticket"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Product from Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticket_key\": 1,\n  \"product_code\": \"PROD001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ticket/remove",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "remove"]
+            },
+            "description": "Remove a product from a ticket"
+          },
+          "response": []
+        },
+        {
+          "name": "Save Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticket_key\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ticket/save",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "save"]
+            },
+            "description": "Save a ticket"
+          },
+          "response": []
+        }
+      ],
+      "description": "Ticket management endpoints"
+    },
+    {
+      "name": "Config - Users",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/config/user",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config", "user"]
+            },
+            "description": "Retrieve all users"
+          },
+          "response": []
+        },
+        {
+          "name": "Login User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": \"admin\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/config/user/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config", "user", "login"]
+            },
+            "description": "Login with username and password"
+          },
+          "response": []
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser\",\n  \"password\": \"securepass123\",\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/config/user/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config", "user", "create"]
+            },
+            "description": "Create a new user"
+          },
+          "response": []
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 1,\n  \"username\": \"updateduser\",\n  \"email\": \"updated@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/config/user/update",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config", "user", "update"]
+            },
+            "description": "Update an existing user"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/config/user/delete/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config", "user", "delete", "{{user_id}}"]
+            },
+            "description": "Delete a user by ID"
+          },
+          "response": []
+        }
+      ],
+      "description": "User management endpoints"
+    },
+    {
+      "name": "Config - Ticket Text",
+      "item": [
+        {
+          "name": "Get Headers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/config/ticket/text/headers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config", "ticket", "text", "headers"]
+            },
+            "description": "Get all ticket headers"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Headers",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"header_text\": \"Company Name\",\n  \"header_address\": \"123 Main St\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/config/ticket/text/headers/update",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config", "ticket", "text", "headers", "update"]
+            },
+            "description": "Update ticket headers"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Footers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/config/ticket/text/footers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config", "ticket", "text", "footers"]
+            },
+            "description": "Get all ticket footers"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Footers",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"footer_text\": \"Thank you for your purchase\",\n  \"footer_contact\": \"support@company.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/config/ticket/text/footers/update",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config", "ticket", "text", "footers", "update"]
+            },
+            "description": "Update ticket footers"
+          },
+          "response": []
+        }
+      ],
+      "description": "Ticket text configuration (headers, footers) endpoints"
+    },
+    {
+      "name": "Config - Fonts",
+      "item": [
+        {
+          "name": "Get Fonts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/config/ticket/fonts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config", "ticket", "fonts"]
+            },
+            "description": "Get all available ticket fonts"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Font",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"font_name\": \"Arial\",\n  \"font_size\": 12\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/config/ticket/fonts/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config", "ticket", "fonts", "create"]
+            },
+            "description": "Create a new ticket font"
+          },
+          "response": []
+        }
+      ],
+      "description": "Font configuration endpoints"
+    },
+    {
+      "name": "Printers",
+      "item": [
+        {
+          "name": "List Printers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/print/list",
+              "host": ["{{base_url}}"],
+              "path": ["api", "print", "list"]
+            },
+            "description": "Get a list of available printers"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Printers Dictionary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/print/dict",
+              "host": ["{{base_url}}"],
+              "path": ["api", "print", "dict"]
+            },
+            "description": "Get printer information as a dictionary"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Printer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\",\n  \"default\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/print/update/{{printer_name}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "print", "update", "{{printer_name}}"]
+            },
+            "description": "Update printer configuration"
+          },
+          "response": []
+        }
+      ],
+      "description": "Printer management endpoints"
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Cash Flow",
+          "item": [
+            {
+              "name": "Insert Cash Inflow",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/cash/inflow?amount={{amount}}&drawer=main&description=Cash+deposit",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "cash", "inflow"],
+                  "query": [
+                    {
+                      "key": "amount",
+                      "value": "{{amount}}"
+                    },
+                    {
+                      "key": "drawer",
+                      "value": "main"
+                    },
+                    {
+                      "key": "description",
+                      "value": "Cash deposit"
+                    }
+                  ]
+                },
+                "description": "Record a cash inflow transaction"
+              },
+              "response": []
+            },
+            {
+              "name": "Insert Cash Outflow",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/cash/outflow?amount={{amount}}&drawer=main&description=Cash+withdrawal",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "cash", "outflow"],
+                  "query": [
+                    {
+                      "key": "amount",
+                      "value": "{{amount}}"
+                    },
+                    {
+                      "key": "drawer",
+                      "value": "main"
+                    },
+                    {
+                      "key": "description",
+                      "value": "Cash withdrawal"
+                    }
+                  ]
+                },
+                "description": "Record a cash outflow transaction"
+              },
+              "response": []
+            },
+            {
+              "name": "Insert Cash Payment",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/cash/payment?amount={{amount}}&drawer=main&description=Payment+received",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "cash", "payment"],
+                  "query": [
+                    {
+                      "key": "amount",
+                      "value": "{{amount}}"
+                    },
+                    {
+                      "key": "drawer",
+                      "value": "main"
+                    },
+                    {
+                      "key": "description",
+                      "value": "Payment received"
+                    }
+                  ]
+                },
+                "description": "Record a cash payment transaction"
+              },
+              "response": []
+            }
+          ],
+          "description": "Cash flow tracking endpoints"
+        },
+        {
+          "name": "Drawer Logs",
+          "item": [
+            {
+              "name": "Get Drawer Log by ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/drawer/log/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "drawer", "log", "1"]
+                },
+                "description": "Get drawer log by ID"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Drawer Log by Date",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/drawer/log/date/{{date}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "drawer", "log", "date", "{{date}}"]
+                },
+                "description": "Get drawer logs for a specific date"
+              },
+              "response": []
+            }
+          ],
+          "description": "Drawer log tracking endpoints"
+        },
+        {
+          "name": "Product Changes",
+          "item": [
+            {
+              "name": "Get Product Changes by ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/product/log/changes/1",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "product", "log", "changes", "1"]
+                },
+                "description": "Get product change log by ID"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Product Changes by Date",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/product/log/changes/date/{{date}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "product", "log", "changes", "date", "{{date}}"]
+                },
+                "description": "Get product changes for a specific date"
+              },
+              "response": []
+            }
+          ],
+          "description": "Product change log endpoints"
+        }
+      ],
+      "description": "Analytics and logging endpoints"
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "api_path",
+      "value": "/api"
+    }
+  ]
+}

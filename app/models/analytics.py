@@ -24,7 +24,7 @@ class Analytics:
             ans = db.execute(sql, [id]).fetchone()
 
             if not ans:
-                raise Exception(f'Drawer log with the id {id} not exist')
+                raise ValueError(f'Drawer log with the id {id} not exist')
             
             ans = dict(ans)
             DB_manager.close_analitycs_db()
@@ -41,9 +41,9 @@ class Analytics:
             rows = db.execute(sql, [f'{date}%']).fetchall()
 
             if not len(rows):
-                return list()
+                return []
             
-            ans = list()
+            ans = []
             for row in rows:
                 ans.append(dict(row))
 
@@ -68,7 +68,7 @@ class Analytics:
             rows = db.execute(sql, [code]).fetchall()
 
             if not rows:
-                raise Exception(f'Products changes with code {code} not exist')
+                raise ValueError(f'Products changes with code {code} not exist')
             
             ans = [dict(row) for row in rows]
             DB_manager.close_analitycs_db()
@@ -89,9 +89,9 @@ class Analytics:
             rows = db.execute(sql, [f'{date}%']).fetchall()
 
             if not len(rows):
-                return list()
+                return []
             
-            ans = list()
+            ans = []
             for row in rows:
                 ans.append(dict(row))
 
@@ -115,7 +115,7 @@ class Analytics:
             ans = db.execute(sql, [id]).fetchone()
 
             if not ans:
-                raise Exception(f'Cash_flow with the id {id} not exist')
+                raise ValueError(f'Cash_flow with the id {id} not exist')
             
             ans = dict(ans)
             DB_manager.close_analitycs_db()
@@ -132,9 +132,9 @@ class Analytics:
             rows = db.execute(sql, [f'{date}%']).fetchall()
 
             if not len(rows):
-                return list()
+                return []
             
-            ans = list()
+            ans = []
             for row in rows:
                 ans.append(dict(row))
 
