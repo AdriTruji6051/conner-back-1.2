@@ -10,6 +10,12 @@ class Config:
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "default-key-jwt")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(int(os.getenv("TOKEN_HOURS", "8")))
 
+    # SQLAlchemy single consolidated database
+    _DB_PATH = os.path.abspath(os.getenv('DB_PATH', './db/conner.db'))
+    SQLALCHEMY_DATABASE_URI = f'sqlite:///{_DB_PATH}'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Legacy paths (kept for reference / migration scripts only)
     PRODUCTS_DB_DIR = os.getenv('PRODUCTS_DB', './products.db')
     TICKETS_DB_DIR = os.getenv('TICKETS_DB', './tickets.db')
     ANALITYCS_DB_DIR = os.getenv('ANALITYCS_DB', './analitycs.db')

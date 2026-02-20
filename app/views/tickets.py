@@ -72,7 +72,7 @@ def get_ticket(key):
 def get_tickets_date(date):
     try:
         return AppResponse.success({
-            'tickets': Tickets.list_created_at(date),
+            'tickets': [t.to_dict() for t in Tickets.list_created_at(date)],
             'date': date
         }).to_flask_tuple()
     except ValueError as e:
@@ -85,7 +85,7 @@ def get_tickets_date(date):
 def get_products_in_ticket(id):
     try:
         return AppResponse.success({
-            'products': Tickets.Product_in_ticket.get_by_ticket(id),
+            'products': [p.to_dict() for p in Tickets.Product_in_ticket.get_by_ticket(id)],
             'id': id
         }).to_flask_tuple()
     except ValueError as e:

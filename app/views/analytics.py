@@ -56,7 +56,7 @@ def insert_payment():
 @routesAnalitycs.route(ROUTE_GET_DRAWER_LOG, methods=['GET'])
 def get_drawer_log(id):
     try:
-        return AppResponse.success(Analytics.Drawer_logs.get(id)).to_flask_tuple()
+        return AppResponse.success(Analytics.Drawer_logs.get(id).to_dict()).to_flask_tuple()
     except Exception as e:
         logging.error(f'/api/drawer/log/<int:id>. Error: {e}. Data recieved: {id}')
         return AppResponse.not_found("drawer logs not found").to_flask_tuple()
@@ -64,7 +64,7 @@ def get_drawer_log(id):
 @routesAnalitycs.route(ROUTE_GET_DRAWER_LOG_BY_DATE, methods=['GET'])
 def get_drawer_log_date_date(date):
     try:
-        return AppResponse.success({'logs': Analytics.Drawer_logs.get_all(date)}).to_flask_tuple()
+        return AppResponse.success({'logs': [l.to_dict() for l in Analytics.Drawer_logs.get_all(date)]}).to_flask_tuple()
     except Exception as e:
         logging.error(f'/api/drawer/log/date/<string:date>. Error: {e}. Data recieved: {date}')
         return AppResponse.not_found(f"drawer logs at date {date} not found").to_flask_tuple()
@@ -72,7 +72,7 @@ def get_drawer_log_date_date(date):
 @routesAnalitycs.route(ROUTE_GET_PRODUCT_CHANGES, methods=['GET'])
 def get_changes_log(id: int):
     try:
-        return AppResponse.success(Analytics.Products_changes.get(id)).to_flask_tuple()
+        return AppResponse.success([c.to_dict() for c in Analytics.Products_changes.get(id)]).to_flask_tuple()
     except Exception as e:
         logging.error(f'/api/product/log/changes/<int:id>. Error: {e}. Data recieved: {id}')
         return AppResponse.not_found("product log not found").to_flask_tuple()
@@ -80,7 +80,7 @@ def get_changes_log(id: int):
 @routesAnalitycs.route(ROUTE_GET_PRODUCT_CHANGES_BY_DATE, methods=['GET'])
 def get_changes_log_date(date: str):
     try:
-        return AppResponse.success({'logs': Analytics.Products_changes.get_all(date)}).to_flask_tuple()
+        return AppResponse.success({'logs': [c.to_dict() for c in Analytics.Products_changes.get_all(date)]}).to_flask_tuple()
     except Exception as e:
         logging.error(f'/api/product/log/changes/date/<string:date>. Error: {e}. Data recieved: {date}')
         return AppResponse.not_found(f"product logs at date {date} not found").to_flask_tuple()

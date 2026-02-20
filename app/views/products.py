@@ -1,5 +1,4 @@
-from flask import jsonify, Blueprint, request
-from flask_jwt_extended import jwt_required
+from flask import Blueprint, request
 import logging
 
 from app.models.products import Products
@@ -20,7 +19,7 @@ PRODUCT_NOT_FOUND_MESSAGE = "Product not found"
 @routesProducts.route(ROUTE_GET_ALL_PRODUCTS, methods=['GET'])
 def get_all_products():
     try:
-        return AppResponse.success(Products.getAll()).to_flask_tuple()
+        return AppResponse.success([p.to_dict() for p in Products.getAll()]).to_flask_tuple()
     except Exception as e:
         logging.info(f'/api/products: {e}.')
         return AppResponse.not_found("could not fetch products").to_flask_tuple()
@@ -125,7 +124,7 @@ def delete_product(code):
 @routesProducts.route(ROUTE_GET_ALL_DEPARTMENTS, methods=['GET'])
 def get_all_departments():
     try:
-        return AppResponse.success({'departments': Products.Departments.get_all()}).to_flask_tuple()
+        return AppResponse.success([d.to_dict() for d in Products.Departments.get_all()]).to_flask_tuple()
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
@@ -135,7 +134,7 @@ def get_all_departments():
 @routesProducts.route(ROUTE_GET_DEPARTMENT, methods=['GET'])
 def get_department(code):
     try:
-        return AppResponse.success(Products.Departments.get(code)).to_flask_tuple()
+        return AppResponse.success(Products.Departments.get(code).to_dict()).to_flask_tuple()
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:

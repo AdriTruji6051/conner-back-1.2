@@ -1,39 +1,107 @@
 from datetime import datetime
 
+from sqlalchemy import event
+
+from app.extensions import db
 from app.models.analytics import Analytics, create_products_changes_keys
-from app.connections.connections import DB_manager
-from app.helpers.helpers import profit_percentage
-from app.models.utyls import raise_exception_if_missing_keys, execute_sql_and_close_db, build_insert_sql_sequence, build_update_sql_sequence
+from app.helpers.helpers import profit_percentage, raise_exception_if_missing_keys
+from app.models.core_classes import Product, AssociateCode, Department
 
-from app.models.core_classes import product_create, product_update, product, siblings, department, associates_codes, associates_codes_update
+QUICKSALE_CODE = 'QUICKSALE'
+DEFAULT_DEPARTMENT_DESCRIPTION = '___'
 
-# 'modified_at' is not included in data keys because is calculated into the functions
+_DEFAULT_DEPARTMENT_CODE: int | None = None
+
+
+def _is_quicksale_code(code: str | None) -> bool:
+    return bool(code) and code == QUICKSALE_CODE
+
+
+def ensure_default_department() -> Department:
+    """Ensure the placeholder department exists and cache its code."""
+    global _DEFAULT_DEPARTMENT_CODE
+
+    dept = Department.query.filter_by(description=DEFAULT_DEPARTMENT_DESCRIPTION).first()
+    if not dept:
+        dept = Department(description=DEFAULT_DEPARTMENT_DESCRIPTION)
+        db.session.add(dept)
+        db.session.commit()
+
+    _DEFAULT_DEPARTMENT_CODE = dept.code
+    return dept
+
+
+def is_protected_department(candidate: Department | int | None) -> bool:
+    if candidate is None:
+        return False
+
+    default_code = _DEFAULT_DEPARTMENT_CODE
+    candidate_code = candidate.code if isinstance(candidate, Department) else candidate
+
+    if default_code is not None and candidate_code == default_code:
+        return True
+
+    if isinstance(candidate, Department):
+        return candidate.description == DEFAULT_DEPARTMENT_DESCRIPTION
+
+    dept = Department.query.get(candidate_code)
+    return bool(dept and dept.description == DEFAULT_DEPARTMENT_DESCRIPTION)
+
+
+def ensure_quicksale_product() -> Product:
+    """Ensure the placeholder product used for quick sales exists."""
+    placeholder = Product.query.get(QUICKSALE_CODE)
+    if placeholder:
+        if placeholder.inventory is not None:
+            placeholder.inventory = None
+            db.session.commit()
+        return placeholder
+
+    placeholder = Product(
+        code=QUICKSALE_CODE,
+        description='QUICKSALE',
+        sale_type='U',
+        cost=0,
+        sale_price=0,
+        department=None,
+        wholesale_price=0,
+        priority=0,
+        inventory=None,
+        parent_code=None,
+        profit_margin=0,
+        modified_at=datetime.now().strftime('%Y-%m-%d'),
+    )
+    db.session.add(placeholder)
+    db.session.commit()
+    return placeholder
+
+# Keys for validation
 create_product_keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code"]
 update_product_keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code", "original_code"]
 update_department_keys = ["description", "code"]
 create_associates_codes_keys = ["code", "parent_code", "tag"]
 update_associates_codes_keys = ["code", "parent_code", "tag", "original_code"]
-update_siblings_keys = ["sale_type", "cost", "sale_price", "department", "wholesale_price",  "parent_code"]
+update_siblings_keys = ["sale_type", "cost", "sale_price", "department", "wholesale_price", "parent_code"]
 
-UPDATE_PRODUCT_SQL = 'UPDATE products SET inventory = ? WHERE code = ?;'
 
 def update_siblings_products(data: dict, siblings_codes: list[str]):
     if len(siblings_codes):
         for sibling_code in siblings_codes:
-            ans = Products.get(sibling_code)
-            if ans:
-                for key in update_siblings_keys:
-                    ans[key] = data[key]
-                Products.update(ans)
-            else:
-                continue     
+            try:
+                product = Product.query.get(sibling_code)
+                if product:
+                    for key in update_siblings_keys:
+                        setattr(product, key, data[key])
+                    db.session.commit()
+            except Exception:
+                continue
+
 
 def build_product_log_dict(data: dict, method: str, modified_date: str) -> dict:
     change_log = {}
-    # Using all the keys, except by the last three because they are not in data dict
     for key in create_products_changes_keys[:len(create_products_changes_keys) - 3]:
         change_log[key] = data[key]
-    
+
     change_log['original_code'] = None
     change_log['modified_at'] = modified_date
     change_log['method'] = method
@@ -42,212 +110,197 @@ def build_product_log_dict(data: dict, method: str, modified_date: str) -> dict:
 
     return change_log
 
+
 class Products:
-    # raise an error if data is not valid
     @staticmethod
     def product_data_is_valid(data: dict, check_update_product_keys: bool = False) -> None:
-
         raise_exception_if_missing_keys(data, create_product_keys, 'create product')
 
         if check_update_product_keys:
             raise_exception_if_missing_keys(data, update_product_keys, 'update product')
-        
-        if(data['cost'] < 0):
-            raise ValueError('Data sended is invalid -> Cost must be greater than zero')
-        
-        if(type(data['inventory']) not in [float, int] and data['inventory'] != None):
-            raise ValueError('Data sended is invalid -> Inventory must be NULL, or NUMBER')        
 
-        if(data['cost'] > data['sale_price']):
+        if data['cost'] < 0:
+            raise ValueError('Data sended is invalid -> Cost must be greater than zero')
+
+        if type(data['inventory']) not in [float, int] and data['inventory'] is not None:
+            raise ValueError('Data sended is invalid -> Inventory must be NULL, or NUMBER')
+
+        if data['cost'] > data['sale_price']:
             raise ValueError('Data sended is invalid -> sale_price must be greater than cost')
-        
-        if(data['wholesale_price'] > data['sale_price']): 
+
+        if data['wholesale_price'] > data['sale_price']:
             raise ValueError('Data sended is invalid -> sale_price must be greater than wholesale_price')
-        
-        if(data['sale_type'] != 'U' and data['sale_type'] != 'D'):
+
+        if data['sale_type'] != 'U' and data['sale_type'] != 'D':
             raise ValueError('Data sended is invalid -> sale_type must have values of "U" or "D"')
 
-    @staticmethod 
+    @staticmethod
     def get_update_inventory_params(data: list[dict]) -> list[tuple]:
-        """ Check if the data could be enough to validate the data -> Product {} """
+        """Check if the data could be enough to validate the data -> Product {}"""
         update_inventory_params_array = []
 
-        for product in data:
-            product_inventory = 0
+        for product_data in data:
+            product_inventory = None
             try:
-                product_inventory = Products.get(product['code'])['inventory']
-            except:
+                product_obj = Product.query.get(product_data['code'])
+                if product_obj:
+                    product_inventory = product_obj.inventory
+            except Exception:
                 product_inventory = None
-            finally:
-                if product_inventory < product['cantity'] and product_inventory != None:
-                    raise ValueError(f'Inventory insuficient for product! {product['code'], product['description']}')
-                        
-                if product_inventory != None:
-                    # if the product not has inventory or product has not been finded just continue
-                    continue
-                else:
-                    product_inventory -= product['cantity']
-                    update_inventory_params_array.append((product_inventory, product['code'])) 
+            
+            # Fixed logic: only check inventory for products that track it (not None)
+            if product_inventory is not None:
+                if product_inventory < product_data['cantity']:
+                    raise ValueError(f'Inventory insuficient for product! {product_data["code"], product_data["description"]}')
+                new_inventory = product_inventory - product_data['cantity']
+                update_inventory_params_array.append((new_inventory, product_data['code']))
+
         return update_inventory_params_array
-    
+
     @staticmethod
     def enough_inventory(code: str, cantity: float) -> bool:
-        """ Check if the product with the given code has at least the given cantity in stock. """
+        """Check if the product with the given code has at least the given cantity in stock."""
         if cantity < 0:
             raise ValueError('Cantity must be greater than zero.')
-        
-        product_inventory = 0
+
         try:
-            product_inventory = Products.get(code)['inventory']
-            # If inventory set to null, return True because the product 
-            # didn't use inventory
-            if not product_inventory:
+            product = Product.query.get(code)
+            if not product:
+                # Also check if it's an associate code
+                assoc = AssociateCode.query.get(code)
+                if assoc:
+                    product = Product.query.get(assoc.parent_code)
+            
+            if not product:
                 return True
-        except:
-            # If product not exist, inventory always will be enough.
-            return True
-        
-        if product_inventory < cantity:
-            return False
-        else:           
-            return True
-        
-    @staticmethod
-    def getAll() -> list[product]:
-        db = DB_manager.get_main_db()
-        ans = []
 
-        sql = 'SELECT * FROM products;'
-        
-        rows = db.execute(sql).fetchall()
-        for row in rows:
-            ans.append(dict(row))
-        
-        DB_manager.close_main_db()
+            if product.inventory is None:
+                return True
 
-        return ans
+            return product.inventory >= cantity
+        except Exception:
+            return True
 
     @staticmethod
-    def get(code: str) -> product:
-        # Check if code is in associates codes (linked products to retrieve the parent data product),
-        # if not, search if the product is the main product
-        tag = '' # Used for label at linked products
+    def getAll() -> list[Product]:
+        return Product.query.filter(Product.code != QUICKSALE_CODE).all()
+
+    @staticmethod
+    def get(code: str) -> Product:
+        """Get a product by code. If code is an associate, returns the parent product
+        with modified description and associate metadata."""
+        tag = ''
         id_associate = code
         is_associate = False
 
-        sql = 'SELECT * FROM associates_codes WHERE code = ?;'
-        db = DB_manager.get_main_db()
-        ans = db.execute(sql, [code]).fetchone()
-
-        if ans:
-            tag += ' ' + dict(ans)['tag']
-            code = dict(ans)['parent_code']   
+        assoc = AssociateCode.query.get(code)
+        if assoc:
+            tag = ' ' + (assoc.tag or '')
+            code = assoc.parent_code
             is_associate = True
 
-        sql = 'SELECT * FROM products WHERE code = ?;'
-        
-        ans = db.execute(sql, [code]).fetchone()
-        if ans:
-            ans = dict(ans)
-            ans['description']+= tag
-            ans['code'] = id_associate # if not associate found, code will be the original code
-            ans['is_associate'] = is_associate
-        else:
+        product = Product.query.get(code)
+        if not product:
             raise ValueError('Product not found')
-            
-        DB_manager.close_main_db()
 
-        return ans
-    
+        # Return a dict-like representation with the associate info merged
+        result = product.to_dict(is_associate=is_associate)
+        result['description'] += tag
+        result['code'] = id_associate
+        return result
+
     @staticmethod
-    def get_by_description(description: str, called_before: bool = False) -> list[product]:
-        db = DB_manager.get_main_db()
+    def get_by_description(description: str, called_before: bool = False) -> list[dict]:
         description_split = description.split()
-
-        # if description has several words, we will create a dinamyc search for include all
-        # the words, alse if they are not ordered
-        params = []
-        sql = 'SELECT * FROM products WHERE '
+        base_query = Product.query.filter(Product.code != QUICKSALE_CODE)
 
         if len(description_split) < 2:
-            sql += 'description LIKE ? ORDER BY priority DESC, CASE WHEN description LIKE ? THEN 0 ELSE 1 END, description;'
-            params.append(f'%{description}%')
-            params.append(f'{description}%')
-
+            products = base_query.filter(
+                Product.description.ilike(f'%{description}%')
+            ).order_by(
+                Product.priority.desc(),
+                db.case(
+                    (Product.description.ilike(f'{description}%'), 0),
+                    else_=1
+                ),
+                Product.description
+            ).all()
         else:
-            # Structure for dynamic params in query
-            for i in range(len(description_split)):
-                sql += ' description LIKE ? AND ' if i+1 < len(description_split) else ' description LIKE ? '
-                params.append(f'%{description_split[i]}%')
-            # Final and static query structure
-            sql += 'ORDER BY priority DESC, CASE WHEN description LIKE ? THEN 0 WHEN description LIKE ? THEN 1 ELSE 2 END, description;'
-            params.append(f'{description}%')
-            params.append(f'{description_split[0]}%')
+            query = base_query
+            for word in description_split:
+                query = query.filter(Product.description.ilike(f'%{word}%'))
 
-        rows = db.execute(sql, params).fetchall()
-        ans = []
+            products = query.order_by(
+                Product.priority.desc(),
+                db.case(
+                    (Product.description.ilike(f'{description}%'), 0),
+                    (Product.description.ilike(f'{description_split[0]}%'), 1),
+                    else_=2
+                ),
+                Product.description
+            ).all()
 
-        for row in rows:
-            ans.append(dict(row))
+        ans = [p.to_dict() for p in products]
 
-        # Change Ñ or ñ for better results in spanish searchs
+        # Handle ñ/Ñ for better Spanish search results
         if 'ñ' in description and not called_before:
-            ans.extend(Products.search_by_description(description.replace('ñ', 'Ñ'), True))
+            ans.extend(Products.get_by_description(description.replace('ñ', 'Ñ'), True))
         elif 'Ñ' in description and not called_before:
-            ans.extend(Products.search_by_description(description.replace('Ñ', 'ñ'), True))
-
-        DB_manager.close_main_db()
+            ans.extend(Products.get_by_description(description.replace('Ñ', 'ñ'), True))
 
         return ans
-    
+
     @staticmethod
-    def get_siblings(code: str) -> siblings:
-        # check if parent product, if not, search his parent code, 
-        # if not has anything linked, raise not found exception
-        sql = 'SELECT * FROM products WHERE parent_code = ?;'
-        db = DB_manager.get_main_db()
-        siblings_rows = db.execute(sql, [code]).fetchall()
+    def get_siblings(code: str) -> dict:
+        siblings_rows = Product.query.filter_by(parent_code=code).all()
 
         if not len(siblings_rows):
-            # 
-            sql_child = 'SELECT parent_code FROM products WHERE code = ?;'
-            child = db.execute(sql_child, [code]).fetchone()
-
+            child = Product.query.get(code)
             if not child:
                 raise ValueError('Product not exist')
-            
-            # check again, if the product has siblings 
-            code = dict(child)['parent_code']
-            siblings_rows = db.execute(sql, [code]).fetchall()
-            
+
+            code = child.parent_code
+            if not code:
+                raise ValueError('Product has not parent linked')
+
+            siblings_rows = Product.query.filter_by(parent_code=code).all()
             if not len(siblings_rows):
                 raise ValueError('Product has not parent linked')
-            
-        childs = []
-        for row in siblings_rows:
-            childs.append(dict(row))
 
+        childs = [p.to_dict() for p in siblings_rows]
         parent = Products.get(code)
 
-        # print related products
         return {
-            'parent_product' : parent,
-            'child_products' : childs
+            'parent_product': parent,
+            'child_products': childs
         }
 
     @staticmethod
-    def create(data: product_create):
+    def create(data: dict):
         Products.product_data_is_valid(data)
+        if _is_quicksale_code(data['code']):
+            raise ValueError('The QUICKSALE code is reserved for quick sales.')
+        if _is_quicksale_code(data.get('parent_code')):
+            raise ValueError('Quicksale product cannot be used as parent.')
         modified_date = datetime.now().strftime('%Y-%m-%d')
-        params = [data[key] for key in create_product_keys]
 
-        # Profit and modifiet_at are calculated inside the server, they don't have to be sent by the client
-        params.append(profit_percentage(data['cost'], data['sale_price']))
-        params.append(modified_date)
+        product = Product(
+            code=data['code'],
+            description=data['description'],
+            sale_type=data['sale_type'],
+            cost=data['cost'],
+            sale_price=data['sale_price'],
+            department=data['department'],
+            wholesale_price=data['wholesale_price'],
+            priority=data['priority'],
+            inventory=data['inventory'],
+            parent_code=data['parent_code'],
+            profit_margin=profit_percentage(data['cost'], data['sale_price']),
+            modified_at=modified_date,
+        )
 
-        sql = build_insert_sql_sequence('products', create_product_keys + ['profit_margin', 'modified_at'])
-        
-        execute_sql_and_close_db(sql, params, 'main')
+        db.session.add(product)
+        db.session.commit()
 
         Analytics.Products_changes.create(build_product_log_dict(data, 'POST', modified_date))
 
@@ -255,20 +308,54 @@ class Products:
             update_siblings_products(data, data['siblings_codes'])
 
     @staticmethod
-    def update(data: product_update):
+    def update(data: dict):
         Products.product_data_is_valid(data=data, check_update_product_keys=True)
         modified_date = datetime.now().strftime('%Y-%m-%d')
-        # 'original_code' isn't used because it is appended at the last place
-        params = [data[key] for key in update_product_keys[:len(update_product_keys) -1]]
 
-        params.append(profit_percentage(data['cost'], data['sale_price']))
-        params.append(modified_date)
-        params.append(data['original_code'])
+        original_code = data['original_code']
+        if _is_quicksale_code(original_code) or _is_quicksale_code(data['code']):
+            raise ValueError('Quicksale product cannot be modified.')
+        if _is_quicksale_code(data.get('parent_code')):
+            raise ValueError('Quicksale product cannot be used as parent.')
+        product = Product.query.get(original_code)
+        if not product:
+            raise ValueError(f'Product with code {original_code} not found')
 
-        update_keys = create_product_keys[:len(update_product_keys) -1] + ['profit_margin', 'modified_at']
-        sql = build_update_sql_sequence('products', update_keys, 'code')
-        execute_sql_and_close_db(sql, params, 'main')
-        
+        # If code is being changed, handle it
+        if original_code != data['code']:
+            # Create new product with new code, copy all data
+            new_product = Product(
+                code=data['code'],
+                description=data['description'],
+                sale_type=data['sale_type'],
+                cost=data['cost'],
+                sale_price=data['sale_price'],
+                department=data['department'],
+                wholesale_price=data['wholesale_price'],
+                priority=data['priority'],
+                inventory=data['inventory'],
+                parent_code=data['parent_code'],
+                profit_margin=profit_percentage(data['cost'], data['sale_price']),
+                modified_at=modified_date,
+            )
+            db.session.delete(product)
+            db.session.flush()
+            db.session.add(new_product)
+        else:
+            product.description = data['description']
+            product.sale_type = data['sale_type']
+            product.cost = data['cost']
+            product.sale_price = data['sale_price']
+            product.department = data['department']
+            product.wholesale_price = data['wholesale_price']
+            product.priority = data['priority']
+            product.inventory = data['inventory']
+            product.parent_code = data['parent_code']
+            product.profit_margin = profit_percentage(data['cost'], data['sale_price'])
+            product.modified_at = modified_date
+
+        db.session.commit()
+
         Analytics.Products_changes.create(build_product_log_dict(data, 'PUT', modified_date))
 
         if 'siblings_codes' in data:
@@ -278,157 +365,189 @@ class Products:
     def update_inventory(code: str, cantity: float):
         if cantity < 0:
             raise ValueError('Inventory cannot be zero or lower.')
-        sql = UPDATE_PRODUCT_SQL
-        execute_sql_and_close_db(sql, [cantity, code], 'main')
+        if _is_quicksale_code(code):
+            raise ValueError('Quicksale inventory cannot be modified manually.')
+        product = Product.query.get(code)
+        if not product:
+            raise ValueError(f'Product with code {code} not found')
+        product.inventory = cantity
+        db.session.commit()
 
     @staticmethod
     def delete(code: str):
         if not code:
             raise ValueError('Not code sended.')
-        
-        sql = 'DELETE FROM products WHERE code = ?;'
-        execute_sql_and_close_db(sql, [code], 'main')
+        if _is_quicksale_code(code):
+            raise ValueError('Quicksale product cannot be deleted.')
+        product = Product.query.get(code)
+        if not product:
+            raise ValueError(f'Product with code {code} not found')
+        db.session.delete(product)
+        db.session.commit()
 
     @staticmethod
     def add_inventory(code: str, cantity: float):
-        """ Product code and cantity to substract. """
+        """Product code and cantity to add."""
         try:
-            query_product = Products.get(code)
-            new_inventory = query_product['inventory'] + cantity
-
-            # If is an associate code, it doesnt manage inventory, so, update his parent inventory
-            if query_product['is_associate']:
-                code = Products.Associates_codes.get_raw_data(code)['parent_code']
-        except:
-            # If no product or inventory is None, (Product not use) return
-            return
+            product = Product.query.get(code)
+            if not product:
+                # Check if it's an associate
+                assoc = AssociateCode.query.get(code)
+                if assoc:
+                    product = Product.query.get(assoc.parent_code)
             
-        sql = UPDATE_PRODUCT_SQL
-        execute_sql_and_close_db(sql, [new_inventory, code], 'main')
-    
+            if not product or product.inventory is None:
+                return
+
+            product.inventory += cantity
+            db.session.commit()
+        except Exception:
+            return
+
     @staticmethod
     def remove_inventory(code: str, cantity: float):
-        """ Product code and cantity to substract. """
-        if Products.enough_inventory(code, cantity):
-            new_inventory = 0
-            try:
-                query_product = Products.get(code)
-                new_inventory = query_product['inventory'] - cantity
-
-                # If is an associate code, it doesnt manage inventory, so, update his parent inventory
-                if query_product['is_associate']:
-                    code = Products.Associates_codes.get_raw_data(code)['parent_code']
-            except:
-                new_inventory = None
-                
-            sql = UPDATE_PRODUCT_SQL
-            execute_sql_and_close_db(sql, [new_inventory, code], 'main')
-        else:
+        """Product code and cantity to substract."""
+        if not Products.enough_inventory(code, cantity):
             raise ValueError(f'Not enough inventory for product with code: {code}')
 
-    
+        try:
+            product = Product.query.get(code)
+            if not product:
+                assoc = AssociateCode.query.get(code)
+                if assoc:
+                    product = Product.query.get(assoc.parent_code)
+
+            if not product or product.inventory is None:
+                return
+
+            product.inventory -= cantity
+            db.session.commit()
+        except Exception:
+            return
+
     class Departments:
         @staticmethod
-        def get(code: str) -> department:
-            sql = 'SELECT * FROM departments WHERE code = ?;'
-            db = DB_manager.get_main_db()
-            ans = db.execute(sql, [code]).fetchone()
-
-            if ans:
-                ans = dict(ans)
-            else:
+        def get(code: int) -> Department:
+            dept = Department.query.get(code)
+            if not dept:
                 raise ValueError('Not department finded')
-            
-            DB_manager.close_main_db()
-            return ans
-        
-        @staticmethod
-        def get_all() -> list[department]:
-            sql = 'SELECT * FROM departments;'
-            db = DB_manager.get_main_db()
-            rows = db.execute(sql).fetchall()
-            ans = []
+            return dept
 
-            if rows:
-                for row in rows:
-                    ans.append(dict(row))
-            else:
-                raise ValueError('Not department finded.')
-            
-            DB_manager.close_main_db()
-            return ans
+        @staticmethod
+        def get_all() -> list[Department]:
+            depts = Department.query.all()
+            return depts
 
         @staticmethod
         def create(description: str):
-            sql = 'INSERT INTO departments (description) values (?);'
-            execute_sql_and_close_db(sql, [description], 'main')
+            if description == DEFAULT_DEPARTMENT_DESCRIPTION:
+                raise ValueError('Default no-department already exists.')
+            dept = Department(description=description)
+            db.session.add(dept)
+            db.session.commit()
 
         @staticmethod
-        def update(code: int, description: str): 
-            sql = 'UPDATE departments SET description = ? WHERE code = ?;'
-            execute_sql_and_close_db(sql, [description, code], 'main')
-        
+        def update(code: int, description: str):
+            if description == DEFAULT_DEPARTMENT_DESCRIPTION:
+                raise ValueError('Description reserved for default department.')
+            dept = Department.query.get(code)
+            if not dept:
+                raise ValueError(f'Department with code {code} not found')
+            if is_protected_department(dept):
+                raise ValueError('Default department cannot be updated')
+            dept.description = description
+            db.session.commit()
+
         @staticmethod
         def delete(code: int):
-            sql = 'DELETE FROM departments WHERE code = ?;'
-            execute_sql_and_close_db(sql, [code], 'main')
-        
+            if is_protected_department(code):
+                raise ValueError('Default department cannot be deleted')
+            dept = Department.query.get(code)
+            if not dept:
+                raise ValueError(f'Department with code {code} not found')
+            db.session.delete(dept)
+            db.session.commit()
+
+
+@event.listens_for(Department, 'before_update')
+def _prevent_default_department_update(mapper, connection, target):
+    if is_protected_department(target):
+        raise ValueError('Default department cannot be updated.')
+
+
+@event.listens_for(Department, 'before_delete')
+def _prevent_default_department_delete(mapper, connection, target):
+    if is_protected_department(target):
+        raise ValueError('Default department cannot be deleted.')
+
     class Associates_codes:
         @staticmethod
-        def get(code: str) -> product:
-            sql = """
-                SELECT ac.code, ac.parent_code, ac.tag, p.description, p.sale_type, p.cost, p.sale_price, 
-                p.department, p.wholesale_price, p.priority, p.inventory, p.modified_at, p.profit_margin, 
-                p.parent_code FROM associates_codes ac JOIN products p ON ac.parent_code = p.code 
-                WHERE ac.code = ?;
-            """
-            db = DB_manager.get_main_db()
-            ans = db.execute(sql, [code]).fetchone()
-
-            if ans:
-                ans = dict(ans)
-                ans['is_associate'] = True
-            else:
+        def get(code: str) -> dict:
+            assoc = AssociateCode.query.get(code)
+            if not assoc:
                 raise ValueError('Not associate_code finded')
-            
-            DB_manager.close_main_db()
-            return ans
-        
+
+            parent = Product.query.get(assoc.parent_code)
+            if not parent:
+                raise ValueError('Parent product not found')
+
+            result = parent.to_dict(is_associate=True)
+            result['code'] = assoc.code
+            result['tag'] = assoc.tag
+            return result
+
         @staticmethod
-        def get_raw_data(parent_code: str) -> list[associates_codes]:
-            """ Return all the associate products withe the given parent_code. """
-            sql ='SELECT * FROM associates_codes WHERE parent_code = ?;'
-            ans = DB_manager.get_main_db().execute(sql, [parent_code]).fetchall()
-            DB_manager.close_main_db()
-            associates= []
-            
-            for row in ans:
-                associates.append(dict(row))
-            
-            return associates
-        
+        def get_raw_data(parent_code: str) -> list[dict]:
+            """Return all the associate products with the given parent_code."""
+            associates = AssociateCode.query.filter_by(parent_code=parent_code).all()
+            return [a.to_dict() for a in associates]
+
         @staticmethod
-        def create(data: associates_codes):
+        def create(data: dict):
             raise_exception_if_missing_keys(data, create_associates_codes_keys, 'create associate_codes')
-            
-            params = [data[key] for key in create_associates_codes_keys]
-            sql = build_insert_sql_sequence('associates_codes', create_associates_codes_keys)
-
-            execute_sql_and_close_db(sql, params, 'main')
+            if _is_quicksale_code(data['code']) or _is_quicksale_code(data['parent_code']):
+                raise ValueError('Quicksale placeholder cannot be used as associate.')
+            assoc = AssociateCode(
+                code=data['code'],
+                parent_code=data['parent_code'],
+                tag=data['tag'],
+            )
+            db.session.add(assoc)
+            db.session.commit()
 
         @staticmethod
-        def update(data: associates_codes_update):
+        def update(data: dict):
             raise_exception_if_missing_keys(data, update_associates_codes_keys, 'update associate_codes')
-            
-            params = [data[key] for key in update_associates_codes_keys]
-            update_keys = update_associates_codes_keys[:len(update_associates_codes_keys) - 1]
-            sql = build_update_sql_sequence('associates_codes', update_keys, 'code')
-            execute_sql_and_close_db(sql, params, 'main')
-        
+            if _is_quicksale_code(data['code']) or _is_quicksale_code(data['parent_code']) or _is_quicksale_code(data['original_code']):
+                raise ValueError('Quicksale placeholder cannot be used as associate.')
+            original_code = data['original_code']
+            assoc = AssociateCode.query.get(original_code)
+            if not assoc:
+                raise ValueError(f'Associate code {original_code} not found')
+
+            if original_code != data['code']:
+                db.session.delete(assoc)
+                db.session.flush()
+                new_assoc = AssociateCode(
+                    code=data['code'],
+                    parent_code=data['parent_code'],
+                    tag=data['tag'],
+                )
+                db.session.add(new_assoc)
+            else:
+                assoc.parent_code = data['parent_code']
+                assoc.tag = data['tag']
+
+            db.session.commit()
+
         @staticmethod
         def delete(code: str):
             if not code:
                 raise ValueError('Not code sended')
-            
-            sql = 'DELETE FROM associates_codes WHERE code = ?;'
-            execute_sql_and_close_db(sql, [code], 'main')
+            if _is_quicksale_code(code):
+                raise ValueError('Quicksale placeholder cannot be used as associate.')
+            assoc = AssociateCode.query.get(code)
+            if not assoc:
+                raise ValueError(f'Associate code {code} not found')
+            db.session.delete(assoc)
+            db.session.commit()

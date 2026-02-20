@@ -1,77 +1,119 @@
-import bcrypt # TODO check later
-
-from app.models.core_classes import user_create, user_update, user, user_logged, text_ticket, create_text_ticket, font_config
-
-from app.connections.connections import DB_manager
-from app.models.utyls import raise_exception_if_missing_keys, build_insert_sql_sequence, build_update_sql_sequence, execute_sql_and_close_db
+from app.extensions import db
+from app.models.core_classes import User, TicketText, TicketFontConfig
+from app.helpers.helpers import raise_exception_if_missing_keys
+from sqlalchemy import event
 
 create_user_keys = ['user', 'user_name', 'password', 'role_type']
 update_user_keys = ['user', 'user_name', 'password', 'role_type', 'id']
 create_text_keys = ['text', 'line', 'is_header', 'font_config']
 create_font_config_keys = ['font', 'weigh', 'size']
 
+DEFAULT_FONT_NAME = 'Console'
+DEFAULT_FONT_SIZE = 12
+DEFAULT_FONT_WEIGHT = 500
+
+_DEFAULT_FONT_CONFIG_ID: int | None = None
+
+
+def ensure_default_font_config() -> TicketFontConfig:
+    """Ensure the default ticket font exists and cache its id."""
+    global _DEFAULT_FONT_CONFIG_ID
+
+    font_cfg = TicketFontConfig.query.filter_by(
+        font=DEFAULT_FONT_NAME,
+        size=DEFAULT_FONT_SIZE,
+        weigh=DEFAULT_FONT_WEIGHT,
+    ).first()
+
+    if not font_cfg:
+        font_cfg = TicketFontConfig(
+            font=DEFAULT_FONT_NAME,
+            size=DEFAULT_FONT_SIZE,
+            weigh=DEFAULT_FONT_WEIGHT,
+        )
+        db.session.add(font_cfg)
+        db.session.commit()
+
+    _DEFAULT_FONT_CONFIG_ID = font_cfg.id
+    return font_cfg
+
+
+def is_protected_font_config(candidate: TicketFontConfig | int | None) -> bool:
+    """Return True if the provided font configuration is the default one."""
+    if candidate is None:
+        return False
+
+    default_id = _DEFAULT_FONT_CONFIG_ID
+    candidate_id = candidate if isinstance(candidate, int) else candidate.id
+
+    if default_id is not None:
+        return candidate_id == default_id
+
+    if isinstance(candidate, TicketFontConfig):
+        return (
+            candidate.font == DEFAULT_FONT_NAME and
+            candidate.size == DEFAULT_FONT_SIZE and
+            candidate.weigh == DEFAULT_FONT_WEIGHT
+        )
+
+    return False
+
+
 class Config:
     class Users:
         @staticmethod
-        def get_all() -> list[user]:
-            sql = 'SELECT id, user, user_name, role_type FROM users;'
-            db = DB_manager.get_config_db()
-            rows = db.execute(sql).fetchall()
+        def get_all() -> list[User]:
+            return User.query.all()
 
-            if not len(rows):
-                return []
-            
-            ans = []
-            for row in rows:
-                ans.append(dict(row))
-
-            DB_manager.close_config_db()
-
-            return ans
-        
         @staticmethod
-        def login(user: str, password: str) -> user_logged:
-            sql = 'SELECT * FROM users WHERE user = ?;'
-            db = DB_manager.get_config_db()
-            user = db.execute(sql, [user]).fetchone()
+        def login(user: str, password: str) -> dict:
+            user_obj = User.query.filter_by(user=user).first()
 
-            if not user:
+            if not user_obj:
                 raise ValueError('User or password are incorrect!')
-            
-            user = dict(user)
 
-            if password != user['password']:
+            if password != user_obj.password:
                 raise ValueError('User or password are incorrect!')
-            
-            DB_manager.close_config_db()
 
             return {
-                'id': user['id'],
-                'user' : user['user'],
-                'user_name' : user['user_name'],
-                'role_type' : user['role_type']
+                'id': user_obj.id,
+                'user': user_obj.user,
+                'user_name': user_obj.user_name,
+                'role_type': user_obj.role_type,
             }
 
         @staticmethod
-        def create(data: user_create):
+        def create(data: dict):
             raise_exception_if_missing_keys(data, create_user_keys, 'create users data')
-            sql = build_insert_sql_sequence('users', create_user_keys)
-            params = [data[key] for key in create_user_keys]
-            execute_sql_and_close_db(sql, params, 'config')
-        
-        @staticmethod
-        def update(data: user_update):            
-            update_keys = update_user_keys[:len(update_user_keys) - 1]
-            raise_exception_if_missing_keys(data, update_user_keys, 'update users data')
+            user = User(
+                user=data['user'],
+                user_name=data['user_name'],
+                password=data['password'],
+                role_type=data['role_type'],
+            )
+            db.session.add(user)
+            db.session.commit()
 
-            sql = build_update_sql_sequence('users', update_keys, 'id')
-            params = [data[key] for key in update_user_keys]
-            execute_sql_and_close_db(sql, params, 'config')
-        
+        @staticmethod
+        def update(data: dict):
+            raise_exception_if_missing_keys(data, update_user_keys, 'update users data')
+            user = User.query.get(data['id'])
+            if not user:
+                raise ValueError(f'User with id {data["id"]} not found')
+
+            user.user = data['user']
+            user.user_name = data['user_name']
+            user.password = data['password']
+            user.role_type = data['role_type']
+            db.session.commit()
+
         @staticmethod
         def delete(id: int):
-            sql = 'DELETE FROM users WHERE id = ?;'
-            execute_sql_and_close_db(sql, [id], 'config')
+            user = User.query.get(id)
+            if not user:
+                raise ValueError(f'User with id {id} not found')
+            db.session.delete(user)
+            db.session.commit()
 
     class Ticket_text:
         @staticmethod
@@ -91,97 +133,95 @@ class Config:
                         raise ValueError('If this line value is header, value is_header must be seated with value int(1)')
                     if not is_header and row['is_header'] != 0:
                         raise ValueError('If this line value is footer, value is_header must be seated with value int(0)')
-                    if row['is_header'] not in [0,1]:
+                    if row['is_header'] not in [0, 1]:
                         raise ValueError('Error, is_header value must be seated with int(0) or int(1)')
             except Exception as e:
                 raise Exception(f'Invalid text, with ERROR: {e}')
 
         @staticmethod
-        def get_headers() -> list[text_ticket]:
-            sql = """
-                SELECT tt.text, tt.line, tc.font, tc.size, tc.weigh, tt.font_config 
-                FROM ticket_text tt JOIN ticket_font_configs tc 
-                ON tt.font_config = tc.id 
-                WHERE tt.is_header = 1 ORDER BY tt.line;
-            """
-            db = DB_manager.get_config_db()
-            rows = db.execute(sql).fetchall()
-
-            if not rows:
-                return []
-            
-            ans = []
-            for row in rows:
-                ans.append(dict(row))
-
-            return ans
-        
-        @staticmethod
-        def get_footers() -> list[text_ticket]:
-            sql = """
-                SELECT tt.text, tt.line, tc.font, tc.size, tc.weigh, tt.font_config 
-                FROM ticket_text tt JOIN ticket_font_configs tc 
-                ON tt.font_config = tc.id 
-                WHERE tt.is_header = 0 ORDER BY tt.line;
-            """
-            db = DB_manager.get_config_db()
-            rows = db.execute(sql).fetchall()
-
-            if not rows:
-                return []
-            
-            ans = []
-            for row in rows:
-                ans.append(dict(row))
-
-            return ans
+        def get_headers() -> list[dict]:
+            entries = TicketText.query.filter_by(is_header=1).order_by(TicketText.line).all()
+            result = []
+            for entry in entries:
+                result.append(entry.to_display_dict())
+            return result
 
         @staticmethod
-        def update_headers(data: list[create_text_ticket]):
+        def get_footers() -> list[dict]:
+            entries = TicketText.query.filter_by(is_header=0).order_by(TicketText.line).all()
+            result = []
+            for entry in entries:
+                result.append(entry.to_display_dict())
+            return result
+
+        @staticmethod
+        def update_headers(data: list[dict]):
             Config.Ticket_text.raise_exception_if_text_not_valid(data, True)
             Config.Ticket_text.drop_headers()
 
-            sql = build_insert_sql_sequence('ticket_text', create_text_keys)
-
             for row in data:
-                params = [row[key] for key in create_text_keys]
-                execute_sql_and_close_db(sql, params, 'config')
-        
+                entry = TicketText(
+                    text=row['text'],
+                    line=row['line'],
+                    is_header=row['is_header'],
+                    font_config=row.get('font_config'),
+                )
+                db.session.add(entry)
+            db.session.commit()
+
         @staticmethod
-        def update_footers(data: list[create_text_ticket]):
+        def update_footers(data: list[dict]):
             Config.Ticket_text.raise_exception_if_text_not_valid(data, False)
             Config.Ticket_text.drop_footers()
 
-            sql = build_insert_sql_sequence('ticket_text', create_text_keys)
-
             for row in data:
-                params = [row[key] for key in create_text_keys]
-                execute_sql_and_close_db(sql, params, 'config')
-        
+                entry = TicketText(
+                    text=row['text'],
+                    line=row['line'],
+                    is_header=row['is_header'],
+                    font_config=row.get('font_config'),
+                )
+                db.session.add(entry)
+            db.session.commit()
+
         @staticmethod
         def drop_headers():
-            sql = 'DELETE FROM ticket_text WHERE is_header = 1;'
-            execute_sql_and_close_db(sql, [], 'config')
-        
+            TicketText.query.filter_by(is_header=1).delete()
+            db.session.commit()
+
         @staticmethod
         def drop_footers():
-            sql = 'DELETE FROM ticket_text WHERE is_header = 0;'
-            execute_sql_and_close_db(sql, [], 'config')
+            TicketText.query.filter_by(is_header=0).delete()
+            db.session.commit()
 
         @staticmethod
-        def getFonts() -> list[font_config]:
-            sql = 'SELECT * FROM ticket_font_configs;'
-            db = DB_manager.get_config_db()
-            rows = db.execute(sql).fetchall()
+        def getFonts() -> list[TicketFontConfig]:
+            return TicketFontConfig.query.all()
 
-            return [dict(row) for row in rows]
-        
         @staticmethod
         def createFont(font: str, weigh: int, size: int):
-            sql = build_insert_sql_sequence('ticket_font_configs', create_font_config_keys)
-            execute_sql_and_close_db(sql, [font, weigh, size], 'config')
-        
+            fc = TicketFontConfig(font=font, weigh=weigh, size=size)
+            db.session.add(fc)
+            db.session.commit()
+
         @staticmethod
         def deleteFont(id: int):
-            sql = 'DELETE FROM ticket_font_configs WHERE id = ?;'
-            execute_sql_and_close_db(sql, [], 'config')
+            if is_protected_font_config(id):
+                raise ValueError('Default ticket font cannot be deleted')
+            fc = TicketFontConfig.query.get(id)
+            if not fc:
+                raise ValueError(f'Font config with id {id} not found')
+            db.session.delete(fc)
+            db.session.commit()
+
+
+@event.listens_for(TicketFontConfig, 'before_update')
+def _prevent_default_font_update(mapper, connection, target):
+    if is_protected_font_config(target):
+        raise ValueError('Default ticket font cannot be modified.')
+
+
+@event.listens_for(TicketFontConfig, 'before_delete')
+def _prevent_default_font_delete(mapper, connection, target):
+    if is_protected_font_config(target):
+        raise ValueError('Default ticket font cannot be deleted.')

@@ -11,6 +11,13 @@ def profit_percentage(cost: float, sale_price: float) -> int:
     return int((profit / cost) * 100)
 
 
+def raise_exception_if_missing_keys(data: dict, keys: list[str], description_tag: str = 'Not specified'):
+    """Validate that all required keys are present in data dict."""
+    if not set(keys).issubset(data):
+        missing = set(keys) - set(data)
+        raise ValueError(f'Keys {missing} are missing in {description_tag}')
+
+
 class AppResponse:
     """Standardized API response wrapper for all endpoints"""
     

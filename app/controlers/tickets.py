@@ -1,7 +1,7 @@
-from app.models.products import Products
+from app.models.products import Products, QUICKSALE_CODE
 from app.models.tickets import Tickets
 from app.controlers.core_classes import product_ticket, ticket_info
-from app.models.utyls import raise_exception_if_missing_keys
+from app.helpers.helpers import raise_exception_if_missing_keys
 
 import math
 
@@ -103,9 +103,8 @@ class Ticket:
         # Check if the product is already at the Ticket, if it, increment cantity. If not, search for the product.
         for i in range(len(self.__products)):
             if self.__products[i]['code'] == product_code:
-                if self.__products[i]['inventory'] != None:
-                    if self.__products[i]['inventory'] < self.__products[i]['cantity'] + cantity:
-                        raise ValueError('Inventory is not enough!')
+                if self.__products[i]['inventory'] != None and self.__products[i]['inventory'] < self.__products[i]['cantity'] + cantity:
+                    raise ValueError('Inventory is not enough!')
                     
                 self.__products[i]['cantity'] += cantity
                 has_finded = True
@@ -113,9 +112,8 @@ class Ticket:
         
         if not has_finded:
             product = Products.get(product_code)
-            if product['inventory'] != None:
-                if product['inventory'] < cantity:
-                    raise ValueError('Inventory is not enough!')
+            if product['inventory'] != None and product['inventory'] < cantity:
+                raise ValueError('Inventory is not enough!')
                 
             product['cantity'] = cantity
             product = {key: product[key] for key in product_ticket.__annotations__ if key in product}
@@ -252,7 +250,7 @@ class Tickets_manager:
         quicksale_info = {
             'products': [
                 {
-                    'code': 'QUICKSALE',
+                    'code': QUICKSALE_CODE,
                     'description': 'QUICKSALE',
                     'sale_type': 'U',
                     'cost': custom_floor(amount - (amount * UNDEFINED_PROFIT_MARGIN)),

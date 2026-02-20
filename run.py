@@ -4,7 +4,8 @@ from flask_cors import CORS
 import os
 
 from config.config import Config
-from app.connections.connections import DB_manager
+from app.extensions import db
+from app.connections.connections import init_db, register_sqlite_pragmas
 
 if Config.LOGGING:
     import logging
@@ -24,6 +25,10 @@ def create_app():
                     static_folder=os.path.join(os.path.dirname(__file__), 'static'))
     
     app.config.from_object(Config)
+
+    # Initialize SQLAlchemy ORM
+    db.init_app(app)
+    register_sqlite_pragmas(app)
 
     JWTManager(app)
 
@@ -48,10 +53,9 @@ def run_app():
 
     CORS(app, supports_credentials=True)
 
-    # App context is used to manage the same db connections with flask, but used before of the app running 
+    # Create all database tables if they don't exist (replaces DB_manager.create_missing_db)
     with app.app_context():
-        if(not DB_manager.all_db_exist()):
-            DB_manager.create_missing_db()
+        init_db()
         
         # Log all available endpoints
         if Config.LOGGING:

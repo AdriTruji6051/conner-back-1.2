@@ -1,7 +1,22 @@
 import unittest
 from datetime import datetime
 
-from test_models_data import *
+from test_models_data import (
+    products_create_good_array,
+    products_update_good_array,
+    associates_codes_create_before_update,
+    associates_codes_update_before_update,
+    associates_codes_create_after_update,
+    associates_codes_update_after_update,
+    products_create_bad_array,
+    users_create_array,
+    users_update_array_missing_id,
+    users_create_bad_array,
+    font_configs_create,
+    drawer_logs_create_array,
+    tickets_create_array,
+    tickets_create_bad_array,
+)
 
 from run import create_app
 from app.models.products import Products
@@ -9,7 +24,7 @@ from app.models.analytics import Analytics
 from app.models.config import Config
 from app.models.tickets import Tickets
 
-from app.connections.connections import DB_manager
+from app.connections.connections import init_db
 
 SHOW_GET_LOGS = True
 LOGS_CHAR_LEN = None
@@ -17,8 +32,7 @@ LOGS_CHAR_LEN = None
 def db_builder():
     app = create_app()
     with app.app_context():
-        if(not DB_manager.all_db_exist()):
-            DB_manager.create_missing_db()
+        init_db()
 
 def show_logs(logs_obj_name: str, logs: list):
     if SHOW_GET_LOGS:
@@ -26,7 +40,7 @@ def show_logs(logs_obj_name: str, logs: list):
         for i in range(len(logs)):
             print(f'Log {i + 1}° -> {str(logs[i])[:LOGS_CHAR_LEN]} ... LOG TYPE: {type(logs[i])}')
 
-class Main_test(unittest.TestCase):
+class main_test(unittest.TestCase):
     app = create_app()
 
     def get_users_id(self):
@@ -36,8 +50,9 @@ class Main_test(unittest.TestCase):
             # get the users if exist to delete to avoid problems at testing
             try:
                 users = Config.Users.get_all()
-                users_id = [user['id'] for user in users]
-            except:
+                users_id = [user.id for user in users]
+            except Exception as e:
+                print(e)
                 users_id = []
         
         return users_id
@@ -139,9 +154,9 @@ class Main_test(unittest.TestCase):
                     logs.append(ans)
 
             for font in font_configs_create:
-                Config.Ticket_text.create_font(font['font'], font['weigh'], font['size'])
+                Config.Ticket_text.createFont(font['font'], font['weigh'], font['size'])
             
-            if(len(Config.Ticket_text.get_fonts()) < 2): 
+            if(len(Config.Ticket_text.getFonts()) < 2): 
                 raise ValueError('There are not enough fonts in the database')
 
             show_logs('Config', logs)
@@ -155,7 +170,7 @@ class Main_test(unittest.TestCase):
                 Analytics.Drawer_logs.create(obj)
             
             ans1 = Analytics.Drawer_logs.get_all('YYYY-MM-DD')
-            ans2 = Analytics.Drawer_logs.get(ans1[0]['id'])
+            ans2 = Analytics.Drawer_logs.get(ans1[0].id)
             logs.append(ans1)
             logs.append(ans2)
 
@@ -169,7 +184,7 @@ class Main_test(unittest.TestCase):
             logs.append(tickets)
             
             for ticket in tickets:
-                Tickets.delete(ticket['id'])
+                Tickets.delete(ticket.id)
 
             for ticket in tickets_create_array:
                 logs.append(Tickets.create(ticket))

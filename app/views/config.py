@@ -15,7 +15,7 @@ routesConfig = Blueprint('routes-config', __name__)
 @routesConfig.route(ROUTE_GET_USERS, methods=['GET'])
 def get_users():
     try:
-        return AppResponse.success({'users': Config.Users.get_all()}).to_flask_tuple()
+        return AppResponse.success({'users': [u.to_dict() for u in Config.Users.get_all()]}).to_flask_tuple()
     except Exception as e:
         logging.info(f'/api/config/user. Catch: {e}.')
         return AppResponse.not_found("users not found").to_flask_tuple()
@@ -61,7 +61,7 @@ def delete_user(id):
 @routesConfig.route(ROUTE_GET_HEADERS, methods=['GET'])
 def get_headers():
     try:
-        return AppResponse.success({'headers': Config.Ticket_text.get_headers()}).to_flask_tuple()
+        return AppResponse.success(Config.Ticket_text.get_headers()).to_flask_tuple()
     except Exception as e:
         logging.info(f'/api/config/ticket/text/headers. Catch: {e}.')
         return AppResponse.server_error("headers not founded").to_flask_tuple()
@@ -69,7 +69,7 @@ def get_headers():
 @routesConfig.route(ROUTE_GET_FOOTERS, methods=['GET'])
 def get_footers():
     try:
-        return AppResponse.success({'footers': Config.Ticket_text.get_footers()}).to_flask_tuple()
+        return AppResponse.success(Config.Ticket_text.get_footers()).to_flask_tuple()
     except Exception as e:
         logging.info(f'/api/config/ticket/text/footers. Catch: {e}.')
         return AppResponse.server_error("footers not founded").to_flask_tuple()
@@ -97,7 +97,7 @@ def update_footers():
 @routesConfig.route(ROUTE_GET_FONTS, methods=['GET'])
 def get_fonts():
     try:
-        return AppResponse.success({'fonts': Config.Ticket_text.getFonts()}).to_flask_tuple()
+        return AppResponse.success([f.to_dict() for f in Config.Ticket_text.getFonts()]).to_flask_tuple()
     except Exception as e:
         logging.info(f'/api/config/ticket/fonts. Catch: {e}.')
         return AppResponse.server_error("fonts could not been provided!").to_flask_tuple()
@@ -109,10 +109,7 @@ def create_font():
         weigh = request.args.get('weigh', type=int)
         size = request.args.get('size', type=int)
         Config.Ticket_text.createFont(font, weigh, size)
-        return AppResponse.created({
-            'fonts': Config.Ticket_text.getFonts(),
-            'message': 'Succesfull font created!'
-        }).to_flask_tuple()
+        return AppResponse.created([f.to_dict() for f in Config.Ticket_text.getFonts()]).to_flask_tuple()
     except Exception as e:
         logging.info(f'/api/config/ticket/fonts. Catch: {e}.')
         return AppResponse.server_error("fonts could not been provided!").to_flask_tuple()
