@@ -9,7 +9,7 @@ from app.routes_constants import (
     ROUTE_QUICKSALE_TICKET, ROUTE_CREATE_TICKET, ROUTE_GET_TICKET_KEYS,
     ROUTE_GET_TICKET_KEYS_SHARED, ROUTE_GET_TICKET, ROUTE_GET_TICKETS_BY_DATE,
     ROUTE_GET_PRODUCTS_IN_TICKET, ROUTE_TOOGLE_WHOLESALE, ROUTE_ADD_PRODUCT_TICKET,
-    ROUTE_REMOVE_PRODUCT_TICKET, ROUTE_SAVE_TICKET
+    ROUTE_REMOVE_PRODUCT_TICKET, ROUTE_SAVE_TICKET, ROUTE_ADD_COMMON_PRODUCT_TICKET
 )
 
 TICKET_MANAGER = Tickets_manager()
@@ -116,6 +116,20 @@ def add_product():
     except Exception as e:
         logging.info(f'/api/ticket/add. Catch: {e}. Product_code: {product_code}. Ticket_key: {ticket_key}. Cantity: {cantity}')
         return AppResponse.bad_request("could not add product to ticket").to_flask_tuple()
+    
+@routesTickets.route(ROUTE_ADD_COMMON_PRODUCT_TICKET, methods=['POST'])
+def add_common_product():
+    try:
+        ticket_key = request.args.get('ticket_key', type=int)
+        price = request.args.get('price', type=float)
+        cantity = request.args.get('cantity', type=float, default=1)
+        description = request.args.get('description', default='COMMONSALE')
+        return AppResponse.success(TICKET_MANAGER.add_common_product(ticket_key, price, cantity, description)).to_flask_tuple()
+    except ValueError as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.info(f'/api/ticket/add/common. Catch: {e}. Price: {price}. Ticket_key: {ticket_key}. Cantity: {cantity}')
+        return AppResponse.bad_request("could not add common product to ticket").to_flask_tuple()
     
 @routesTickets.route(ROUTE_REMOVE_PRODUCT_TICKET, methods=['POST'])
 def remove_product():

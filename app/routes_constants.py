@@ -9,10 +9,8 @@ API_BASE = '/api'
 
 # ===================== PRODUCTS ROUTES =====================
 PRODUCTS_BASE = f'{API_BASE}/product'
-PRODUCTS_ALL = f'{API_BASE}/products'
 
 # Products - Get
-ROUTE_GET_ALL_PRODUCTS = PRODUCTS_ALL
 ROUTE_GET_PRODUCT_BY_CODE = f'{PRODUCTS_BASE}/code/<string:code>'
 ROUTE_GET_PRODUCT_BY_DESCRIPTION = f'{PRODUCTS_BASE}/description/<string:description>'
 ROUTE_GET_PRODUCT_SIBLINGS = f'{PRODUCTS_BASE}/siblings/<string:code>'
@@ -61,6 +59,7 @@ ROUTE_GET_PRODUCTS_IN_TICKET = f'{TICKETS_BASE}/get/products/id/<int:id>'
 # Tickets - Manage
 ROUTE_TOOGLE_WHOLESALE = f'{TICKETS_BASE}/toogle/wholesale/<int:ticket_key>'
 ROUTE_ADD_PRODUCT_TICKET = f'{TICKETS_BASE}/add'
+ROUTE_ADD_COMMON_PRODUCT_TICKET = f'{TICKETS_BASE}/add/common'
 ROUTE_REMOVE_PRODUCT_TICKET = f'{TICKETS_BASE}/remove'
 ROUTE_SAVE_TICKET = f'{TICKETS_BASE}/save'
 

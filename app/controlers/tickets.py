@@ -1,4 +1,4 @@
-from app.models.products import Products, QUICKSALE_CODE
+from app.models.products import Products, QUICKSALE_CODE, COMMONSALE_CODE
 from app.models.tickets import Tickets
 from app.controlers.core_classes import product_ticket, ticket_info
 from app.helpers.helpers import raise_exception_if_missing_keys
@@ -14,7 +14,7 @@ def custom_floor(number) -> float:
     return math.floor(number * 10) / 10
 
 def validate_common_product(product: dict):
-    keys = ['code', 'description', 'TEST2-2-U', 'sale_type', 'cost', 'sale_price', 'wholesale_price', 'cantity']
+    keys = ['code', 'description', 'sale_type', 'sale_price', 'cantity']
     raise_exception_if_missing_keys(product, keys, 'common product')
 
     if(product['cost'] < 0):
@@ -166,7 +166,8 @@ class Tickets_manager:
     tickets_dict = {}
     tickets_dict[0] = {
         'ipv4': '127.0.0.1',
-        'ticket': Ticket()
+        'ticket': Ticket(),
+        'commonsale_counter': 0
     }
 
     def __get(self, ticket_key: int) -> Ticket:
@@ -175,12 +176,30 @@ class Tickets_manager:
 
     def __reset(self, ticket_key: int):
         Tickets_manager.tickets_dict[ticket_key]['ticket'] = Ticket()
+        Tickets_manager.tickets_dict[ticket_key]['commonsale_counter'] = 0
+    
+    def __get_next_commonsale_code(self, ticket_key: int) -> str:
+        """Generate a unique temporary COMMONSALE code for the ticket"""
+        counter = Tickets_manager.tickets_dict[ticket_key]['commonsale_counter']
+        Tickets_manager.tickets_dict[ticket_key]['commonsale_counter'] = counter + 1
+        return f'{COMMONSALE_CODE}_{counter + 1}'
+    
+    def __normalize_commonsale_products(self, products: list[dict]) -> list[dict]:
+        """Convert all temporary COMMONSALE codes back to the original COMMONSALE_CODE"""
+        normalized_products = []
+        for product in products:
+            normalized_product = product.copy()
+            if normalized_product['code'].startswith(COMMONSALE_CODE):
+                normalized_product['code'] = COMMONSALE_CODE
+            normalized_products.append(normalized_product)
+        return normalized_products
     
     def add(self, ipv4: str = '127.0.0.1') -> int:
         """Create a Ticket object and return his Key to access it."""
         Tickets_manager.tickets_dict[Tickets_manager.ticket_id_new] = {
             'ipv4': ipv4,
-            'ticket': Ticket()
+            'ticket': Ticket(),
+            'commonsale_counter': 0
         }
         Tickets_manager.ticket_id_new += 1
         
@@ -194,6 +213,9 @@ class Tickets_manager:
         ticket_info = self.__get(ticket_key).get_info()
         if len(ticket_info['products']) < 1: 
             raise ValueError('There are not products on the ticket!')
+
+        # Normalize COMMONSALE products back to original code before saving
+        ticket_info['products'] = self.__normalize_commonsale_products(ticket_info['products'])
 
         ticket_info['ipv4_sender'] = ipv4
         ticket_info['total'] = total
@@ -243,6 +265,40 @@ class Tickets_manager:
         ticket = self.__get(ticket_key)
         ticket.toogle_wholesale()
         return ticket.get_info()
+    
+    def add_common_product(self, ticket_key: int, price: float, cantity: float = 1, description: str = 'COMMONSALE'):
+        """Add a COMMONSALE product with custom price and quantity to the ticket.
+        
+        Each COMMONSALE product gets a unique temporary code (COMMONSALE_1, COMMONSALE_2, etc.) 
+        in the ticket to allow multiple different COMMONSALE products as separate line items.
+        When the ticket is saved, all temporary codes are normalized back to COMMONSALE_CODE
+        in the database, preserving each product's unique price, quantity, and description.
+        """
+        if price <= 0:
+            raise ValueError('Price must be greater than zero.')
+        if cantity <= 0:
+            raise ValueError('Cantity must be greater than zero.')
+        
+        price = custom_floor(price)
+        cantity = custom_floor(cantity)
+        
+        # Generate unique temporary code for this COMMONSALE product
+        unique_code = self.__get_next_commonsale_code(ticket_key)
+        
+        common_product = {
+            'code': unique_code,
+            'description': description,
+            'sale_type': 'U',
+            'cost': custom_floor(price - (price * UNDEFINED_PROFIT_MARGIN)),
+            'sale_price': price,
+            'wholesale_price': price,
+            'cantity': cantity,
+            'inventory': None,
+        }
+        
+        ticket = self.__get(ticket_key)
+        ticket.add_common(common_product)
+        return self.get_ticket_info(ticket_key)
     
     def quicksale(self, amount: float, ipv4: str = '127.0.0.1', user_id: int = 0):
         """ Create a new ticket with a single product with the amount of quicksale and save it."""

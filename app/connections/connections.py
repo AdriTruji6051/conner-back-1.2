@@ -32,11 +32,12 @@ def init_db():
         DrawerLog, ProductChange, CashFlow,
         User, TicketFontConfig, TicketText,
     )
-    from app.models.products import ensure_quicksale_product, ensure_default_department
+    from app.models.products import ensure_quicksale_product, ensure_default_department, ensure_common_product
     from app.models.config import ensure_default_font_config
 
     db.create_all()
     ensure_quicksale_product()
+    ensure_common_product()
     ensure_default_department()
     ensure_default_font_config()
 

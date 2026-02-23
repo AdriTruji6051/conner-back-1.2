@@ -8,13 +8,20 @@ from app.helpers.helpers import profit_percentage, raise_exception_if_missing_ke
 from app.models.core_classes import Product, AssociateCode, Department
 
 QUICKSALE_CODE = 'QUICKSALE'
+COMMONSALE_CODE = 'COMMONSALE'
 DEFAULT_DEPARTMENT_DESCRIPTION = '___'
+PROTECTED_CODE_ERROR = 'Protected placeholder products cannot be used as associate.'
 
 _DEFAULT_DEPARTMENT_CODE: int | None = None
 
 
 def _is_quicksale_code(code: str | None) -> bool:
     return bool(code) and code == QUICKSALE_CODE
+
+
+def _is_protected_placeholder_code(code: str | None) -> bool:
+    """Check if code is a protected placeholder (QUICKSALE or COMMONSALE)."""
+    return bool(code) and code in (QUICKSALE_CODE, COMMONSALE_CODE)
 
 
 def ensure_default_department() -> Department:
@@ -60,6 +67,33 @@ def ensure_quicksale_product() -> Product:
     placeholder = Product(
         code=QUICKSALE_CODE,
         description='QUICKSALE',
+        sale_type='U',
+        cost=0,
+        sale_price=0,
+        department=None,
+        wholesale_price=0,
+        priority=0,
+        inventory=None,
+        parent_code=None,
+        profit_margin=0,
+        modified_at=datetime.now().strftime('%Y-%m-%d'),
+    )
+    db.session.add(placeholder)
+    db.session.commit()
+    return placeholder
+
+def ensure_common_product() -> Product:
+    """Ensure the placeholder product used for common sales exists."""
+    placeholder = Product.query.get(COMMONSALE_CODE)
+    if placeholder:
+        if placeholder.inventory is not None:
+            placeholder.inventory = None
+            db.session.commit()
+        return placeholder
+
+    placeholder = Product(
+        code=COMMONSALE_CODE,
+        description='COMMONSALE',
         sale_type='U',
         cost=0,
         sale_price=0,
@@ -182,10 +216,6 @@ class Products:
             return True
 
     @staticmethod
-    def getAll() -> list[Product]:
-        return Product.query.filter(Product.code != QUICKSALE_CODE).all()
-
-    @staticmethod
     def get(code: str) -> Product:
         """Get a product by code. If code is an associate, returns the parent product
         with modified description and associate metadata."""
@@ -210,27 +240,28 @@ class Products:
         return result
 
     @staticmethod
-    def get_by_description(description: str, called_before: bool = False) -> list[dict]:
+    def get_by_description(description: str, called_before: bool = False, page: int | None = None, page_size: int | None = None):
         description_split = description.split()
-        base_query = Product.query.filter(Product.code != QUICKSALE_CODE)
+        base_query = Product.query.filter(
+            Product.code != QUICKSALE_CODE,
+            Product.code != COMMONSALE_CODE
+        )
 
         if len(description_split) < 2:
-            products = base_query.filter(
-                Product.description.ilike(f'%{description}%')
-            ).order_by(
+            query = base_query.filter(Product.description.ilike(f'%{description}%')).order_by(
                 Product.priority.desc(),
                 db.case(
                     (Product.description.ilike(f'{description}%'), 0),
                     else_=1
                 ),
                 Product.description
-            ).all()
+            )
         else:
             query = base_query
             for word in description_split:
                 query = query.filter(Product.description.ilike(f'%{word}%'))
 
-            products = query.order_by(
+            query = query.order_by(
                 Product.priority.desc(),
                 db.case(
                     (Product.description.ilike(f'{description}%'), 0),
@@ -238,11 +269,22 @@ class Products:
                     else_=2
                 ),
                 Product.description
-            ).all()
+            )
 
+        if page is not None and page_size is not None:
+            pagination = query.paginate(page=page, per_page=page_size, error_out=False)
+            return {
+                'items': [p.to_dict() for p in pagination.items],
+                'page': page,
+                'page_size': page_size,
+                'total': pagination.total,
+                'pages': pagination.pages,
+            }
+
+        products = query.all()
         ans = [p.to_dict() for p in products]
 
-        # Handle ñ/Ñ for better Spanish search results
+        # Handle ñ/Ñ for better Spanish search results when not paginating
         if 'ñ' in description and not called_before:
             ans.extend(Products.get_by_description(description.replace('ñ', 'Ñ'), True))
         elif 'Ñ' in description and not called_before:
@@ -278,10 +320,10 @@ class Products:
     @staticmethod
     def create(data: dict):
         Products.product_data_is_valid(data)
-        if _is_quicksale_code(data['code']):
-            raise ValueError('The QUICKSALE code is reserved for quick sales.')
-        if _is_quicksale_code(data.get('parent_code')):
-            raise ValueError('Quicksale product cannot be used as parent.')
+        if _is_protected_placeholder_code(data['code']):
+            raise ValueError('This code is reserved for system use.')
+        if _is_protected_placeholder_code(data.get('parent_code')):
+            raise ValueError('Protected placeholder products cannot be used as parent.')
         modified_date = datetime.now().strftime('%Y-%m-%d')
 
         product = Product(
@@ -313,10 +355,10 @@ class Products:
         modified_date = datetime.now().strftime('%Y-%m-%d')
 
         original_code = data['original_code']
-        if _is_quicksale_code(original_code) or _is_quicksale_code(data['code']):
-            raise ValueError('Quicksale product cannot be modified.')
-        if _is_quicksale_code(data.get('parent_code')):
-            raise ValueError('Quicksale product cannot be used as parent.')
+        if _is_protected_placeholder_code(original_code) or _is_protected_placeholder_code(data['code']):
+            raise ValueError('Protected placeholder products cannot be modified.')
+        if _is_protected_placeholder_code(data.get('parent_code')):
+            raise ValueError('Protected placeholder products cannot be used as parent.')
         product = Product.query.get(original_code)
         if not product:
             raise ValueError(f'Product with code {original_code} not found')
@@ -365,8 +407,8 @@ class Products:
     def update_inventory(code: str, cantity: float):
         if cantity < 0:
             raise ValueError('Inventory cannot be zero or lower.')
-        if _is_quicksale_code(code):
-            raise ValueError('Quicksale inventory cannot be modified manually.')
+        if _is_protected_placeholder_code(code):
+            raise ValueError('Protected placeholder inventory cannot be modified manually.')
         product = Product.query.get(code)
         if not product:
             raise ValueError(f'Product with code {code} not found')
@@ -377,8 +419,8 @@ class Products:
     def delete(code: str):
         if not code:
             raise ValueError('Not code sended.')
-        if _is_quicksale_code(code):
-            raise ValueError('Quicksale product cannot be deleted.')
+        if _is_protected_placeholder_code(code):
+            raise ValueError('Protected placeholder products cannot be deleted.')
         product = Product.query.get(code)
         if not product:
             raise ValueError(f'Product with code {code} not found')
@@ -434,9 +476,19 @@ class Products:
             return dept
 
         @staticmethod
-        def get_all() -> list[Department]:
-            depts = Department.query.all()
-            return depts
+        def get_all(page: int | None = None, page_size: int | None = None):
+            query = Department.query
+            if page is not None and page_size is not None:
+                pagination = query.paginate(page=page, per_page=page_size, error_out=False)
+                return {
+                    'items': [d.to_dict() for d in pagination.items],
+                    'page': page,
+                    'page_size': page_size,
+                    'total': pagination.total,
+                    'pages': pagination.pages,
+                }
+
+            return query.all()
 
         @staticmethod
         def create(description: str):
@@ -480,7 +532,7 @@ def _prevent_default_department_delete(mapper, connection, target):
     if is_protected_department(target):
         raise ValueError('Default department cannot be deleted.')
 
-    class Associates_codes:
+    class Associates_codes: # NOSONAR TODO: Check implementation
         @staticmethod
         def get(code: str) -> dict:
             assoc = AssociateCode.query.get(code)
@@ -497,16 +549,27 @@ def _prevent_default_department_delete(mapper, connection, target):
             return result
 
         @staticmethod
-        def get_raw_data(parent_code: str) -> list[dict]:
-            """Return all the associate products with the given parent_code."""
-            associates = AssociateCode.query.filter_by(parent_code=parent_code).all()
+        def get_raw_data(parent_code: str, page: int | None = None, page_size: int | None = None):
+            """Return associate products with optional pagination."""
+            query = AssociateCode.query.filter_by(parent_code=parent_code)
+            if page is not None and page_size is not None:
+                pagination = query.paginate(page=page, per_page=page_size, error_out=False)
+                return {
+                    'items': [a.to_dict() for a in pagination.items],
+                    'page': page,
+                    'page_size': page_size,
+                    'total': pagination.total,
+                    'pages': pagination.pages,
+                }
+
+            associates = query.all()
             return [a.to_dict() for a in associates]
 
         @staticmethod
         def create(data: dict):
             raise_exception_if_missing_keys(data, create_associates_codes_keys, 'create associate_codes')
-            if _is_quicksale_code(data['code']) or _is_quicksale_code(data['parent_code']):
-                raise ValueError('Quicksale placeholder cannot be used as associate.')
+            if _is_protected_placeholder_code(data['code']) or _is_protected_placeholder_code(data['parent_code']):
+                raise ValueError(PROTECTED_CODE_ERROR)
             assoc = AssociateCode(
                 code=data['code'],
                 parent_code=data['parent_code'],
@@ -518,8 +581,8 @@ def _prevent_default_department_delete(mapper, connection, target):
         @staticmethod
         def update(data: dict):
             raise_exception_if_missing_keys(data, update_associates_codes_keys, 'update associate_codes')
-            if _is_quicksale_code(data['code']) or _is_quicksale_code(data['parent_code']) or _is_quicksale_code(data['original_code']):
-                raise ValueError('Quicksale placeholder cannot be used as associate.')
+            if _is_protected_placeholder_code(data['code']) or _is_protected_placeholder_code(data['parent_code']) or _is_protected_placeholder_code(data['original_code']):
+                raise ValueError(PROTECTED_CODE_ERROR)
             original_code = data['original_code']
             assoc = AssociateCode.query.get(original_code)
             if not assoc:
@@ -544,8 +607,8 @@ def _prevent_default_department_delete(mapper, connection, target):
         def delete(code: str):
             if not code:
                 raise ValueError('Not code sended')
-            if _is_quicksale_code(code):
-                raise ValueError('Quicksale placeholder cannot be used as associate.')
+            if _is_protected_placeholder_code(code):
+                raise ValueError(PROTECTED_CODE_ERROR)
             assoc = AssociateCode.query.get(code)
             if not assoc:
                 raise ValueError(f'Associate code {code} not found')

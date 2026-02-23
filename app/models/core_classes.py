@@ -1,7 +1,10 @@
 from app.extensions import db
 from datetime import datetime
 
-
+SET_NULL = 'SET NULL'
+CASCADE = 'CASCADE'
+CASCADE_ALL_ORPHANS = 'all, delete-orphan'
+PRODUCTS_CODE = 'products.code'
 # ===================== MAIN DB MODELS =====================
 
 class Department(db.Model):
@@ -27,18 +30,18 @@ class Product(db.Model):
     sale_type = db.Column(db.Text, nullable=False)
     cost = db.Column(db.Float, nullable=True)
     sale_price = db.Column(db.Float, nullable=False)
-    department = db.Column(db.Integer, db.ForeignKey('departments.code', onupdate='CASCADE', ondelete='SET NULL'), nullable=True)
+    department = db.Column(db.Integer, db.ForeignKey('departments.code', onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
     wholesale_price = db.Column(db.Float, nullable=True)
     priority = db.Column(db.Integer, nullable=True)
     inventory = db.Column(db.Float, nullable=True)
     modified_at = db.Column(db.Text, nullable=True)
     profit_margin = db.Column(db.Integer, nullable=True)
-    parent_code = db.Column(db.Text, db.ForeignKey('products.code', onupdate='CASCADE', ondelete='SET NULL'), nullable=True)
+    parent_code = db.Column(db.Text, db.ForeignKey(PRODUCTS_CODE, onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
 
     # Relationships
     children = db.relationship('Product', backref=db.backref('parent', remote_side=[code]), lazy='dynamic')
-    associates = db.relationship('AssociateCode', backref='parent_product', lazy='dynamic', cascade='all, delete-orphan')
-    inventory_logs = db.relationship('InventoryLog', backref='product', lazy='dynamic', cascade='all, delete-orphan')
+    associates = db.relationship('AssociateCode', backref='parent_product', lazy='dynamic', cascade=CASCADE_ALL_ORPHANS)
+    inventory_logs = db.relationship('InventoryLog', backref='product', lazy='dynamic', cascade=CASCADE_ALL_ORPHANS)
 
     def to_dict(self, is_associate: bool = False) -> dict:
         return {
@@ -62,7 +65,7 @@ class InventoryLog(db.Model):
     __tablename__ = 'inventory_log'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    product_code = db.Column(db.Text, db.ForeignKey('products.code', onupdate='CASCADE', ondelete='CASCADE'), nullable=False)
+    product_code = db.Column(db.Text, db.ForeignKey(PRODUCTS_CODE, onupdate=CASCADE, ondelete=CASCADE), nullable=False)
     old_inventory = db.Column(db.Float, nullable=True)
     new_inventory = db.Column(db.Float, nullable=True)
     change = db.Column(db.Float, nullable=True)
@@ -85,7 +88,7 @@ class AssociateCode(db.Model):
     __tablename__ = 'associates_codes'
 
     code = db.Column(db.Text, primary_key=True, nullable=False)
-    parent_code = db.Column(db.Text, db.ForeignKey('products.code', onupdate='CASCADE', ondelete='CASCADE'), nullable=False)
+    parent_code = db.Column(db.Text, db.ForeignKey(PRODUCTS_CODE, onupdate=CASCADE, ondelete=CASCADE), nullable=False)
     tag = db.Column(db.Text, nullable=True)
 
     def to_dict(self) -> dict:
@@ -113,7 +116,7 @@ class TicketModel(db.Model):
     ipv4_sender = db.Column(db.Text, nullable=False)
     discount = db.Column(db.Float, nullable=True)
 
-    products_in_ticket = db.relationship('ProductInTicket', backref='ticket', lazy='dynamic', cascade='all, delete-orphan')
+    products_in_ticket = db.relationship('ProductInTicket', backref='ticket', lazy='dynamic', cascade=CASCADE_ALL_ORPHANS)
 
     def to_dict(self, include_products: bool = False) -> dict:
         d = {
@@ -139,7 +142,7 @@ class ProductInTicket(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     ticket_id = db.Column(db.Integer, db.ForeignKey('tickets.id'), nullable=False)
-    code = db.Column(db.Text, db.ForeignKey('products.code', onupdate='CASCADE', ondelete='SET NULL'), nullable=True)
+    code = db.Column(db.Text, db.ForeignKey(PRODUCTS_CODE, onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
     description = db.Column(db.Text, nullable=False)
     cantity = db.Column(db.Float, nullable=False)
     profit = db.Column(db.Float, nullable=True)
@@ -277,7 +280,7 @@ class TicketText(db.Model):
     text = db.Column(db.Text, nullable=False)
     line = db.Column(db.Integer, nullable=False)
     is_header = db.Column(db.Integer, nullable=False)
-    font_config = db.Column(db.Integer, db.ForeignKey('ticket_font_configs.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True)
+    font_config = db.Column(db.Integer, db.ForeignKey('ticket_font_configs.id', onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
 
     def to_dict(self) -> dict:
         return {
@@ -305,28 +308,36 @@ class TicketText(db.Model):
 
 from sqlalchemy import event, inspect
 
+@event.listens_for(Product, 'after_insert')
 @event.listens_for(Product, 'after_update')
+@event.listens_for(Product, 'after_delete')
 def track_inventory_changes(mapper, connection, target):
     """Replaces the old SQLite TRIGGER track_inventory_changes."""
     state = inspect(target)
     history = state.attrs.inventory.history
 
-    if history.has_changes():
-        old_val = history.deleted[0] if history.deleted else None
-        new_val = history.added[0] if history.added else None
+    if not history.has_changes():
+        return
 
-        if old_val != new_val and old_val is not None and new_val is not None:
-            change = new_val - old_val
-            change_type = 'INCREASE' if change > 0 else 'DECREASE'
+    old_val = history.deleted[0] if history.deleted else None
+    new_val = history.added[0] if history.added else None
 
-            # Use the connection directly to avoid session re-entrance issues
-            connection.execute(
-                InventoryLog.__table__.insert().values(
-                    product_code=target.code,
-                    old_inventory=old_val,
-                    new_inventory=new_val,
-                    change=change,
-                    change_type=change_type,
-                    modified_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                )
-            )
+    if old_val is None and new_val is None:
+        return
+
+    change = (new_val or 0) - (old_val or 0)
+    if change == 0:
+        return
+
+    change_type = 'INCREASE' if change > 0 else 'DECREASE'
+
+    connection.execute(
+        InventoryLog.__table__.insert().values(
+            product_code=target.code,
+            old_inventory=old_val,
+            new_inventory=new_val,
+            change=change,
+            change_type=change_type,
+            modified_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        )
+    )

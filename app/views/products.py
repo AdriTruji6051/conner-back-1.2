@@ -4,7 +4,7 @@ import logging
 from app.models.products import Products
 from app.helpers.helpers import AppResponse
 from app.routes_constants import (
-    ROUTE_GET_ALL_PRODUCTS, ROUTE_GET_PRODUCT_BY_CODE, ROUTE_GET_PRODUCT_BY_DESCRIPTION,
+    ROUTE_GET_PRODUCT_BY_CODE, ROUTE_GET_PRODUCT_BY_DESCRIPTION,
     ROUTE_GET_PRODUCT_SIBLINGS, ROUTE_CREATE_PRODUCT, ROUTE_UPDATE_PRODUCT, ROUTE_DELETE_PRODUCT,
     ROUTE_UPDATE_INVENTORY, ROUTE_ADD_INVENTORY, ROUTE_REMOVE_INVENTORY,
     ROUTE_GET_ALL_DEPARTMENTS, ROUTE_GET_DEPARTMENT, ROUTE_CREATE_DEPARTMENT,
@@ -16,13 +16,28 @@ routesProducts = Blueprint('routes-products', __name__)
 
 PRODUCT_NOT_FOUND_MESSAGE = "Product not found"
 
-@routesProducts.route(ROUTE_GET_ALL_PRODUCTS, methods=['GET'])
-def get_all_products():
+
+def _parse_pagination_args(args, default_page: int = 1, default_page_size: int = 10, max_page_size: int = 500) -> tuple[int, int]:
+    """Parse pagination query params, coercing to safe bounds instead of raising."""
     try:
-        return AppResponse.success([p.to_dict() for p in Products.getAll()]).to_flask_tuple()
-    except Exception as e:
-        logging.info(f'/api/products: {e}.')
-        return AppResponse.not_found("could not fetch products").to_flask_tuple()
+        page = int(args.get('page', default_page))
+    except (TypeError, ValueError):
+        page = default_page
+
+    try:
+        page_size = int(args.get('page_size', args.get('pageSize', default_page_size)))
+    except (TypeError, ValueError):
+        page_size = default_page_size
+
+    # Coerce into valid ranges
+    if page < 1:
+        page = default_page
+    if page_size < 1:
+        page_size = default_page_size
+    if page_size > max_page_size:
+        page_size = max_page_size
+
+    return page, page_size
 
 @routesProducts.route(ROUTE_GET_PRODUCT_BY_CODE, methods=['GET'])
 def get_product_by_id(code):
@@ -35,7 +50,9 @@ def get_product_by_id(code):
 @routesProducts.route(ROUTE_GET_PRODUCT_BY_DESCRIPTION, methods=['GET'])
 def get_product_by_description(description):
     try:
-        ans = Products.get_by_description(description)
+        description = description.strip()
+        page, page_size = _parse_pagination_args(request.args)
+        ans = Products.get_by_description(description, page=page, page_size=page_size)
         return AppResponse.success(ans).to_flask_tuple()
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
@@ -124,7 +141,9 @@ def delete_product(code):
 @routesProducts.route(ROUTE_GET_ALL_DEPARTMENTS, methods=['GET'])
 def get_all_departments():
     try:
-        return AppResponse.success([d.to_dict() for d in Products.Departments.get_all()]).to_flask_tuple()
+        page, page_size = _parse_pagination_args(request.args)
+        result = Products.Departments.get_all(page, page_size)
+        return AppResponse.success(result).to_flask_tuple()
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
@@ -178,7 +197,9 @@ def delete_department(code: int):
 @routesProducts.route(ROUTE_GET_ASSOCIATES_RAW_DATA, methods=['GET'])
 def get_raw_data(parent_code: str):
     try:
-        return AppResponse.success(Products.Associates_codes.get_raw_data(parent_code)).to_flask_tuple()
+        page, page_size = _parse_pagination_args(request.args)
+        result = Products.Associates_codes.get_raw_data(parent_code, page, page_size)
+        return AppResponse.success(result).to_flask_tuple()
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:

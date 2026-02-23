@@ -25,14 +25,28 @@ class AppResponse:
         self.response_body = response_body
         self.success = success
         self.status_code = status_code
+
+    @staticmethod
+    def _split_pagination(payload: Any) -> tuple[Any, Optional[Dict[str, Any]]]:
+        """If payload contains pagination metadata, separate it for top-level inclusion."""
+        if isinstance(payload, dict):
+            required_keys = {'items', 'page', 'page_size', 'pages', 'total'}
+            if required_keys.issubset(payload.keys()):
+                pagination = {k: payload[k] for k in ('page', 'page_size', 'pages', 'total')}
+                return payload['items'], pagination
+        return payload, None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert response to dictionary"""
-        return {
-            'responseBody': self.response_body,
+        body, pagination = self._split_pagination(self.response_body)
+        res = {
+            'responseBody': body,
             'success': self.success,
             'statusCode': self.status_code
         }
+        if pagination:
+            res.update(pagination)
+        return res
     
     def to_flask_tuple(self) -> tuple:
         """Convert to Flask response tuple (dict, status_code)"""
