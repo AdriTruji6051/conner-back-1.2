@@ -20,7 +20,7 @@ routesTickets = Blueprint('routes-tickets', __name__)
 def quicksale_ticket(amount):
     try:
         amount = float(amount)
-        return AppResponse.created({'created_key': TICKET_MANAGER.quicksale(amount, request.remote_addr)}).to_flask_tuple()
+        return AppResponse.created(TICKET_MANAGER.quicksale(amount, request.remote_addr)).to_flask_tuple()
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
@@ -30,7 +30,7 @@ def quicksale_ticket(amount):
 @routesTickets.route(ROUTE_CREATE_TICKET, methods=['POST'])
 def create_ticket():
     try:
-        return AppResponse.created({'created_key': Tickets_manager.add(request.remote_addr)}).to_flask_tuple()
+        return AppResponse.created(TICKET_MANAGER.add(request.remote_addr)).to_flask_tuple()
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
@@ -41,7 +41,7 @@ def create_ticket():
 def get_keys_by_ipv4():
     try:
         ipv4 = request.remote_addr
-        return AppResponse.success({'keys': list(TICKET_MANAGER.get_keys(ipv4))}).to_flask_tuple()
+        return AppResponse.success(list(TICKET_MANAGER.get_keys(ipv4))).to_flask_tuple()
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
@@ -51,7 +51,7 @@ def get_keys_by_ipv4():
 @routesTickets.route(ROUTE_GET_TICKET_KEYS_SHARED, methods=['GET'])
 def get_all_keys():
     try:
-        return AppResponse.success({'keys': list(TICKET_MANAGER.get_keys())}).to_flask_tuple()
+        return AppResponse.success(list(TICKET_MANAGER.get_keys())).to_flask_tuple()
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
