@@ -23,10 +23,8 @@ class Printers:
             client_socket.close()
 
             return data
-        except ConnectionRefusedError as e:
+        except ConnectionRefusedError:
             raise ConnectionRefusedError(f'Server is not reacheable!. Server ip: {ipv4}:{port}')
-        except Exception as e:
-            raise e
 
     def list(self, ipv4: str = '127.0.0.1') -> list:
         return self.__query_service('print/list', ipv4)
