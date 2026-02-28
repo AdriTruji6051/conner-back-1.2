@@ -4,57 +4,81 @@ from app.extensions import db
 from app.models.products import Products
 from app.models.core_classes import TicketModel, ProductInTicket
 from app.models.analytics import Analytics
-from app.helpers.helpers import raise_exception_if_missing_keys
+from app.helpers.helpers import raise_exception_if_missing_keys, ValidationError, collect_missing_keys
 
 create_ticket_keys = ['sub_total', 'total', 'discount', 'profit', 'products_count', 'notes', 'user_id', 'ipv4_sender']
 create_product_in_tickets_keys = ['code', 'description', 'cantity', 'profit', 'wholesale_price', 'sale_price']
 update_ticket_keys = ['sub_total', 'total', 'discount', 'profit', 'products_count', 'id']
 update_product_in_tickets_keys = ['cantity', 'profit', 'id']
 
+_GTE_ZERO_MSG = 'Must be greater than or equal to zero'
+
 
 def raise_exception_if_ticket_invalid_data(data: dict, is_update: bool = False):
+    v = ValidationError()
+
     if not is_update:
-        raise_exception_if_missing_keys(data, create_ticket_keys + ['products'], 'ticket create data')
+        v.errors.extend(collect_missing_keys(data, create_ticket_keys + ['products'], 'ticket create data'))
     else:
-        raise_exception_if_missing_keys(data, update_ticket_keys + ['products'], 'ticket update data')
+        v.errors.extend(collect_missing_keys(data, update_ticket_keys + ['products'], 'ticket update data'))
+
+    # If required keys are missing we cannot safely inspect values
+    if v.has_errors:
+        raise v
 
     if data['products_count'] < 0:
-        raise ValueError(f'Articles count must be greater than zero in data: {data}')
+        v.add('products_count', _GTE_ZERO_MSG)
 
     if data['sub_total'] < 0:
-        raise ValueError(f'Sub total must be greater than zero in data: {data}')
+        v.add('sub_total', _GTE_ZERO_MSG)
 
     if data['total'] < 0:
-        raise ValueError(f'Total must be greater than zero in data: {data}')
+        v.add('total', _GTE_ZERO_MSG)
 
     if data['discount'] < 0:
-        raise ValueError(f'Discount must be greater than zero in data: {data}')
+        v.add('discount', _GTE_ZERO_MSG)
 
     if data['profit'] < 0:
-        raise ValueError(f'Profit must be greater than zero in data: {data}')
+        v.add('profit', _GTE_ZERO_MSG)
 
     if data['total'] < data['sub_total']:
-        raise ValueError(f'Total must be greater or equal than sub_total: {data}')
+        v.add('total', 'Must be greater than or equal to sub_total')
 
     if len(data['products']) == 0:
-        raise ValueError(f'Products were not sended in data: {data}')
+        v.add('products', 'At least one product is required')
+
+    v.raise_if_errors()
 
 
 def raise_exception_if_product_in_ticket_invalid_data(data_array: list[dict], is_update: bool = False):
-    for data in data_array:
-        if not is_update:
-            raise_exception_if_missing_keys(data, create_product_in_tickets_keys, 'product_in_ticket create data')
-            if data['wholesale_price'] < 0:
-                raise ValueError(f'Used wholesale price must be greater than zero in data: {data}')
-            if data['sale_price'] < 0:
-                raise ValueError(f'Used price must be greater than zero in data: {data}')
-        else:
-            raise_exception_if_missing_keys(data, update_product_in_tickets_keys, 'product_in_ticket update data')
+    v = ValidationError()
 
-        if data['profit'] < 0:
-            raise ValueError(f'Used wholesale price must be greater than zero in data: {data}')
-        if data['cantity'] < 0:
-            raise ValueError(f'Used price must be greater than zero in data: {data}')
+    for idx, data in enumerate(data_array):
+        prefix = f'products[{idx}].'
+        if not is_update:
+            v.errors.extend(
+                {prefix + k: msg for k, msg in err.items()}
+                for err in collect_missing_keys(data, create_product_in_tickets_keys, 'product_in_ticket create data')
+            )
+        else:
+            v.errors.extend(
+                {prefix + k: msg for k, msg in err.items()}
+                for err in collect_missing_keys(data, update_product_in_tickets_keys, 'product_in_ticket update data')
+            )
+
+        # Only check values if the keys exist
+        if not is_update:
+            if 'wholesale_price' in data and data['wholesale_price'] < 0:
+                v.add(f'{prefix}wholesale_price', _GTE_ZERO_MSG)
+            if 'sale_price' in data and data['sale_price'] < 0:
+                v.add(f'{prefix}sale_price', _GTE_ZERO_MSG)
+
+        if 'profit' in data and data['profit'] < 0:
+            v.add(f'{prefix}profit', _GTE_ZERO_MSG)
+        if 'cantity' in data and data['cantity'] < 0:
+            v.add(f'{prefix}cantity', _GTE_ZERO_MSG)
+
+    v.raise_if_errors()
 
 
 class Tickets:

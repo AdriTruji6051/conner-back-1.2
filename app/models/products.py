@@ -4,7 +4,7 @@ from sqlalchemy import event
 
 from app.extensions import db
 from app.models.analytics import Analytics, create_products_changes_keys
-from app.helpers.helpers import profit_percentage, raise_exception_if_missing_keys
+from app.helpers.helpers import profit_percentage, raise_exception_if_missing_keys, ValidationError, collect_missing_keys
 from app.models.core_classes import Product, AssociateCode, Department
 
 QUICKSALE_CODE = 'QUICKSALE'
@@ -148,25 +148,34 @@ def build_product_log_dict(data: dict, method: str, modified_date: str) -> dict:
 class Products:
     @staticmethod
     def product_data_is_valid(data: dict, check_update_product_keys: bool = False) -> None:
-        raise_exception_if_missing_keys(data, create_product_keys, 'create product')
+        v = ValidationError()
 
+        # --- required keys ---------------------------------------------------
+        v.errors.extend(collect_missing_keys(data, create_product_keys, 'create product'))
         if check_update_product_keys:
-            raise_exception_if_missing_keys(data, update_product_keys, 'update product')
+            v.errors.extend(collect_missing_keys(data, update_product_keys, 'update product'))
 
+        # If keys are missing we can't safely inspect values — return early
+        if v.has_errors:
+            raise v
+
+        # --- field-level rules -----------------------------------------------
         if data['cost'] < 0:
-            raise ValueError('Data sended is invalid -> Cost must be greater than zero')
+            v.add('cost', 'Must be greater than or equal to zero')
 
         if type(data['inventory']) not in [float, int] and data['inventory'] is not None:
-            raise ValueError('Data sended is invalid -> Inventory must be NULL, or NUMBER')
+            v.add('inventory', 'Must be NULL or a number')
 
         if data['cost'] > data['sale_price']:
-            raise ValueError('Data sended is invalid -> sale_price must be greater than cost')
+            v.add('sale_price', 'Must be greater than or equal to cost')
 
         if data['wholesale_price'] > data['sale_price']:
-            raise ValueError('Data sended is invalid -> sale_price must be greater than wholesale_price')
+            v.add('sale_price', 'Must be greater than or equal to wholesale_price')
 
         if data['sale_type'] != 'U' and data['sale_type'] != 'D':
-            raise ValueError('Data sended is invalid -> sale_type must have values of "U" or "D"')
+            v.add('sale_type', 'Must have a value of "U" or "D"')
+
+        v.raise_if_errors()
 
     @staticmethod
     def get_update_inventory_params(data: list[dict]) -> list[tuple]:
@@ -231,7 +240,7 @@ class Products:
 
         product = Product.query.get(code)
         if not product:
-            raise ValueError('Product not found')
+            return {}
 
         # Return a dict-like representation with the associate info merged
         result = product.to_dict(is_associate=is_associate)

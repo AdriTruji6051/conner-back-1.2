@@ -1,7 +1,7 @@
 from app.models.products import Products, QUICKSALE_CODE, COMMONSALE_CODE
 from app.models.tickets import Tickets
 from app.controlers.core_classes import product_ticket, ticket_info
-from app.helpers.helpers import raise_exception_if_missing_keys
+from app.helpers.helpers import raise_exception_if_missing_keys, ValidationError, collect_missing_keys
 
 import math
 
@@ -14,20 +14,25 @@ def custom_floor(number) -> float:
     return math.floor(number * 10) / 10
 
 def validate_common_product(product: dict):
+    v = ValidationError()
     keys = ['code', 'description', 'sale_type', 'sale_price', 'cantity']
-    raise_exception_if_missing_keys(product, keys, 'common product')
+    v.errors.extend(collect_missing_keys(product, keys, 'common product'))
+    if v.has_errors:
+        raise v
 
-    if(product['cost'] < 0):
-        raise ValueError('product sended is invalid -> Cost must be greater than zero')
-    
-    if(product['cost'] > product['sale_price']):
-        raise ValueError('product sended is invalid -> sale_price must be greater than cost')
-    
-    if(product['wholesale_price'] > product['sale_price']): 
-        raise ValueError('product sended is invalid -> sale_price must be greater than wholesale_price')
-    
-    if(product['sale_type'] != 'U' and product['sale_type'] != 'D'):
-        raise ValueError('product sended is invalid -> sale_type must have values of "U" or "D"')
+    if product.get('cost', 0) < 0:
+        v.add('cost', 'Must be greater than or equal to zero')
+
+    if product.get('cost', 0) > product['sale_price']:
+        v.add('sale_price', 'Must be greater than or equal to cost')
+
+    if product.get('wholesale_price', 0) > product['sale_price']:
+        v.add('sale_price', 'Must be greater than or equal to wholesale_price')
+
+    if product['sale_type'] != 'U' and product['sale_type'] != 'D':
+        v.add('sale_type', 'Must have a value of "U" or "D"')
+
+    v.raise_if_errors()
     
 class Ticket:
     """Individual bill manager"""
@@ -172,7 +177,10 @@ class Tickets_manager:
 
     def __get(self, ticket_key: int) -> Ticket:
         """Return the Ticket object in the has map whith ticket_key as key value"""
-        return Tickets_manager.tickets_dict[ticket_key]['ticket']
+        try:
+            return Tickets_manager.tickets_dict[ticket_key]['ticket']
+        except KeyError:
+            raise ValueError(f'Ticket with key {ticket_key} not found')
 
     def __reset(self, ticket_key: int):
         Tickets_manager.tickets_dict[ticket_key]['ticket'] = Ticket()
@@ -274,10 +282,12 @@ class Tickets_manager:
         When the ticket is saved, all temporary codes are normalized back to COMMONSALE_CODE
         in the database, preserving each product's unique price, quantity, and description.
         """
-        if price <= 0:
-            raise ValueError('Price must be greater than zero.')
-        if cantity <= 0:
-            raise ValueError('Cantity must be greater than zero.')
+        v = ValidationError()
+        if price is None or price <= 0:
+            v.add('price', 'Must be greater than zero')
+        if cantity is None or cantity <= 0:
+            v.add('cantity', 'Must be greater than zero')
+        v.raise_if_errors()
         
         price = custom_floor(price)
         cantity = custom_floor(cantity)

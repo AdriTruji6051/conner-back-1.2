@@ -1,11 +1,14 @@
 from flask import Flask
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
+from sqlalchemy.exc import IntegrityError
 import os
+import logging as _logging
 
 from config.config import Config
 from app.extensions import db
 from app.connections.connections import init_db, register_sqlite_pragmas
+from app.helpers.helpers import AppResponse, ValidationError
 
 if Config.LOGGING:
     import logging
@@ -18,6 +21,32 @@ if Config.LOGGING:
             logging.StreamHandler()         
         ]
     )
+
+
+def _register_error_handlers(app: Flask):
+    """Register global error handlers that ensure every error returns a
+    consistent ``AppResponse``-formatted JSON envelope."""
+
+    @app.errorhandler(ValidationError)
+    def handle_validation_error(exc: ValidationError):
+        return AppResponse.validation_error(exc.errors).to_flask_tuple()
+
+    @app.errorhandler(IntegrityError)
+    def handle_integrity_error(exc: IntegrityError):
+        db.session.rollback()
+        return AppResponse.conflict('Database constraint violation — a record with that key may already exist').to_flask_tuple()
+
+    @app.errorhandler(404)
+    def handle_not_found(exc):
+        return AppResponse.not_found('The requested resource was not found').to_flask_tuple()
+
+    @app.errorhandler(405)
+    def handle_method_not_allowed(exc):
+        return AppResponse.error('Method not allowed', 405).to_flask_tuple()
+
+    @app.errorhandler(500)
+    def handle_internal_error(exc):
+        return AppResponse.server_error('An unexpected server error occurred').to_flask_tuple()
 
 
 def create_app():
@@ -45,6 +74,8 @@ def create_app():
     app.register_blueprint(routesConfig)
     app.register_blueprint(routesPrinters)
     app.register_blueprint(routesTemplates)
+
+    _register_error_handlers(app)
 
     return app
 

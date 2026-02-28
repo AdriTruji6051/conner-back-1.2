@@ -2,7 +2,7 @@ from datetime import datetime
 
 from app.extensions import db
 from app.models.core_classes import DrawerLog, ProductChange, CashFlow
-from app.helpers.helpers import raise_exception_if_missing_keys
+from app.helpers.helpers import raise_exception_if_missing_keys, ValidationError, collect_missing_keys
 
 allowed_methods = ['POST', 'PUT', 'DELETE']
 create_drawer_logs_keys = ['open_at', 'user_id', 'method', 'transaction_type', 'transaction_id']
@@ -10,11 +10,17 @@ create_products_changes_keys = ['code', 'cost', 'sale_price', 'wholesale_price',
 create_cash_flow_keys = ['description', 'amount', 'date', 'in_or_out', 'is_payment']
 
 
-def raise_excepciton_if_invalid_drawer_log(data: dict):
-    raise_exception_if_missing_keys(data, create_drawer_logs_keys, 'Create drawer_logs keys')
+def raise_exception_if_invalid_drawer_log(data: dict):
+    v = ValidationError()
+    v.errors.extend(collect_missing_keys(data, create_drawer_logs_keys, 'create drawer_logs'))
+
+    if v.has_errors:
+        raise v
 
     if data['method'] not in allowed_methods:
-        raise ValueError('Method value is not valid')
+        v.add('method', f'Must be one of {allowed_methods}')
+
+    v.raise_if_errors()
 
 
 class Analytics:
@@ -36,7 +42,7 @@ class Analytics:
 
         @staticmethod
         def create(data: dict):
-            raise_excepciton_if_invalid_drawer_log(data)
+            raise_exception_if_invalid_drawer_log(data)
 
             log = DrawerLog(
                 open_at=data['open_at'],
@@ -102,12 +108,16 @@ class Analytics:
         @staticmethod
         def insert(amount: float, in_or_out: int, is_payment: int = 0, description: str = 'None'):
             """Amount of money. 1 if inflow, 0 if outflow. 1 if is payment 0 if not."""
-            if amount < 0:
-                raise ValueError('Amount must be greater than zero!')
+            v = ValidationError()
+
+            if amount is None or amount < 0:
+                v.add('amount', 'Must be greater than or equal to zero')
             if in_or_out not in [0, 1]:
-                raise ValueError('In_or_out must have a value of 1 or 0!')
+                v.add('in_or_out', 'Must have a value of 1 or 0')
             if is_payment not in [0, 1]:
-                raise ValueError('Is_payment must have a value of 1 or 0!')
+                v.add('is_payment', 'Must have a value of 1 or 0')
+
+            v.raise_if_errors()
 
             flow = CashFlow(
                 description=description,

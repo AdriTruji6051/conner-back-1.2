@@ -1,6 +1,6 @@
 from app.extensions import db
 from app.models.core_classes import User, TicketText, TicketFontConfig
-from app.helpers.helpers import raise_exception_if_missing_keys
+from app.helpers.helpers import raise_exception_if_missing_keys, ValidationError, collect_missing_keys
 from sqlalchemy import event
 
 create_user_keys = ['user', 'user_name', 'password', 'role_type']
@@ -84,7 +84,11 @@ class Config:
 
         @staticmethod
         def create(data: dict):
-            raise_exception_if_missing_keys(data, create_user_keys, 'create users data')
+            v = ValidationError()
+            v.errors.extend(collect_missing_keys(data, create_user_keys, 'create user'))
+            if v.has_errors:
+                raise v
+
             user = User(
                 user=data['user'],
                 user_name=data['user_name'],
@@ -96,7 +100,11 @@ class Config:
 
         @staticmethod
         def update(data: dict):
-            raise_exception_if_missing_keys(data, update_user_keys, 'update users data')
+            v = ValidationError()
+            v.errors.extend(collect_missing_keys(data, update_user_keys, 'update user'))
+            if v.has_errors:
+                raise v
+
             user = User.query.get(data['id'])
             if not user:
                 raise ValueError(f'User with id {data["id"]} not found')
@@ -119,24 +127,33 @@ class Config:
         @staticmethod
         def raise_exception_if_text_not_valid(data: list[dict], is_header: bool = False):
             if not data:
-                raise ValueError('Text array must have values, not be empty')
-            try:
-                for row in data:
-                    row = dict(row)
-                    raise_exception_if_missing_keys(row, create_text_keys, 'text_headers array' if is_header else 'text_footers array')
+                raise ValidationError([{'text': 'Text array must have values, not be empty'}])
 
-                    if not len(row['text']):
-                        raise ValueError(f'Not text in row: {row}')
-                    if row['line'] < 0:
-                        raise ValueError(f'line value must be greater than zero in row: {row}')
+            v = ValidationError()
+            for idx, row in enumerate(data):
+                row = dict(row)
+                prefix = f'text[{idx}].'
+                v.errors.extend(
+                    {prefix + k: msg for k, msg in err.items()}
+                    for err in collect_missing_keys(
+                        row, create_text_keys,
+                        'text_headers array' if is_header else 'text_footers array'
+                    )
+                )
+
+                if 'text' in row and not len(row['text']):
+                    v.add(f'{prefix}text', 'Must not be empty')
+                if 'line' in row and row['line'] < 0:
+                    v.add(f'{prefix}line', 'Must be greater than or equal to zero')
+                if 'is_header' in row:
                     if is_header and row['is_header'] != 1:
-                        raise ValueError('If this line value is header, value is_header must be seated with value int(1)')
+                        v.add(f'{prefix}is_header', 'Must be 1 for header rows')
                     if not is_header and row['is_header'] != 0:
-                        raise ValueError('If this line value is footer, value is_header must be seated with value int(0)')
+                        v.add(f'{prefix}is_header', 'Must be 0 for footer rows')
                     if row['is_header'] not in [0, 1]:
-                        raise ValueError('Error, is_header value must be seated with int(0) or int(1)')
-            except Exception as e:
-                raise Exception(f'Invalid text, with ERROR: {e}')
+                        v.add(f'{prefix}is_header', 'Must be 0 or 1')
+
+            v.raise_if_errors()
 
         @staticmethod
         def get_headers() -> list[dict]:
@@ -200,6 +217,15 @@ class Config:
 
         @staticmethod
         def createFont(font: str, weigh: int, size: int):
+            v = ValidationError()
+            if not font:
+                v.add('font', 'Is required')
+            if weigh is None or weigh < 0:
+                v.add('weigh', 'Is required and must be >= 0')
+            if size is None or size < 0:
+                v.add('size', 'Is required and must be >= 0')
+            v.raise_if_errors()
+
             fc = TicketFontConfig(font=font, weigh=weigh, size=size)
             db.session.add(fc)
             db.session.commit()

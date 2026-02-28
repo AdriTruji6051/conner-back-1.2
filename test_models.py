@@ -25,6 +25,7 @@ from app.models.config import Config
 from app.models.tickets import Tickets
 
 from app.connections.connections import init_db
+from app.helpers.helpers import ValidationError
 
 SHOW_GET_LOGS = True
 LOGS_CHAR_LEN = None
@@ -192,7 +193,7 @@ class main_test(unittest.TestCase):
             # Delete a product in ticket should not raise an error
             Products.delete(products_update_good_array[0]['code'])
             
-            with self.assertRaises(ValueError):
+            with self.assertRaises(ValidationError):
                 for ticket in tickets_create_bad_array:
                     Tickets.create(ticket)
 
