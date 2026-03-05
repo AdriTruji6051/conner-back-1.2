@@ -216,7 +216,7 @@ class Tickets_manager:
     def remove(self, ticket_key: int):
         Tickets_manager.tickets_dict.pop(ticket_key)
 
-    def save(self, ticket_key: int, notes: str, total: float = 0,  ipv4: str = '127.0.0.1', user_id: int = 0, print_many: int = 0):
+    def save(self, ticket_key: int, notes: str, total: float = 0,  ipv4: str = '127.0.0.1', user_id: int = 0, print_many: int = 0, printer_name: str = None):
         """Save at database the Ticket object with the ticket_key and return the ticket id saved at the database"""
         ticket_info = self.__get(ticket_key).get_info()
         if len(ticket_info['products']) < 1: 
@@ -233,7 +233,7 @@ class Tickets_manager:
         ticket_id = Tickets.create(ticket_info)
 
         for _ in range(print_many):
-            print # TODO Add logic to send tickket to printer and send ticket_infor obj
+            print(printer_name) # TODO Add logic to send tickket to printer and send ticket_infor obj
 
         self.__reset(ticket_key)
         
@@ -310,7 +310,7 @@ class Tickets_manager:
         ticket.add_common(common_product)
         return self.get_ticket_info(ticket_key)
     
-    def quicksale(self, amount: float, ipv4: str = '127.0.0.1', user_id: int = 0):
+    def quicksale(self, amount: float, ipv4: str = '127.0.0.1', user_id: int = 0, printer_name: str = None):
         """ Create a new ticket with a single product with the amount of quicksale and save it."""
         amount = custom_floor(amount)
         quicksale_info = {
@@ -340,4 +340,7 @@ class Tickets_manager:
             'user_id': user_id
         }
 
-        return Tickets.create(quicksale_info)
+        ticket = Tickets.create(quicksale_info)
+        print(printer_name) # TODO Add logic to send tickket to printer and send ticket_infor obj
+
+        return ticket

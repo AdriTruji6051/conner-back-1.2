@@ -62,8 +62,18 @@ def is_protected_font_config(candidate: TicketFontConfig | int | None) -> bool:
 class Config:
     class Users:
         @staticmethod
-        def get_all() -> list[User]:
-            return User.query.all()
+        def get_all(page: int | None = None, page_size: int | None = None):
+            query = User.query
+            if page is not None and page_size is not None:
+                pagination = query.paginate(page=page, per_page=page_size, error_out=False)
+                return {
+                    'items': [u.to_dict() for u in pagination.items],
+                    'page': page,
+                    'page_size': page_size,
+                    'total': pagination.total,
+                    'pages': pagination.pages
+                }
+            return query.all()
 
         @staticmethod
         def login(user: str, password: str) -> dict:

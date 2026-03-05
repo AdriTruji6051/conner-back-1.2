@@ -16,19 +16,6 @@ TICKET_MANAGER = Tickets_manager()
 
 routesTickets = Blueprint('routes-tickets', __name__)
 
-@routesTickets.route(ROUTE_QUICKSALE_TICKET, methods=['POST'])
-def quicksale_ticket(amount):
-    try:
-        amount = float(amount)
-        return AppResponse.created(TICKET_MANAGER.quicksale(amount, request.remote_addr)).to_flask_tuple()
-    except ValidationError as e:
-        return AppResponse.validation_error(e.errors).to_flask_tuple()
-    except ValueError as e:
-        return AppResponse.unprocessable(str(e)).to_flask_tuple()
-    except Exception as e:
-        logging.error(f'{ROUTE_QUICKSALE_TICKET}. Catch: {e}.')
-        return AppResponse.server_error('Unexpected error creating quicksale ticket').to_flask_tuple()
-
 @routesTickets.route(ROUTE_CREATE_TICKET, methods=['POST'])
 def create_ticket():
     try:
@@ -166,14 +153,23 @@ def remove_product():
         logging.error(f'{ROUTE_REMOVE_PRODUCT_TICKET}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error removing product from ticket').to_flask_tuple()
     
-@routesTickets.route(ROUTE_SAVE_TICKET, methods=['POST'])
-def save_ticket():
+@routesTickets.route(f'{ROUTE_SAVE_TICKET}/<int:ticket_key>', methods=['POST'])
+def save_ticket(ticket_key):
     try:
-        notes = request.args.get('notes')
-        ticket_key = request.args.get('ticket_key', type=int)
-        total = request.args.get('total', type=float)
-        print_many = request.args.get('print', type=int)
-        return AppResponse.success(TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total, print_many=print_many)).to_flask_tuple()
+        data = request.get_json(silent=True) or {}
+        notes = data.get('notes')
+        
+        total = data.get('total')
+        if total is not None:
+            total = float(total)
+            
+        print_many = data.get('print')
+        if print_many is not None:
+            print_many = int(print_many)
+            
+        printer_name = data.get('printer_name')
+
+        return AppResponse.success(TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total, print_many=print_many, printer_name=printer_name)).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -181,3 +177,18 @@ def save_ticket():
     except Exception as e:
         logging.error(f'{ROUTE_SAVE_TICKET}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error saving ticket').to_flask_tuple()
+    
+@routesTickets.route(ROUTE_QUICKSALE_TICKET, methods=['POST'])
+def quicksale_ticket(amount):
+    try:
+        amount = float(amount)
+        data = request.get_json(silent=True) or {}
+        printer_name = data.get('printer_name')
+        return AppResponse.created(TICKET_MANAGER.quicksale(amount=amount, ipv4=request.remote_addr, printer_name=printer_name)).to_flask_tuple()
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except ValueError as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.error(f'{ROUTE_QUICKSALE_TICKET}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error creating quicksale ticket').to_flask_tuple()

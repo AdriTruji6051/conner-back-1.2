@@ -31,7 +31,7 @@ DEPARTMENTS_BASE = f'{PRODUCTS_BASE}/departments'
 ROUTE_GET_ALL_DEPARTMENTS = DEPARTMENTS_BASE
 ROUTE_GET_DEPARTMENT = f'{DEPARTMENTS_BASE}/<int:code>'
 ROUTE_CREATE_DEPARTMENT = f'{DEPARTMENTS_BASE}/create/<string:description>'
-ROUTE_UPDATE_DEPARTMENT = f'{DEPARTMENTS_BASE}/update/<string:code>/description/<int:description>'
+ROUTE_UPDATE_DEPARTMENT = f'{DEPARTMENTS_BASE}/update/<string:description>/<int:code>'
 ROUTE_DELETE_DEPARTMENT = f'{DEPARTMENTS_BASE}/delete/<int:code>'
 
 # ===================== PRODUCT ASSOCIATES ROUTES =====================

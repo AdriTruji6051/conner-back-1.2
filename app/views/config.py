@@ -13,10 +13,34 @@ from app.routes_constants import (
 
 routesConfig = Blueprint('routes-config', __name__)
 
+def _parse_pagination_args(args, default_page: int = 1, default_page_size: int = 10, max_page_size: int = 500) -> tuple[int, int]:
+    """Parse pagination query params, coercing to safe bounds instead of raising."""
+    try:
+        page = int(args.get('page', default_page))
+    except (TypeError, ValueError):
+        page = default_page
+
+    try:
+        page_size = int(args.get('page_size', args.get('pageSize', default_page_size)))
+    except (TypeError, ValueError):
+        page_size = default_page_size
+
+    # Coerce into valid ranges
+    if page < 1:
+        page = default_page
+    if page_size < 1:
+        page_size = default_page_size
+    if page_size > max_page_size:
+        page_size = max_page_size
+
+    return page, page_size
+
 @routesConfig.route(ROUTE_GET_USERS, methods=['GET'])
 def get_users():
     try:
-        return AppResponse.success({'users': [u.to_dict() for u in Config.Users.get_all()]}).to_flask_tuple()
+        page, page_size = _parse_pagination_args(request.args)
+        result = Config.Users.get_all(page=page, page_size=page_size)
+        return AppResponse.success(result).to_flask_tuple()
     except Exception as e:
         logging.error(f'{ROUTE_GET_USERS}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error retrieving users').to_flask_tuple()
