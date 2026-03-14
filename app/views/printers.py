@@ -33,9 +33,10 @@ def _get_local_ip(request_ip):
 def list_printers():
     try:
         ipv4 = _get_local_ip(request.remote_addr)
+        refresh = request.args.get('refresh_printers', 'false').lower() == 'true'
         return AppResponse.success({
             'host': ipv4,
-            'printers': PRINTERS_MANAGER.list(ipv4)
+            'printers': PRINTERS_MANAGER.list(ipv4, refresh=refresh)
         }).to_flask_tuple()
     except ConnectionRefusedError:
         ipv4 = _get_local_ip(request.remote_addr)
@@ -51,7 +52,8 @@ def list_printers():
 def dict_printers():
     try:
         ipv4 = _get_local_ip(request.remote_addr)
-        printers_dict = PRINTERS_MANAGER.dict(ipv4)
+        refresh = request.args.get('refresh_printers', 'false').lower() == 'true'
+        printers_dict = PRINTERS_MANAGER.dict(ipv4, refresh=refresh)
         
         # Check query param 'onlyDefault'
         only_default = request.args.get('onlyDefault', 'false').lower() == 'true'

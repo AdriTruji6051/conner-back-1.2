@@ -124,7 +124,7 @@ class Tickets:
             db.session.commit()
 
             log = {
-                'open_at': datetime.now().strftime('%Y-%m-%d'),
+                'open_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'user_id': 0,
                 'method': 'POST',
                 'transaction_type': 1,

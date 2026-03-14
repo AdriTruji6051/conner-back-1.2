@@ -5,6 +5,7 @@ from app.controlers.core_classes import ticket_info
 
 class Printers:
     register_printers = dict()
+    avaliablePrinters = dict()
 
     def __query_service(self, query: object, ipv4: str = '127.0.0.1', port: int = 9100) -> any:
         try:
@@ -26,11 +27,19 @@ class Printers:
         except ConnectionRefusedError:
             raise ConnectionRefusedError(f'Server is not reacheable!. Server ip: {ipv4}:{port}')
 
-    def list(self, ipv4: str = '127.0.0.1') -> list:
-        return self.__query_service('print/list', ipv4)
+    def __fetch_and_cache_printers(self, ipv4: str = '127.0.0.1') -> dict:
+        printers = self.__query_service('print/dict', ipv4)
+        self.avaliablePrinters[ipv4] = printers
+        return printers
+
+    def list(self, ipv4: str = '127.0.0.1', refresh: bool = False) -> list:
+        return list(self.dict(ipv4, refresh=refresh).keys())
     
-    def dict(self, ipv4: str = '127.0.0.1') -> dict:
-        return self.__query_service('print/dict', ipv4)
+    def dict(self, ipv4: str = '127.0.0.1', refresh: bool = False) -> dict:
+        cached = self.avaliablePrinters.get(ipv4)
+        if refresh or cached is None or not cached:
+            return self.__fetch_and_cache_printers(ipv4)
+        return cached
     
     def update_printer(self, printer: str, ipv4: str = '127.0.0.1') -> str:
         if printer not in self.list(ipv4):

@@ -76,9 +76,9 @@ def get_drawer_log(id):
         return AppResponse.server_error('Unexpected error retrieving drawer log').to_flask_tuple()
     
 @routesAnalitycs.route(ROUTE_GET_DRAWER_LOG_BY_DATE, methods=['GET'])
-def get_drawer_log_date_date(date):
+def get_drawer_logs_by_date(date):
     try:
-        return AppResponse.success({'logs': [l.to_dict() for l in Analytics.Drawer_logs.get_all(date)]}).to_flask_tuple()
+        return AppResponse.success([l.to_dict() for l in Analytics.Drawer_logs.get_all(date)]).to_flask_tuple()
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
