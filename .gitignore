@@ -5,6 +5,7 @@ build/
 dist/
 venv-back/
 conner-back-1.2/
+docs/
 db/
 logs.txt
 my_stuff.py

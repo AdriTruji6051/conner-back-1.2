@@ -1,8 +1,9 @@
 from app.models.products import Products, QUICKSALE_CODE, COMMONSALE_CODE
 from app.models.tickets import Tickets
-from app.controlers.core_classes import product_ticket, ticket_info
+from app.controlers.core_classes import product_ticket, ticket_info, editor_entry
 from app.helpers.helpers import raise_exception_if_missing_keys, ValidationError, collect_missing_keys
 
+from datetime import datetime
 import math
 
 UNDEFINED_PROFIT_MARGIN = 0.20
@@ -172,7 +173,8 @@ class Tickets_manager:
     tickets_dict[0] = {
         'ipv4': '127.0.0.1',
         'ticket': Ticket(),
-        'commonsale_counter': 0
+        'commonsale_counter': 0,
+        'editors': []
     }
 
     def __get(self, ticket_key: int) -> Ticket:
@@ -185,6 +187,25 @@ class Tickets_manager:
     def __reset(self, ticket_key: int):
         Tickets_manager.tickets_dict[ticket_key]['ticket'] = Ticket()
         Tickets_manager.tickets_dict[ticket_key]['commonsale_counter'] = 0
+        Tickets_manager.tickets_dict[ticket_key]['editors'] = []
+    
+    def __track_editor(self, ticket_key: int, ipv4: str, user_id: int, action: str):
+        """Record or update the editor entry for a given ipv4 + user_id on this ticket."""
+        editors: list[editor_entry] = Tickets_manager.tickets_dict[ticket_key]['editors']
+        timestamp = datetime.now().isoformat()
+
+        for editor in editors:
+            if editor['ipv4'] == ipv4 and editor['user_id'] == user_id:
+                editor['last_action'] = action
+                editor['timestamp'] = timestamp
+                return
+
+        editors.append({
+            'ipv4': ipv4,
+            'user_id': user_id,
+            'last_action': action,
+            'timestamp': timestamp
+        })
     
     def __get_next_commonsale_code(self, ticket_key: int) -> str:
         """Generate a unique temporary COMMONSALE code for the ticket"""
@@ -207,7 +228,8 @@ class Tickets_manager:
         Tickets_manager.tickets_dict[Tickets_manager.ticket_id_new] = {
             'ipv4': ipv4,
             'ticket': Ticket(),
-            'commonsale_counter': 0
+            'commonsale_counter': 0,
+            'editors': []
         }
         Tickets_manager.ticket_id_new += 1
         
@@ -216,8 +238,9 @@ class Tickets_manager:
     def remove(self, ticket_key: int):
         Tickets_manager.tickets_dict.pop(ticket_key)
 
-    def save(self, ticket_key: int, notes: str, total: float = 0,  ipv4: str = '127.0.0.1', user_id: int = 0, print_many: int = 0, printer_name: str = None):
+    def save(self, ticket_key: int, notes: str, total: float = 0, ipv4: str = '127.0.0.1', user_id: int = 0, print_many: int = 0, printer_name: str = None):
         """Save at database the Ticket object with the ticket_key and return the ticket id saved at the database"""
+        self.__track_editor(ticket_key, ipv4, user_id, 'save')
         ticket_info = self.__get(ticket_key).get_info()
         if len(ticket_info['products']) < 1: 
             raise ValueError('There are not products on the ticket!')
@@ -254,27 +277,32 @@ class Tickets_manager:
     
     def get_ticket_info(self, ticket_key: int) -> ticket_info:
         ticket = self.__get(ticket_key)
-        return ticket.get_info()
+        info = ticket.get_info()
+        info['editors'] = list(Tickets_manager.tickets_dict[ticket_key]['editors'])
+        return info
     
-    def add_product(self, ticket_key: int, product_code: str, cantity: int = 1):
+    def add_product(self, ticket_key: int, product_code: str, cantity: int = 1, ipv4: str = '127.0.0.1', user_id: int = 0):
         """Append or update product cantity from Ticket object with given ticket_key, if a cantity is not given, increment by one."""
         ticket = self.__get(ticket_key)
         ticket.add(product_code, cantity)
+        self.__track_editor(ticket_key, ipv4, user_id, 'add_product')
         return self.get_ticket_info(ticket_key)
 
-    def remove_product(self, ticket_key: int, product_code: str, cantity: int = 0):
+    def remove_product(self, ticket_key: int, product_code: str, cantity: int = 0, ipv4: str = '127.0.0.1', user_id: int = 0):
         """Remove from Ticket object with given ticket_key, the given product code and cantity. If cantity not specified all the product cantity will be removed."""
         ticket = self.__get(ticket_key)
         ticket.remove(product_code, cantity)
+        self.__track_editor(ticket_key, ipv4, user_id, 'remove_product')
         return self.get_ticket_info(ticket_key)
     
-    def toogle_ticket_wholesale(self, ticket_key: int):
+    def toogle_ticket_wholesale(self, ticket_key: int, ipv4: str = '127.0.0.1', user_id: int = 0):
         """Change between True or False in discount operations. Recalculate all the total in base in wholesale price or sale price"""
         ticket = self.__get(ticket_key)
         ticket.toogle_wholesale()
-        return ticket.get_info()
+        self.__track_editor(ticket_key, ipv4, user_id, 'toogle_wholesale')
+        return self.get_ticket_info(ticket_key)
     
-    def add_common_product(self, ticket_key: int, price: float, cantity: float = 1, description: str = 'COMMONSALE'):
+    def add_common_product(self, ticket_key: int, price: float, cantity: float = 1, description: str = 'COMMONSALE', ipv4: str = '127.0.0.1', user_id: int = 0):
         """Add a COMMONSALE product with custom price and quantity to the ticket.
         
         Each COMMONSALE product gets a unique temporary code (COMMONSALE_1, COMMONSALE_2, etc.) 
@@ -308,6 +336,7 @@ class Tickets_manager:
         
         ticket = self.__get(ticket_key)
         ticket.add_common(common_product)
+        self.__track_editor(ticket_key, ipv4, user_id, 'add_common_product')
         return self.get_ticket_info(ticket_key)
     
     def quicksale(self, amount: float, ipv4: str = '127.0.0.1', user_id: int = 0, printer_name: str = None):

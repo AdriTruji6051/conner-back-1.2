@@ -5,6 +5,7 @@ import logging
 from app.controlers.tickets import Tickets_manager
 from app.models.tickets import Tickets
 from app.helpers.helpers import AppResponse, ValidationError
+from app.sockets.tickets import broadcast_ticket_update
 from app.routes_constants import (
     ROUTE_QUICKSALE_TICKET, ROUTE_CREATE_TICKET, ROUTE_GET_TICKET_KEYS,
     ROUTE_GET_TICKET_KEYS_SHARED, ROUTE_GET_TICKET, ROUTE_GET_TICKETS_BY_DATE,
@@ -98,7 +99,9 @@ def get_products_in_ticket(id):
 @routesTickets.route(ROUTE_TOOGLE_WHOLESALE, methods=['POST'])
 def toogle_wholesale(ticket_key):
     try:
-        return AppResponse.success(TICKET_MANAGER.toogle_ticket_wholesale(ticket_key)).to_flask_tuple()
+        result = TICKET_MANAGER.toogle_ticket_wholesale(ticket_key, ipv4=request.remote_addr)
+        broadcast_ticket_update(ticket_key)
+        return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -113,7 +116,9 @@ def add_product():
         product_code = request.args.get('product_code')
         ticket_key = request.args.get('ticket_key', type=int)
         cantity = request.args.get('cantity', type=float)
-        return AppResponse.success(TICKET_MANAGER.add_product(ticket_key, product_code, cantity)).to_flask_tuple()
+        result = TICKET_MANAGER.add_product(ticket_key, product_code, cantity, ipv4=request.remote_addr)
+        broadcast_ticket_update(ticket_key)
+        return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -129,7 +134,9 @@ def add_common_product():
         price = request.args.get('price', type=float)
         cantity = request.args.get('cantity', type=float, default=1)
         description = request.args.get('description', default='COMMONSALE')
-        return AppResponse.success(TICKET_MANAGER.add_common_product(ticket_key, price, cantity, description)).to_flask_tuple()
+        result = TICKET_MANAGER.add_common_product(ticket_key, price, cantity, description, ipv4=request.remote_addr)
+        broadcast_ticket_update(ticket_key)
+        return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -144,7 +151,9 @@ def remove_product():
         product_code = request.args.get('product_code')
         ticket_key = request.args.get('ticket_key', type=int)
         cantity = request.args.get('cantity', type=float)
-        return AppResponse.success(TICKET_MANAGER.remove_product(ticket_key, product_code, cantity)).to_flask_tuple()
+        result = TICKET_MANAGER.remove_product(ticket_key, product_code, cantity, ipv4=request.remote_addr)
+        broadcast_ticket_update(ticket_key)
+        return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -169,7 +178,7 @@ def save_ticket(ticket_key):
             
         printer_name = data.get('printer_name')
 
-        return AppResponse.success(TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total, print_many=print_many, printer_name=printer_name)).to_flask_tuple()
+        return AppResponse.success(TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total, ipv4=request.remote_addr, print_many=print_many, printer_name=printer_name)).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:

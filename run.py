@@ -6,7 +6,7 @@ import os
 import logging as _logging
 
 from config.config import Config
-from app.extensions import db
+from app.extensions import db, socketio
 from app.connections.connections import init_db, register_sqlite_pragmas
 from app.helpers.helpers import AppResponse, ValidationError
 
@@ -77,15 +77,24 @@ def create_app():
 
     _register_error_handlers(app)
 
+    # Initialize SocketIO with the app
+    socketio.init_app(app, cors_allowed_origins='*')
+
+    # Register WebSocket event handlers (the from-import already executes
+    # the module and registers the @socketio.on decorators)
+    from app.views.tickets import TICKET_MANAGER
+    from app.sockets.tickets import init_ticket_sockets
+    init_ticket_sockets(TICKET_MANAGER)
+
     return app
 
 def run_app():
-    app = create_app()
+    application = create_app()
 
-    CORS(app, supports_credentials=True)
+    CORS(application, supports_credentials=True)
 
     # Create all database tables if they don't exist (replaces DB_manager.create_missing_db)
-    with app.app_context():
+    with application.app_context():
         init_db()
         
         # Log all available endpoints
@@ -97,14 +106,14 @@ def run_app():
             logger.info("=" * 80)
             routes = sorted(
                 (rule.rule, ','.join(rule.methods - {'OPTIONS', 'HEAD'}))
-                for rule in app.url_map.iter_rules()
+                for rule in application.url_map.iter_rules()
                 if rule.endpoint != 'static'
             )
             for route, methods in routes:
                 logger.info(f"{methods:15} {route}")
             logger.info("=" * 80)
 
-    app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)
+    socketio.run(application, host=Config.HOST, port=Config.PORT, debug=Config.DEBUG, allow_unsafe_werkzeug=True)
 
 if __name__== '__main__':
     run_app()

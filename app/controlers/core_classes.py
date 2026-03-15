@@ -12,6 +12,12 @@ class product_ticket(TypedDict):
     total_price: float
     profit: float
 
+class editor_entry(TypedDict):
+    ipv4: str
+    user_id: int
+    last_action: str
+    timestamp: str
+
 class ticket_info(TypedDict):
     products: list[product_ticket]
     products_count: float
@@ -20,3 +26,4 @@ class ticket_info(TypedDict):
     discount: float
     wholesale_active: bool
     profit: float
+    editors: list[editor_entry]
