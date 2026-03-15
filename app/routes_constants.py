@@ -62,6 +62,7 @@ ROUTE_ADD_PRODUCT_TICKET = f'{TICKETS_BASE}/add'
 ROUTE_ADD_COMMON_PRODUCT_TICKET = f'{TICKETS_BASE}/add/common'
 ROUTE_REMOVE_PRODUCT_TICKET = f'{TICKETS_BASE}/remove'
 ROUTE_SAVE_TICKET = f'{TICKETS_BASE}/save'
+ROUTE_MODIFY_SAVED_TICKET = f'{TICKETS_BASE}/modify/<int:ticket_id>'
 
 # ===================== CONFIG ROUTES =====================
 CONFIG_BASE = f'{API_BASE}/config'

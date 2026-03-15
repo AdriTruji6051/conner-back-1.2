@@ -10,7 +10,8 @@ from app.routes_constants import (
     ROUTE_QUICKSALE_TICKET, ROUTE_CREATE_TICKET, ROUTE_GET_TICKET_KEYS,
     ROUTE_GET_TICKET_KEYS_SHARED, ROUTE_GET_TICKET, ROUTE_GET_TICKETS_BY_DATE,
     ROUTE_GET_PRODUCTS_IN_TICKET, ROUTE_TOOGLE_WHOLESALE, ROUTE_ADD_PRODUCT_TICKET,
-    ROUTE_REMOVE_PRODUCT_TICKET, ROUTE_SAVE_TICKET, ROUTE_ADD_COMMON_PRODUCT_TICKET
+    ROUTE_REMOVE_PRODUCT_TICKET, ROUTE_SAVE_TICKET, ROUTE_ADD_COMMON_PRODUCT_TICKET,
+    ROUTE_MODIFY_SAVED_TICKET
 )
 
 TICKET_MANAGER = Tickets_manager()
@@ -187,6 +188,24 @@ def save_ticket(ticket_key):
         logging.error(f'{ROUTE_SAVE_TICKET}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error saving ticket').to_flask_tuple()
     
+@routesTickets.route(ROUTE_MODIFY_SAVED_TICKET, methods=['PUT'])
+def modify_saved_ticket(ticket_id):
+    try:
+        data = request.get_json(silent=True) or {}
+        data['id'] = ticket_id
+        result = Tickets.modify(data)
+        return AppResponse.success(result).to_flask_tuple()
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except ValueError as e:
+        msg = str(e)
+        if 'not found' in msg.lower():
+            return AppResponse.not_found(msg).to_flask_tuple()
+        return AppResponse.unprocessable(msg).to_flask_tuple()
+    except Exception as e:
+        logging.error(f'{ROUTE_MODIFY_SAVED_TICKET}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error modifying saved ticket').to_flask_tuple()
+
 @routesTickets.route(ROUTE_QUICKSALE_TICKET, methods=['POST'])
 def quicksale_ticket(amount):
     try:

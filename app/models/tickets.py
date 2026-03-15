@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from app.extensions import db
-from app.models.products import Products
+from app.models.products import Products, QUICKSALE_CODE, COMMONSALE_CODE
 from app.models.core_classes import TicketModel, ProductInTicket
 from app.models.analytics import Analytics
 from app.helpers.helpers import raise_exception_if_missing_keys, ValidationError, collect_missing_keys
@@ -269,3 +269,178 @@ class Tickets:
                 Products.add_inventory(product.code, product.cantity)
                 db.session.delete(product)
             db.session.commit()
+
+    @staticmethod
+    def modify(data: dict):
+        """Modify an already-saved ticket in the database.
+        
+        Each product in data['products'] must have an 'action' field:
+        - 'keep': No changes to this product.
+        - 'update': Update cantity, profit, sale_price, wholesale_price, description.
+        - 'add': Add a new product to the ticket.
+        - 'remove': Remove the product from the ticket.
+        
+        Inventory adjustments are made for products that track inventory.
+        Products with code=None (deleted), QUICKSALE, or COMMONSALE skip inventory checks.
+        """
+        raise_exception_if_ticket_invalid_data(data, True)
+        raise_exception_if_modify_product_invalid_data(data['products'])
+
+        try:
+            ticket_id = data['id']
+            ticket = TicketModel.query.get(ticket_id)
+            if not ticket:
+                raise ValueError(f'Ticket with id {ticket_id} not found')
+
+            # Process each product action
+            for prod in data['products']:
+                action = prod['action']
+
+                if action == 'keep':
+                    continue
+
+                elif action == 'remove':
+                    pit = ProductInTicket.query.get(prod['id'])
+                    if not pit:
+                        continue
+                    if _should_adjust_inventory(pit.code):
+                        Products.add_inventory(pit.code, pit.cantity)
+                    db.session.delete(pit)
+
+                elif action == 'update':
+                    pit = ProductInTicket.query.get(prod['id'])
+                    if not pit:
+                        continue
+
+                    old_cantity = pit.cantity
+                    new_cantity = prod['cantity']
+                    diff = new_cantity - old_cantity
+
+                    if diff != 0 and _should_adjust_inventory(pit.code):
+                        if diff > 0:
+                            if not Products.enough_inventory(pit.code, diff):
+                                raise ValueError(
+                                    f'Not enough inventory for product {pit.code} '
+                                    f'(need {diff} more)'
+                                )
+                            Products.remove_inventory(pit.code, diff)
+                        else:
+                            Products.add_inventory(pit.code, abs(diff))
+
+                    pit.cantity = new_cantity
+                    pit.profit = prod.get('profit', pit.profit)
+                    pit.sale_price = prod.get('sale_price', pit.sale_price)
+                    pit.wholesale_price = prod.get('wholesale_price', pit.wholesale_price)
+                    pit.description = prod.get('description', pit.description)
+
+                elif action == 'add':
+                    code = prod['code']
+                    cantity = prod['cantity']
+
+                    if _should_adjust_inventory(code):
+                        if not Products.enough_inventory(code, cantity):
+                            raise ValueError(
+                                f'Not enough inventory for product {code} '
+                                f'(need {cantity})'
+                            )
+                        Products.remove_inventory(code, cantity)
+
+                    pit = ProductInTicket(
+                        ticket_id=ticket_id,
+                        code=code,
+                        description=prod['description'],
+                        cantity=cantity,
+                        profit=prod.get('profit'),
+                        wholesale_price=prod.get('wholesale_price'),
+                        sale_price=prod['sale_price'],
+                    )
+                    db.session.add(pit)
+
+            # Update ticket header
+            ticket.sub_total = data['sub_total']
+            ticket.total = data['total']
+            ticket.discount = data['discount']
+            ticket.profit = data['profit']
+            ticket.products_count = data['products_count']
+            if 'notes' in data:
+                ticket.notes = data['notes']
+            ticket.modified_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            db.session.commit()
+
+            log = {
+                'open_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'user_id': 0,
+                'method': 'PUT',
+                'transaction_type': 1,
+                'transaction_id': ticket_id
+            }
+            Analytics.Drawer_logs.create(log)
+
+            return ticket_id
+
+        except Exception as e:
+            db.session.rollback()
+            raise e
+
+
+_VALID_ACTIONS = ('keep', 'update', 'add', 'remove')
+
+
+def _should_adjust_inventory(code: str | None) -> bool:
+    """Return True if inventory should be adjusted for the given product code.
+    Skip for None (deleted product), QUICKSALE, or COMMONSALE codes."""
+    if code is None:
+        return False
+    if code in (QUICKSALE_CODE, COMMONSALE_CODE):
+        return False
+    return True
+
+
+def raise_exception_if_modify_product_invalid_data(data_array: list[dict]):
+    """Validate the products array for the modify-ticket endpoint."""
+    v = ValidationError()
+
+    for idx, prod in enumerate(data_array):
+        prefix = f'products[{idx}].'
+
+        if 'action' not in prod:
+            v.add(f'{prefix}action', 'Missing required field')
+            continue
+
+        action = prod['action']
+        if action not in _VALID_ACTIONS:
+            v.add(f'{prefix}action', f'Must be one of {_VALID_ACTIONS}')
+            continue
+
+        if action == 'keep':
+            if 'id' not in prod:
+                v.add(f'{prefix}id', 'Missing required field for keep action')
+
+        elif action == 'remove':
+            if 'id' not in prod:
+                v.add(f'{prefix}id', 'Missing required field for remove action')
+
+        elif action == 'update':
+            for key in ('id', 'cantity', 'profit'):
+                if key not in prod:
+                    v.add(f'{prefix}{key}', 'Missing required field for update action')
+            if 'cantity' in prod and prod['cantity'] < 0:
+                v.add(f'{prefix}cantity', 'Must be greater than or equal to zero')
+            if 'profit' in prod and prod['profit'] < 0:
+                v.add(f'{prefix}profit', 'Must be greater than or equal to zero')
+            if 'sale_price' in prod and prod['sale_price'] < 0:
+                v.add(f'{prefix}sale_price', 'Must be greater than or equal to zero')
+
+        elif action == 'add':
+            for key in ('code', 'description', 'cantity', 'sale_price'):
+                if key not in prod:
+                    v.add(f'{prefix}{key}', 'Missing required field for add action')
+            if 'cantity' in prod and prod['cantity'] < 0:
+                v.add(f'{prefix}cantity', 'Must be greater than or equal to zero')
+            if 'sale_price' in prod and prod['sale_price'] < 0:
+                v.add(f'{prefix}sale_price', 'Must be greater than or equal to zero')
+            if 'profit' in prod and prod['profit'] is not None and prod['profit'] < 0:
+                v.add(f'{prefix}profit', 'Must be greater than or equal to zero')
+
+    v.raise_if_errors()

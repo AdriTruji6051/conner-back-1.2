@@ -518,6 +518,30 @@
             "description": "Save a ticket"
           },
           "response": []
+        },
+        {
+          "name": "Modify Saved Ticket",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sub_total\": 150.0,\n  \"total\": 150.0,\n  \"discount\": 0.0,\n  \"profit\": 30.0,\n  \"products_count\": 3,\n  \"notes\": \"Modified ticket notes\",\n  \"products\": [\n    {\n      \"id\": 1,\n      \"action\": \"keep\"\n    },\n    {\n      \"id\": 2,\n      \"action\": \"update\",\n      \"cantity\": 5,\n      \"profit\": 10.0,\n      \"sale_price\": 25.0,\n      \"wholesale_price\": 20.0,\n      \"description\": \"Updated Product Name\"\n    },\n    {\n      \"id\": 3,\n      \"action\": \"remove\"\n    },\n    {\n      \"action\": \"add\",\n      \"code\": \"PROD005\",\n      \"description\": \"New Product\",\n      \"cantity\": 2,\n      \"sale_price\": 50.0,\n      \"wholesale_price\": 45.0,\n      \"profit\": 10.0\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ticket/modify/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "modify", "1"]
+            },
+            "description": "Modify an already-saved ticket in the database. Each product in the products array must have an 'action' field: 'keep' (no changes), 'update' (modify quantity/price/description), 'add' (add new product to ticket), or 'remove' (remove product from ticket). Inventory is automatically adjusted for products that track it. Products that have been deleted from the products table, QUICKSALE, and COMMONSALE products skip inventory checks."
+          },
+          "response": []
         }
       ],
       "description": "Ticket management endpoints"
