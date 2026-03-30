@@ -190,13 +190,17 @@ class Tickets:
         def create(data: list[dict], ticket_id: int):
             raise_exception_if_product_in_ticket_invalid_data(data, False)
 
-            # Check inventory and prepare removals
+            # Check inventory and prepare removals only for products that track inventory
             for prod in data:
+                if not _should_adjust_inventory(prod['code']):
+                    continue
                 if not Products.enough_inventory(prod['code'], prod['cantity']):
                     raise ValueError(f'The product {prod["code"]}, {prod["description"]} not have the enough inventory for create.')
 
             # Remove inventory
             for prod in data:
+                if not _should_adjust_inventory(prod['code']):
+                    continue
                 Products.remove_inventory(prod['code'], prod['cantity'])
 
             # Create product_in_ticket records
@@ -228,14 +232,15 @@ class Tickets:
                     new_cantity = prod['cantity']
                     diff = old_cantity - new_cantity
 
-                    if diff < 0:
-                        # Need more inventory
-                        if not Products.enough_inventory(prod['code'], abs(diff)):
-                            raise ValueError(f'The product {prod["code"]} not have the enough inventory for update.')
-                        Products.remove_inventory(prod['code'], abs(diff))
-                    elif diff > 0:
-                        # Return inventory
-                        Products.add_inventory(prod['code'], diff)
+                    if _should_adjust_inventory(prod.get('code')):
+                        if diff < 0:
+                            # Need more inventory
+                            if not Products.enough_inventory(prod['code'], abs(diff)):
+                                raise ValueError(f'The product {prod["code"]} not have the enough inventory for update.')
+                            Products.remove_inventory(prod['code'], abs(diff))
+                        elif diff > 0:
+                            # Return inventory
+                            Products.add_inventory(prod['code'], diff)
 
                 except ValueError:
                     raise
@@ -257,7 +262,8 @@ class Tickets:
             if not pit:
                 return
 
-            Products.add_inventory(pit.code, pit.cantity)
+            if _should_adjust_inventory(pit.code):
+                Products.add_inventory(pit.code, pit.cantity)
 
             db.session.delete(pit)
             db.session.commit()
@@ -266,7 +272,8 @@ class Tickets:
         def delete_by_ticket(ticket_id: int):
             products_to_delete = Tickets.Product_in_ticket.get_by_ticket(ticket_id)
             for product in products_to_delete:
-                Products.add_inventory(product.code, product.cantity)
+                if _should_adjust_inventory(product.code):
+                    Products.add_inventory(product.code, product.cantity)
                 db.session.delete(product)
             db.session.commit()
 
@@ -389,12 +396,17 @@ _VALID_ACTIONS = ('keep', 'update', 'add', 'remove')
 
 def _should_adjust_inventory(code: str | None) -> bool:
     """Return True if inventory should be adjusted for the given product code.
-    Skip for None (deleted product), QUICKSALE, or COMMONSALE codes."""
+    Skip for None (deleted product), QUICKSALE, COMMONSALE codes, or products that do not track inventory."""
     if code is None:
         return False
     if code in (QUICKSALE_CODE, COMMONSALE_CODE):
         return False
-    return True
+
+    product = Products.get(code)
+    if not product:
+        return False
+
+    return product.get('inventory') is not None
 
 
 def raise_exception_if_modify_product_invalid_data(data_array: list[dict]):

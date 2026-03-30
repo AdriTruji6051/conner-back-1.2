@@ -201,6 +201,54 @@ class main_test(unittest.TestCase):
         
         show_logs('Tickets', logs)
 
+    def test_zz_Tickets_obj_null_inventory_product(self):
+        with self.app.app_context():
+            try:
+                Products.delete('NULLINV')
+            except Exception:
+                pass
+
+            Products.create({
+                'code': 'NULLINV',
+                'description': 'NULL INVENTORY TEST',
+                'sale_type': 'U',
+                'cost': 1,
+                'sale_price': 10,
+                'department': None,
+                'wholesale_price': 10,
+                'priority': 0,
+                'inventory': None,
+                'parent_code': None,
+            })
+
+            ticket = {
+                'sub_total': 10,
+                'total': 10,
+                'profit': 2,
+                'discount': 0,
+                'products_count': 1,
+                'notes': 'NULL inventory product save',
+                'user_id': 1,
+                'ipv4_sender': '127.0.0.1',
+                'products': [
+                    {
+                        'code': 'NULLINV',
+                        'description': 'NULL INVENTORY TEST',
+                        'cantity': 1,
+                        'profit': 2,
+                        'wholesale_price': 10,
+                        'sale_price': 10,
+                    }
+                ]
+            }
+
+            ticket_id = Tickets.create(ticket)
+            self.assertIsInstance(ticket_id, int)
+
+            Tickets.delete(ticket_id)
+            Products.delete('NULLINV')
+
+
 if __name__ == "__main__":
     SHOW_GET_LOGS = False
     LOGS_CHAR_LEN = None
