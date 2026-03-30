@@ -1,7 +1,8 @@
 from app.models.products import Products, QUICKSALE_CODE, COMMONSALE_CODE
 from app.models.tickets import Tickets
 from app.controlers.core_classes import product_ticket, ticket_info, editor_entry
-from app.helpers.helpers import raise_exception_if_missing_keys, ValidationError, collect_missing_keys
+from app.controlers.printers import Printers
+from app.helpers.helpers import ValidationError, collect_missing_keys
 
 from datetime import datetime
 import math
@@ -167,7 +168,7 @@ class Ticket:
             'profit': self.__profit
         }
     
-class Tickets_manager:
+class tickets_manager:
     ticket_id_new = 1
     tickets_dict = {}
     tickets_dict[0] = {
@@ -180,18 +181,18 @@ class Tickets_manager:
     def __get(self, ticket_key: int) -> Ticket:
         """Return the Ticket object in the has map whith ticket_key as key value"""
         try:
-            return Tickets_manager.tickets_dict[ticket_key]['ticket']
+            return tickets_manager.tickets_dict[ticket_key]['ticket']
         except KeyError:
             raise ValueError(f'Ticket with key {ticket_key} not found')
 
     def __reset(self, ticket_key: int):
-        Tickets_manager.tickets_dict[ticket_key]['ticket'] = Ticket()
-        Tickets_manager.tickets_dict[ticket_key]['commonsale_counter'] = 0
-        Tickets_manager.tickets_dict[ticket_key]['editors'] = []
+        tickets_manager.tickets_dict[ticket_key]['ticket'] = Ticket()
+        tickets_manager.tickets_dict[ticket_key]['commonsale_counter'] = 0
+        tickets_manager.tickets_dict[ticket_key]['editors'] = []
     
     def __track_editor(self, ticket_key: int, ipv4: str, user_id: int, action: str):
         """Record or update the editor entry for a given ipv4 + user_id on this ticket."""
-        editors: list[editor_entry] = Tickets_manager.tickets_dict[ticket_key]['editors']
+        editors: list[editor_entry] = tickets_manager.tickets_dict[ticket_key]['editors']
         timestamp = datetime.now().isoformat()
 
         for editor in editors:
@@ -209,8 +210,8 @@ class Tickets_manager:
     
     def __get_next_commonsale_code(self, ticket_key: int) -> str:
         """Generate a unique temporary COMMONSALE code for the ticket"""
-        counter = Tickets_manager.tickets_dict[ticket_key]['commonsale_counter']
-        Tickets_manager.tickets_dict[ticket_key]['commonsale_counter'] = counter + 1
+        counter = tickets_manager.tickets_dict[ticket_key]['commonsale_counter']
+        tickets_manager.tickets_dict[ticket_key]['commonsale_counter'] = counter + 1
         return f'{COMMONSALE_CODE}_{counter + 1}'
     
     def __normalize_commonsale_products(self, products: list[dict]) -> list[dict]:
@@ -225,18 +226,18 @@ class Tickets_manager:
     
     def add(self, ipv4: str = '127.0.0.1') -> int:
         """Create a Ticket object and return his Key to access it."""
-        Tickets_manager.tickets_dict[Tickets_manager.ticket_id_new] = {
+        tickets_manager.tickets_dict[tickets_manager.ticket_id_new] = {
             'ipv4': ipv4,
             'ticket': Ticket(),
             'commonsale_counter': 0,
             'editors': []
         }
-        Tickets_manager.ticket_id_new += 1
+        tickets_manager.ticket_id_new += 1
         
-        return Tickets_manager.ticket_id_new - 1
+        return tickets_manager.ticket_id_new - 1
 
     def remove(self, ticket_key: int):
-        Tickets_manager.tickets_dict.pop(ticket_key)
+        tickets_manager.tickets_dict.pop(ticket_key)
 
     def save(self, ticket_key: int, notes: str, total: float = 0, ipv4: str = '127.0.0.1', user_id: int = 0, print_many: int = 0, printer_name: str = None):
         """Save at database the Ticket object with the ticket_key and return the ticket id saved at the database"""
@@ -255,8 +256,9 @@ class Tickets_manager:
 
         ticket_id = Tickets.create(ticket_info)
 
-        for _ in range(print_many):
-            print(printer_name) # TODO Add logic to send tickket to printer and send ticket_infor obj
+        if print_many > 0 and printer_name:
+            printers = Printers()
+            printers.print_ticket(ticket_info, ticket_id, notes, printer_name, ipv4, print_many)
 
         self.__reset(ticket_key)
         
@@ -264,13 +266,13 @@ class Tickets_manager:
 
     def get_keys(self, ipv4: str = '127.0.0.1') -> set:
         """Return all keys by default. If ipv4 is specified return only the tickets with that ipv4"""
-        keys = set(Tickets_manager.tickets_dict)
+        keys = set(tickets_manager.tickets_dict)
         if ipv4 == '127.0.0.1':
             return keys
         
         keys_ipv4 = set()
         for key in keys:
-            if Tickets_manager.tickets_dict[key]['ipv4'] == ipv4:
+            if tickets_manager.tickets_dict[key]['ipv4'] == ipv4:
                 keys_ipv4.add(key)
 
         return keys_ipv4
@@ -278,7 +280,7 @@ class Tickets_manager:
     def get_ticket_info(self, ticket_key: int) -> ticket_info:
         ticket = self.__get(ticket_key)
         info = ticket.get_info()
-        info['editors'] = list(Tickets_manager.tickets_dict[ticket_key]['editors'])
+        info['editors'] = list(tickets_manager.tickets_dict[ticket_key]['editors'])
         return info
     
     def add_product(self, ticket_key: int, product_code: str, cantity: int = 1, ipv4: str = '127.0.0.1', user_id: int = 0):

@@ -21,9 +21,9 @@ ROUTE_UPDATE_PRODUCT = f'{PRODUCTS_BASE}/update'
 ROUTE_DELETE_PRODUCT = f'{PRODUCTS_BASE}/delete/<string:code>'
 
 # Products - Inventory Management
-ROUTE_UPDATE_INVENTORY = f'{PRODUCTS_BASE}/<string:code>/update/inventory/<float:cantity>'
-ROUTE_ADD_INVENTORY = f'{PRODUCTS_BASE}/<string:code>/add/inventory/<float:cantity>'
-ROUTE_REMOVE_INVENTORY = f'{PRODUCTS_BASE}/<string:code>/remove/inventory/<float:cantity>'
+ROUTE_UPDATE_INVENTORY = f'{PRODUCTS_BASE}/<string:code>/update/inventory/<string:cantity>'
+ROUTE_ADD_INVENTORY = f'{PRODUCTS_BASE}/<string:code>/add/inventory/<string:cantity>'
+ROUTE_REMOVE_INVENTORY = f'{PRODUCTS_BASE}/<string:code>/remove/inventory/<string:cantity>'
 
 # ===================== PRODUCT DEPARTMENTS ROUTES =====================
 DEPARTMENTS_BASE = f'{PRODUCTS_BASE}/departments'
@@ -108,13 +108,13 @@ ROUTE_INSERT_CASH_PAYMENT = f'{ANALYTICS_BASE}/cash/payment'
 # Analytics - Drawer Logs
 DRAWER_LOG_BASE = f'{ANALYTICS_BASE}/drawer/log'
 
-ROUTE_GET_DRAWER_LOG = f'{DRAWER_LOG_BASE}/<int:id>'
+ROUTE_GET_DRAWER_LOG = f'{DRAWER_LOG_BASE}/<string:id>'
 ROUTE_GET_DRAWER_LOG_BY_DATE = f'{DRAWER_LOG_BASE}/date/<string:date>'
 
 # Analytics - Product Changes
 PRODUCT_LOG_BASE = f'{ANALYTICS_BASE}/product/log/changes'
 
-ROUTE_GET_PRODUCT_CHANGES = f'{PRODUCT_LOG_BASE}/<int:id>'
+ROUTE_GET_PRODUCT_CHANGES = f'{PRODUCT_LOG_BASE}/<string:id>'
 ROUTE_GET_PRODUCT_CHANGES_BY_DATE = f'{PRODUCT_LOG_BASE}/date/<string:date>'
 
 # ===================== TEMPLATES ROUTES =====================

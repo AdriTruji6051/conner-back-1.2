@@ -1,3 +1,6 @@
+import gevent.monkey
+gevent.monkey.patch_all()
+
 from flask import Flask
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
@@ -113,7 +116,7 @@ def run_app():
                 logger.info(f"{methods:15} {route}")
             logger.info("=" * 80)
 
-    socketio.run(application, host=Config.HOST, port=Config.PORT, debug=Config.DEBUG, allow_unsafe_werkzeug=True)
+    socketio.run(application, host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)
 
 if __name__== '__main__':
     run_app()

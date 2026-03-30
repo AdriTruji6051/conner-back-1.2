@@ -302,21 +302,21 @@ class Products:
         return ans
 
     @staticmethod
-    def get_siblings(code: str) -> dict:
+    def get_siblings(code: str) -> dict | None:
         siblings_rows = Product.query.filter_by(parent_code=code).all()
 
         if not len(siblings_rows):
             child = Product.query.get(code)
             if not child:
-                raise ValueError('Product not exist')
+                return None
 
             code = child.parent_code
             if not code:
-                raise ValueError('Product has not parent linked')
+                return None
 
             siblings_rows = Product.query.filter_by(parent_code=code).all()
             if not len(siblings_rows):
-                raise ValueError('Product has not parent linked')
+                return None
 
         childs = [p.to_dict() for p in siblings_rows]
         parent = Products.get(code)
@@ -413,18 +413,6 @@ class Products:
             update_siblings_products(data, data['siblings_codes'])
 
     @staticmethod
-    def update_inventory(code: str, cantity: float):
-        if cantity < 0:
-            raise ValueError('Inventory cannot be zero or lower.')
-        if _is_protected_placeholder_code(code):
-            raise ValueError('Protected placeholder inventory cannot be modified manually.')
-        product = Product.query.get(code)
-        if not product:
-            raise ValueError(f'Product with code {code} not found')
-        product.inventory = cantity
-        db.session.commit()
-
-    @staticmethod
     def delete(code: str):
         if not code:
             raise ValueError('Not code sended.')
@@ -437,44 +425,52 @@ class Products:
         db.session.commit()
 
     @staticmethod
-    def add_inventory(code: str, cantity: float):
-        """Product code and cantity to add."""
-        try:
-            product = Product.query.get(code)
-            if not product:
-                # Check if it's an associate
-                assoc = AssociateCode.query.get(code)
-                if assoc:
-                    product = Product.query.get(assoc.parent_code)
-            
-            if not product or product.inventory is None:
-                return
-
-            product.inventory += cantity
-            db.session.commit()
-        except Exception:
-            return
+    def update_inventory(code: str, cantity: float) -> dict:
+        if cantity < 0:
+            raise ValueError('Inventory cannot be zero or lower.')
+        if _is_protected_placeholder_code(code):
+            raise ValueError('Protected placeholder inventory cannot be modified manually.')
+        product = Product.query.get(code)
+        if not product:
+            raise ValueError(f'Product with code {code} not found')
+        product.inventory = cantity
+        db.session.commit()
+        return {'code': product.code, 'description': product.description, 'inventory': product.inventory}
 
     @staticmethod
-    def remove_inventory(code: str, cantity: float):
+    def add_inventory(code: str, cantity: float) -> dict:
+        """Product code and cantity to add."""
+        product = Product.query.get(code)
+        if not product:
+            assoc = AssociateCode.query.get(code)
+            if assoc:
+                product = Product.query.get(assoc.parent_code)
+
+        if not product or product.inventory is None:
+            raise ValueError(f'Product with code {code} not found or does not track inventory')
+
+        product.inventory += cantity
+        db.session.commit()
+        return {'code': product.code, 'description': product.description, 'inventory': product.inventory}
+
+    @staticmethod
+    def remove_inventory(code: str, cantity: float) -> dict:
         """Product code and cantity to substract."""
         if not Products.enough_inventory(code, cantity):
             raise ValueError(f'Not enough inventory for product with code: {code}')
 
-        try:
-            product = Product.query.get(code)
-            if not product:
-                assoc = AssociateCode.query.get(code)
-                if assoc:
-                    product = Product.query.get(assoc.parent_code)
+        product = Product.query.get(code)
+        if not product:
+            assoc = AssociateCode.query.get(code)
+            if assoc:
+                product = Product.query.get(assoc.parent_code)
 
-            if not product or product.inventory is None:
-                return
+        if not product or product.inventory is None:
+            raise ValueError(f'Product with code {code} not found or does not track inventory')
 
-            product.inventory -= cantity
-            db.session.commit()
-        except Exception:
-            return
+        product.inventory -= cantity
+        db.session.commit()
+        return {'code': product.code, 'description': product.description, 'inventory': product.inventory}
 
     class Departments:
         @staticmethod

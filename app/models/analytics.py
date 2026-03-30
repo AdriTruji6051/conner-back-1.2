@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from app.extensions import db
-from app.models.core_classes import DrawerLog, ProductChange, CashFlow
+from app.models.core_classes import DrawerLog, ProductChange, CashFlow, InventoryLog
 from app.helpers.helpers import raise_exception_if_missing_keys, ValidationError, collect_missing_keys
 
 allowed_methods = ['POST', 'PUT', 'DELETE']
@@ -33,7 +33,7 @@ class Analytics:
             return log
 
         @staticmethod
-        def get_all(date: str = '') -> list[DrawerLog]:
+        def get_by_date(date: str = '') -> list[DrawerLog]:
             if not date:
                 date = datetime.now().strftime('%Y-%m-%d')
 
@@ -56,14 +56,13 @@ class Analytics:
 
     class Products_changes:
         @staticmethod
-        def get(code: str) -> list[ProductChange]:
-            changes = ProductChange.query.filter_by(code=code).all()
-            if not changes:
-                raise ValueError(f'Products changes with code {code} not exist')
-            return changes
+        def get(code: str) -> dict:
+            changes = ProductChange.query.filter_by(code=code).order_by(ProductChange.modified_at.desc()).all()
+            inventory_logs = InventoryLog.query.filter_by(product_code=code).order_by(InventoryLog.modified_at.desc()).all()
+            return {'product_changes': changes, 'inventory_logs': inventory_logs}
 
         @staticmethod
-        def get_all(date: str = '', exclude_delete: bool = True) -> list[ProductChange]:
+        def get_by_date(date: str = '', exclude_delete: bool = True) -> dict:
             if not date:
                 date = datetime.now().strftime('%Y-%m-%d')
 
@@ -72,7 +71,9 @@ class Analytics:
             if exclude_delete:
                 query = query.filter(ProductChange.method != 'DELETE')
 
-            return query.all()
+            changes = query.order_by(ProductChange.modified_at.desc()).all()
+            inventory_logs = InventoryLog.query.filter(InventoryLog.modified_at.like(f'{date}%')).order_by(InventoryLog.modified_at.desc()).all()
+            return {'product_changes': changes, 'inventory_logs': inventory_logs}
 
         @staticmethod
         def create(data: dict):

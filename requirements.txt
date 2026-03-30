@@ -5,3 +5,5 @@ Flask-SocketIO==5.3.7
 python-dotenv==1.0.1
 bcrypt==4.3.0
 Flask-SQLAlchemy==3.1.1
+gevent
+gevent-websocket

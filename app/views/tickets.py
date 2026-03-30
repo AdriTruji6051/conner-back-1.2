@@ -2,7 +2,7 @@ from flask import jsonify, Blueprint, request
 from flask_jwt_extended import jwt_required
 import logging
 
-from app.controlers.tickets import Tickets_manager
+from app.controlers.tickets import tickets_manager
 from app.models.tickets import Tickets
 from app.helpers.helpers import AppResponse, ValidationError
 from app.sockets.tickets import broadcast_ticket_update
@@ -14,7 +14,7 @@ from app.routes_constants import (
     ROUTE_MODIFY_SAVED_TICKET
 )
 
-TICKET_MANAGER = Tickets_manager()
+TICKET_MANAGER = tickets_manager()
 
 routesTickets = Blueprint('routes-tickets', __name__)
 

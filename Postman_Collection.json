@@ -146,7 +146,7 @@
         {
           "name": "Add Inventory",
           "request": {
-            "method": "POST",
+            "method": "PUT",
             "header": [],
             "url": {
               "raw": "{{base_url}}/api/product/{{product_code}}/add/inventory/{{quantity}}",
@@ -160,7 +160,7 @@
         {
           "name": "Remove Inventory",
           "request": {
-            "method": "POST",
+            "method": "PUT",
             "header": [],
             "url": {
               "raw": "{{base_url}}/api/product/{{product_code}}/remove/inventory/{{quantity}}",

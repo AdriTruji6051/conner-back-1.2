@@ -7,7 +7,7 @@ from app.extensions import socketio
 TICKET_MANAGER = None
 
 def init_ticket_sockets(ticket_manager):
-    """Initialize the socket handlers with a reference to the shared Tickets_manager instance."""
+    """Initialize the socket handlers with a reference to the shared tickets_manager instance."""
     global TICKET_MANAGER
     TICKET_MANAGER = ticket_manager
 

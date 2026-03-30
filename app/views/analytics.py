@@ -66,7 +66,7 @@ def insert_payment():
 
 
 @routesAnalitycs.route(ROUTE_GET_DRAWER_LOG, methods=['GET'])
-def get_drawer_log(id):
+def get_drawer_log(id: str):
     try:
         return AppResponse.success(Analytics.Drawer_logs.get(id).to_dict()).to_flask_tuple()
     except ValueError as e:
@@ -76,9 +76,9 @@ def get_drawer_log(id):
         return AppResponse.server_error('Unexpected error retrieving drawer log').to_flask_tuple()
     
 @routesAnalitycs.route(ROUTE_GET_DRAWER_LOG_BY_DATE, methods=['GET'])
-def get_drawer_logs_by_date(date):
+def get_drawer_logs_by_date(date: str):
     try:
-        return AppResponse.success([l.to_dict() for l in Analytics.Drawer_logs.get_all(date)]).to_flask_tuple()
+        return AppResponse.success([l.to_dict() for l in Analytics.Drawer_logs.get_by_date(date)]).to_flask_tuple()
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
@@ -86,9 +86,13 @@ def get_drawer_logs_by_date(date):
         return AppResponse.server_error('Unexpected error retrieving drawer logs by date').to_flask_tuple()
     
 @routesAnalitycs.route(ROUTE_GET_PRODUCT_CHANGES, methods=['GET'])
-def get_changes_log(id: int):
+def get_changes_log(id: str):
     try:
-        return AppResponse.success([c.to_dict() for c in Analytics.Products_changes.get(id)]).to_flask_tuple()
+        result = Analytics.Products_changes.get(id)
+        return AppResponse.success({
+            'product_changes': [c.to_dict() for c in result['product_changes']],
+            'inventory_logs': [l.to_dict() for l in result['inventory_logs']],
+        }).to_flask_tuple()
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
@@ -98,7 +102,11 @@ def get_changes_log(id: int):
 @routesAnalitycs.route(ROUTE_GET_PRODUCT_CHANGES_BY_DATE, methods=['GET'])
 def get_changes_log_date(date: str):
     try:
-        return AppResponse.success({'logs': [c.to_dict() for c in Analytics.Products_changes.get_all(date)]}).to_flask_tuple()
+        result = Analytics.Products_changes.get_by_date(date)
+        return AppResponse.success({
+            'product_changes': [c.to_dict() for c in result['product_changes']],
+            'inventory_logs': [l.to_dict() for l in result['inventory_logs']],
+        }).to_flask_tuple()
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:

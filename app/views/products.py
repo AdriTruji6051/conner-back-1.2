@@ -67,8 +67,6 @@ def get_siblings(code):
         return AppResponse.success(Products.get_siblings(code)).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
-    except ValueError as e:
-        return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
         logging.error(f'{ROUTE_GET_PRODUCT_SIBLINGS}. Error: {e}. Data recieved: {code}')
         return AppResponse.server_error('Unexpected error retrieving siblings').to_flask_tuple()
@@ -106,10 +104,10 @@ def update_product():
         return AppResponse.server_error('Unexpected error updating product').to_flask_tuple()
     
 @routesProducts.route(ROUTE_UPDATE_INVENTORY, methods=['PUT'])
-def update_inventory(code: str, cantity: float):
+def update_inventory(code: str, cantity: str):
     try:
-        Products.update_inventory(code, cantity)
-        return AppResponse.success({'message': 'product inventory updated'}).to_flask_tuple()
+        result = Products.update_inventory(code, float(cantity))
+        return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -119,10 +117,10 @@ def update_inventory(code: str, cantity: float):
         return AppResponse.server_error('Unexpected error updating inventory').to_flask_tuple()
     
 @routesProducts.route(ROUTE_ADD_INVENTORY, methods=['PUT'])
-def add_inventory(code: str, cantity: float):
+def add_inventory(code: str, cantity: str):
     try:
-        Products.add_inventory(code, cantity)
-        return AppResponse.success({'message': 'product inventory added'}).to_flask_tuple()
+        result = Products.add_inventory(code, float(cantity))
+        return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -132,10 +130,10 @@ def add_inventory(code: str, cantity: float):
         return AppResponse.server_error('Unexpected error adding inventory').to_flask_tuple()
     
 @routesProducts.route(ROUTE_REMOVE_INVENTORY, methods=['PUT'])
-def remove_inventory(code: str, cantity: float):
+def remove_inventory(code: str, cantity: str):
     try:
-        Products.remove_inventory(code, cantity)
-        return AppResponse.success({'message': 'product inventory removed'}).to_flask_tuple()
+        result = Products.remove_inventory(code, float(cantity))
+        return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
