@@ -15,6 +15,10 @@ def custom_round(number: float) -> float:
 def custom_floor(number) -> float:
     return math.floor(number * 10) / 10
 
+def format_to_two_decimals(number: float) -> float:
+    """Round and format a number to 2 decimal places to prevent floating-point precision errors."""
+    return round(number, 2)
+
 def validate_common_product(product: dict):
     v = ValidationError()
     keys = ['code', 'description', 'sale_type', 'sale_price', 'cantity']
@@ -81,13 +85,16 @@ class Ticket:
                     else product['sale_price'] * product['cantity']
                 )
             )
+            # Round total_price to 2 decimal places to prevent floating-point precision errors
+            product['total_price'] = format_to_two_decimals(product['total_price'])
 
             product['profit'] = (
-
                 product['total_price'] - (product['cost'] * product['cantity']) 
                 if product['cost'] 
                 else product['total_price'] * UNDEFINED_PROFIT_MARGIN 
             )
+            # Round profit to 2 decimal places
+            product['profit'] = format_to_two_decimals(product['profit'])
 
             self.__profit += product['profit']
 
@@ -96,8 +103,9 @@ class Ticket:
         else:
             self.__discount = 0
 
-        self.__total = custom_round(self.__total)
-        self.__discount = custom_round(self.__discount)       
+        self.__total = format_to_two_decimals(custom_round(self.__total))
+        self.__discount = format_to_two_decimals(custom_round(self.__discount))
+        self.__profit = format_to_two_decimals(self.__profit)
         self.__products_count = custom_floor(self.__products_count)
         self.__articles_count = len(self.__products)       
 
@@ -158,14 +166,29 @@ class Ticket:
         self.__calculate()
     
     def get_info(self) -> ticket_info:
+        # Format product values to .2f
+        formatted_products = []
+        for product in self.__products:
+            formatted_product = product.copy()
+            formatted_product['cantity'] = format_to_two_decimals(formatted_product['cantity'])
+            formatted_product['cost'] = format_to_two_decimals(formatted_product['cost'])
+            formatted_product['sale_price'] = format_to_two_decimals(formatted_product['sale_price'])
+            formatted_product['wholesale_price'] = format_to_two_decimals(formatted_product['wholesale_price'])
+            # Apply custom_round to total_price to match sub_total rounding consistency
+            formatted_product['total_price'] = format_to_two_decimals(custom_round(formatted_product['total_price']))
+            formatted_product['profit'] = format_to_two_decimals(formatted_product['profit'])
+            if 'inventory' in formatted_product and formatted_product['inventory'] is not None:
+                formatted_product['inventory'] = format_to_two_decimals(formatted_product['inventory'])
+            formatted_products.append(formatted_product)
+        
         return {
-            'products': self.__products,
-            'products_count': self.__products_count,
+            'products': formatted_products,
+            'products_count': format_to_two_decimals(self.__products_count),
             'articles_count': self.__articles_count,
-            'sub_total': self.__total,
-            'discount': self.__discount,
+            'sub_total': format_to_two_decimals(self.__total),
+            'discount': format_to_two_decimals(self.__discount),
             'wholesale_active': self.__is_discount_applied,
-            'profit': self.__profit
+            'profit': format_to_two_decimals(self.__profit)
         }
     
 class tickets_manager:
@@ -341,32 +364,128 @@ class tickets_manager:
         self.__track_editor(ticket_key, ipv4, user_id, 'add_common_product')
         return self.get_ticket_info(ticket_key)
     
+    def set_product_quantity(self, ticket_key: int, product_code: str, quantity: float, ipv4: str = '127.0.0.1', user_id: int = 0):
+        """Override the quantity of an existing product in the ticket with the given quantity.
+        
+        This replaces the entire quantity (not add/subtract like add_product).
+        If the product doesn't exist in the ticket, raises ValueError.
+        """
+        v = ValidationError()
+        if quantity is None or quantity <= 0:
+            v.add('quantity', 'Must be greater than zero')
+        v.raise_if_errors()
+        
+        ticket = self.__get(ticket_key)
+        products = ticket._Ticket__products  # Access private products list
+        
+        # Find the product in the ticket
+        product_found = False
+        for product in products:
+            if product['code'] == product_code:
+                product_found = True
+                # Check inventory constraints if applicable
+                if product['inventory'] is not None and product['inventory'] < quantity:
+                    raise ValueError('Inventory is not enough!')
+                # Set the new quantity directly (override)
+                product['cantity'] = quantity
+                break
+        
+        if not product_found:
+            raise ValueError(f'Product with code {product_code} not found in ticket {ticket_key}')
+        
+        # Recalculate ticket totals
+        ticket._Ticket__calculate()
+        self.__track_editor(ticket_key, ipv4, user_id, 'set_product_quantity')
+        return self.get_ticket_info(ticket_key)
+    
+    def set_product_wholesale_price(self, ticket_key: int, product_code: str, wholesale_price: float, ipv4: str = '127.0.0.1', user_id: int = 0):
+        """Update wholesale price for an existing product in the ticket only."""
+        v = ValidationError()
+        if wholesale_price is None or wholesale_price <= 0:
+            v.add('wholesale_price', 'Must be greater than zero')
+        v.raise_if_errors()
+
+        ticket = self.__get(ticket_key)
+        products = ticket._Ticket__products
+        product_found = False
+
+        for product in products:
+            if product['code'] == product_code:
+                product_found = True
+                cost = product.get('cost')
+                if cost is not None and wholesale_price <= cost:
+                    raise ValueError('Wholesale price must be greater than cost')
+                product['wholesale_price'] = custom_floor(wholesale_price)
+                break
+
+        if not product_found:
+            raise ValueError(f'Product with code {product_code} not found in ticket {ticket_key}')
+
+        ticket._Ticket__calculate()
+        self.__track_editor(ticket_key, ipv4, user_id, 'set_product_wholesale_price')
+        return self.get_ticket_info(ticket_key)
+        """Override the quantity of an existing product in the ticket with the given quantity.
+        
+        This replaces the entire quantity (not add/subtract like add_product).
+        If the product doesn't exist in the ticket, raises ValueError.
+        """
+        v = ValidationError()
+        if quantity is None or quantity <= 0:
+            v.add('quantity', 'Must be greater than zero')
+        v.raise_if_errors()
+        
+        ticket = self.__get(ticket_key)
+        products = ticket._Ticket__products  # Access private products list
+        
+        # Find the product in the ticket
+        product_found = False
+        for product in products:
+            if product['code'] == product_code:
+                product_found = True
+                # Check inventory constraints if applicable
+                if product['inventory'] is not None and product['inventory'] < quantity:
+                    raise ValueError('Inventory is not enough!')
+                # Set the new quantity directly (override)
+                product['cantity'] = quantity
+                break
+        
+        if not product_found:
+            raise ValueError(f'Product with code {product_code} not found in ticket {ticket_key}')
+        
+        # Recalculate ticket totals
+        ticket._Ticket__calculate()
+        self.__track_editor(ticket_key, ipv4, user_id, 'set_product_quantity')
+        return self.get_ticket_info(ticket_key)
+    
     def quicksale(self, amount: float, ipv4: str = '127.0.0.1', user_id: int = 0, printer_name: str = None):
         """ Create a new ticket with a single product with the amount of quicksale and save it."""
         amount = custom_floor(amount)
+        profit_amount = custom_floor(amount * UNDEFINED_PROFIT_MARGIN)
+        cost_amount = custom_floor(amount - profit_amount)
+        
         quicksale_info = {
             'products': [
                 {
                     'code': QUICKSALE_CODE,
                     'description': 'QUICKSALE',
                     'sale_type': 'U',
-                    'cost': custom_floor(amount - (amount * UNDEFINED_PROFIT_MARGIN)),
-                    'sale_price': amount,
-                    'wholesale_price': amount,
-                    'cantity': 1,
-                    'inventory': 0,
-                    'total_price': amount,
-                    'profit': custom_floor(amount * UNDEFINED_PROFIT_MARGIN),
+                    'cost': format_to_two_decimals(cost_amount),
+                    'sale_price': format_to_two_decimals(amount),
+                    'wholesale_price': format_to_two_decimals(amount),
+                    'cantity': 1.0,
+                    'inventory': 0.0,
+                    'total_price': format_to_two_decimals(amount),
+                    'profit': format_to_two_decimals(profit_amount),
                 }
             ],
-            'products_count': 1,
+            'products_count': 1.0,
             'articles_count': 1,
-            'sub_total': amount,
-            'discount': 0,
+            'sub_total': format_to_two_decimals(amount),
+            'discount': 0.0,
             'wholesale_active': False,
-            'profit': custom_floor(amount * UNDEFINED_PROFIT_MARGIN),
+            'profit': format_to_two_decimals(profit_amount),
             'ipv4_sender': ipv4,
-            'total': amount,
+            'total': format_to_two_decimals(amount),
             'notes': '',
             'user_id': user_id
         }

@@ -11,7 +11,7 @@ from app.routes_constants import (
     ROUTE_GET_TICKET_KEYS_SHARED, ROUTE_GET_TICKET, ROUTE_GET_TICKETS_BY_DATE,
     ROUTE_GET_PRODUCTS_IN_TICKET, ROUTE_TOOGLE_WHOLESALE, ROUTE_ADD_PRODUCT_TICKET,
     ROUTE_REMOVE_PRODUCT_TICKET, ROUTE_SAVE_TICKET, ROUTE_ADD_COMMON_PRODUCT_TICKET,
-    ROUTE_MODIFY_SAVED_TICKET
+    ROUTE_MODIFY_SAVED_TICKET, ROUTE_SET_PRODUCT_QUANTITY, ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE
 )
 
 TICKET_MANAGER = tickets_manager()
@@ -114,9 +114,11 @@ def toogle_wholesale(ticket_key):
 @routesTickets.route(ROUTE_ADD_PRODUCT_TICKET, methods=['POST'])
 def add_product():
     try:
-        product_code = request.args.get('product_code')
-        ticket_key = request.args.get('ticket_key', type=int)
-        cantity = request.args.get('cantity', type=float)
+        data = request.get_json(silent=True) or {}
+        product_code = data.get('product_code')
+        ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
+        cantity = float(data.get('cantity')) if data.get('cantity') is not None else None
+        
         result = TICKET_MANAGER.add_product(ticket_key, product_code, cantity, ipv4=request.remote_addr)
         broadcast_ticket_update(ticket_key)
         return AppResponse.success(result).to_flask_tuple()
@@ -131,10 +133,12 @@ def add_product():
 @routesTickets.route(ROUTE_ADD_COMMON_PRODUCT_TICKET, methods=['POST'])
 def add_common_product():
     try:
-        ticket_key = request.args.get('ticket_key', type=int)
-        price = request.args.get('price', type=float)
-        cantity = request.args.get('cantity', type=float, default=1)
-        description = request.args.get('description', default='COMMONSALE')
+        data = request.get_json(silent=True) or {}
+        ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
+        price = float(data.get('price')) if data.get('price') is not None else None
+        cantity = float(data.get('cantity', 1))
+        description = data.get('description', 'COMMONSALE')
+        
         result = TICKET_MANAGER.add_common_product(ticket_key, price, cantity, description, ipv4=request.remote_addr)
         broadcast_ticket_update(ticket_key)
         return AppResponse.success(result).to_flask_tuple()
@@ -149,9 +153,11 @@ def add_common_product():
 @routesTickets.route(ROUTE_REMOVE_PRODUCT_TICKET, methods=['POST'])
 def remove_product():
     try:
-        product_code = request.args.get('product_code')
-        ticket_key = request.args.get('ticket_key', type=int)
-        cantity = request.args.get('cantity', type=float)
+        data = request.get_json(silent=True) or {}
+        product_code = data.get('product_code')
+        ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
+        cantity = float(data.get('cantity')) if data.get('cantity') is not None else None
+        
         result = TICKET_MANAGER.remove_product(ticket_key, product_code, cantity, ipv4=request.remote_addr)
         broadcast_ticket_update(ticket_key)
         return AppResponse.success(result).to_flask_tuple()
@@ -162,6 +168,44 @@ def remove_product():
     except Exception as e:
         logging.error(f'{ROUTE_REMOVE_PRODUCT_TICKET}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error removing product from ticket').to_flask_tuple()
+    
+@routesTickets.route(ROUTE_SET_PRODUCT_QUANTITY, methods=['POST'])
+def set_product_quantity():
+    try:
+        data = request.get_json(silent=True) or {}
+        product_code = data.get('product_code')
+        ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
+        quantity = float(data.get('quantity')) if data.get('quantity') is not None else None
+        
+        result = TICKET_MANAGER.set_product_quantity(ticket_key, product_code, quantity, ipv4=request.remote_addr)
+        broadcast_ticket_update(ticket_key)
+        return AppResponse.success(result).to_flask_tuple()
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except ValueError as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.error(f'{ROUTE_SET_PRODUCT_QUANTITY}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error setting product quantity in ticket').to_flask_tuple()
+    
+@routesTickets.route(ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE, methods=['POST'])
+def update_product_wholesale_price():
+    try:
+        data = request.get_json(silent=True) or {}
+        product_code = data.get('product_code')
+        ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
+        wholesale_price = float(data.get('new_wholesale_price')) if data.get('new_wholesale_price') is not None else None
+
+        result = TICKET_MANAGER.set_product_wholesale_price(ticket_key, product_code, wholesale_price, ipv4=request.remote_addr)
+        broadcast_ticket_update(ticket_key)
+        return AppResponse.success(result).to_flask_tuple()
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except ValueError as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.error(f'{ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error updating wholesale price in ticket').to_flask_tuple()
     
 @routesTickets.route(f'{ROUTE_SAVE_TICKET}/<int:ticket_key>', methods=['POST'])
 def save_ticket(ticket_key):

@@ -448,6 +448,30 @@
           "response": []
         },
         {
+          "name": "Update Product Wholesale Price",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticket_key\": 0,\n  \"product_code\": \"PROD001\",\n  \"new_wholesale_price\": 45.00\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ticket/update/wholesale-price",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "update", "wholesale-price"]
+            },
+            "description": "Update the wholesale price of a specific product only for this ticket. Validates the new wholesale price against the product cost when cost is available."
+          },
+          "response": []
+        },
+        {
           "name": "Add Product to Ticket",
           "request": {
             "method": "POST",
@@ -460,7 +484,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"ticket_key\": 1,\n  \"product_code\": \"PROD001\",\n  \"quantity\": 5\n}"
+              "raw": "{\n  \"ticket_key\": 0,\n  \"product_code\": \"PROD001\",\n  \"cantity\": 5\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/ticket/add",
@@ -468,6 +492,30 @@
               "path": ["api", "ticket", "add"]
             },
             "description": "Add a product to a ticket"
+          },
+          "response": []
+        },
+        {
+          "name": "Add Common Product to Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticket_key\": 0,\n  \"price\": 25.50,\n  \"cantity\": 2,\n  \"description\": \"Custom Item\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ticket/add/common",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "add", "common"]
+            },
+            "description": "Add a common product with custom price to a ticket. cantity defaults to 1 and description defaults to COMMONSALE if omitted."
           },
           "response": []
         },
@@ -484,14 +532,38 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"ticket_key\": 1,\n  \"product_code\": \"PROD001\"\n}"
+              "raw": "{\n  \"ticket_key\": 0,\n  \"product_code\": \"PROD001\",\n  \"cantity\": 2.5\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/ticket/remove",
               "host": ["{{base_url}}"],
               "path": ["api", "ticket", "remove"]
             },
-            "description": "Remove a product from a ticket"
+            "description": "Remove a product from a ticket. If cantity is 0 (or omitted), removes the entire product. Otherwise, reduces quantity by the specified amount."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Product Quantity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticket_key\": 0,\n  \"product_code\": \"0001JK\",\n  \"quantity\": 4.5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ticket/set-quantity",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "set-quantity"]
+            },
+            "description": "Override the quantity of an existing product in a ticket. Replaces the entire quantity (not add/subtract). If current quantity is 5 and you set quantity to 4.5, the new quantity becomes 4.5."
           },
           "response": []
         },
