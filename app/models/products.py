@@ -172,6 +172,9 @@ class Products:
         if data['wholesale_price'] > data['sale_price']:
             v.add('sale_price', 'Must be greater than or equal to wholesale_price')
 
+        if data['cost'] is not None and data['cost'] != 0 and data['wholesale_price'] < data['cost']:
+            v.add('wholesale_price', 'Must be greater than or equal to cost')
+
         if data['sale_type'] != 'U' and data['sale_type'] != 'D':
             v.add('sale_type', 'Must have a value of "U" or "D"')
 
