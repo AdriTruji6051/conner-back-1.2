@@ -8,7 +8,7 @@ from app.helpers.helpers import AppResponse, ValidationError
 from app.sockets.tickets import broadcast_ticket_update
 from app.routes_constants import (
     ROUTE_QUICKSALE_TICKET, ROUTE_CREATE_TICKET, ROUTE_GET_TICKET_KEYS,
-    ROUTE_GET_TICKET_KEYS_SHARED, ROUTE_GET_TICKET, ROUTE_GET_TICKETS_BY_DATE,
+    ROUTE_GET_TICKET_KEYS_SHARED, ROUTE_SET_TICKET_SHARED, ROUTE_GET_TICKET, ROUTE_GET_TICKETS_BY_DATE,
     ROUTE_GET_PRODUCTS_IN_TICKET, ROUTE_TOOGLE_WHOLESALE, ROUTE_ADD_PRODUCT_TICKET,
     ROUTE_REMOVE_PRODUCT_TICKET, ROUTE_SAVE_TICKET, ROUTE_ADD_COMMON_PRODUCT_TICKET,
     ROUTE_MODIFY_SAVED_TICKET, ROUTE_SET_PRODUCT_QUANTITY, ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE
@@ -18,10 +18,22 @@ TICKET_MANAGER = tickets_manager()
 
 routesTickets = Blueprint('routes-tickets', __name__)
 
+# UI note: these endpoints now return a list of ticket objects with `id` and `shared`.
+# Example response body: [{"id": 1, "shared": false}, {"id": 2, "shared": true}]
+def _serialize_ticket_keys(keys):
+    return [
+        {
+            'id': key,
+            'shared': bool(tickets_manager.tickets_dict.get(key, {}).get('shared', False))
+        }
+        for key in sorted(keys)
+    ]
+
 @routesTickets.route(ROUTE_CREATE_TICKET, methods=['POST'])
 def create_ticket():
     try:
-        return AppResponse.created(TICKET_MANAGER.add(request.remote_addr)).to_flask_tuple()
+        ipv4 = request.remote_addr
+        return AppResponse.created(TICKET_MANAGER.add(ipv4)).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -34,7 +46,7 @@ def create_ticket():
 def get_keys_by_ipv4():
     try:
         ipv4 = request.remote_addr
-        return AppResponse.success(list(TICKET_MANAGER.get_keys(ipv4))).to_flask_tuple()
+        return AppResponse.success(_serialize_ticket_keys(TICKET_MANAGER.get_keys(ipv4))).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -43,10 +55,44 @@ def get_keys_by_ipv4():
         logging.error(f'{ROUTE_GET_TICKET_KEYS}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error fetching ticket keys').to_flask_tuple()
 
+@routesTickets.route(ROUTE_SET_TICKET_SHARED, methods=['PUT'])
+def set_ticket_shared(ticket_key):
+    try:
+        data = request.get_json(silent=True) or {}
+        shared = data.get('shared')
+        if shared is None:
+            shared = request.args.get('shared')
+        if shared is None:
+            raise ValueError('shared field is required')
+
+        if isinstance(shared, str):
+            cleaned = shared.strip().lower()
+            if cleaned in ('true', '1', 'yes', 'y'):
+                shared = True
+            elif cleaned in ('false', '0', 'no', 'n'):
+                shared = False
+            else:
+                raise ValueError('shared must be a boolean value')
+        else:
+            shared = bool(shared)
+
+        result = TICKET_MANAGER.set_ticket_shared(ticket_key, shared, ipv4=request.remote_addr)
+        broadcast_ticket_update(ticket_key)
+        return AppResponse.success(result).to_flask_tuple()
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except ValueError as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.error(f'{ROUTE_SET_TICKET_SHARED}. Catch: {e}. Ticket key: {ticket_key}.')
+        return AppResponse.server_error('Unexpected error updating ticket shared status').to_flask_tuple()
+
 @routesTickets.route(ROUTE_GET_TICKET_KEYS_SHARED, methods=['GET'])
 def get_all_keys():
     try:
-        return AppResponse.success(list(TICKET_MANAGER.get_keys())).to_flask_tuple()
+        shared_keys_only = request.args.get('sharedKeysOnly', 'false').lower() in ('true', '1', 'yes', 'y')
+        print(f"Shared keys only: {shared_keys_only}")
+        return AppResponse.success(_serialize_ticket_keys(TICKET_MANAGER.get_keys(shared_only=shared_keys_only))).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -223,7 +269,10 @@ def save_ticket(ticket_key):
             
         printer_name = data.get('printer_name')
 
-        return AppResponse.success(TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total, ipv4=request.remote_addr, print_many=print_many, printer_name=printer_name)).to_flask_tuple()
+        saved_id = TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total, ipv4=request.remote_addr, print_many=print_many, printer_name=printer_name)
+        # Notify any subscribed clients that the ticket was finalized/updated
+        broadcast_ticket_update(ticket_key)
+        return AppResponse.success(saved_id).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:

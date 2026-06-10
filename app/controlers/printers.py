@@ -44,7 +44,9 @@ class Printers:
         return cached
     
     def update_printer(self, printer: str, ipv4: str = '127.0.0.1') -> str:
-        if printer not in self.list(ipv4):
+        # Ensure we have an up-to-date list of printers from the service before validating
+        printers = self.list(ipv4, refresh=True)
+        if printer not in printers:
             raise ValueError(f'Printer not in avaliable printers in host: {ipv4}')
         
         query = {
@@ -52,7 +54,16 @@ class Printers:
             'printer': printer,
         }
 
-        return self.__query_service(query, ipv4)
+        result = self.__query_service(query, ipv4)
+
+        # Invalidate cached printers so future reads reflect the updated default immediately
+        if ipv4 in self.avaliable_printers:
+            try:
+                del self.avaliable_printers[ipv4]
+            except Exception:
+                self.avaliable_printers.pop(ipv4, None)
+
+        return result
     
     def open_drawer(self, ipv4: str = '127.0.0.1'):
         return self.__query_service('drawer/open', ipv4)

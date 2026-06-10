@@ -198,7 +198,8 @@ class tickets_manager:
         'ipv4': '127.0.0.1',
         'ticket': Ticket(),
         'commonsale_counter': 0,
-        'editors': []
+        'editors': [],
+        'shared': True
     }
 
     def __get(self, ticket_key: int) -> Ticket:
@@ -253,7 +254,8 @@ class tickets_manager:
             'ipv4': ipv4,
             'ticket': Ticket(),
             'commonsale_counter': 0,
-            'editors': []
+            'editors': [],
+            'shared': False
         }
         tickets_manager.ticket_id_new += 1
         
@@ -283,26 +285,45 @@ class tickets_manager:
             printers = Printers()
             printers.print_ticket(ticket_info, ticket_id, notes, printer_name, ipv4, print_many)
 
+        # Mark the in-memory ticket as no longer shared since it was finalized
+        tickets_manager.tickets_dict[ticket_key]['shared'] = False
         self.__reset(ticket_key)
-        
         return ticket_id
 
-    def get_keys(self, ipv4: str = '127.0.0.1') -> set:
-        """Return all keys by default. If ipv4 is specified return only the tickets with that ipv4"""
+    def get_keys(self, ipv4: str = '127.0.0.1', shared_only: bool = False) -> set:
+        """Return ticket keys by ipv4 and optional shared status."""
         keys = set(tickets_manager.tickets_dict)
-        if ipv4 == '127.0.0.1':
-            return keys
-        
-        keys_ipv4 = set()
-        for key in keys:
-            if tickets_manager.tickets_dict[key]['ipv4'] == ipv4:
-                keys_ipv4.add(key)
+        print(f'ipv4: {ipv4}, shared_only: {shared_only}, keys: {keys}')
 
-        return keys_ipv4
+        if ipv4 == '127.0.0.1':
+            keys_by_ip = keys
+        else:
+            keys_by_ip = {
+                key for key in keys
+                if tickets_manager.tickets_dict[key]['ipv4'] == ipv4
+            }
+
+        if not shared_only:
+            return keys_by_ip
+
+        return {
+            key for key in keys_by_ip
+            if tickets_manager.tickets_dict[key].get('shared', False)
+        }
+
+    def set_ticket_shared(self, ticket_key: int, shared: bool, ipv4: str = '127.0.0.1', user_id: int = 0):
+        ticket_entry = tickets_manager.tickets_dict.get(ticket_key)
+        if not ticket_entry:
+            raise ValueError(f'Ticket with key {ticket_key} not found')
+
+        ticket_entry['shared'] = bool(shared)
+        self.__track_editor(ticket_key, ipv4, user_id, 'set_shared')
+        return self.get_ticket_info(ticket_key)
     
     def get_ticket_info(self, ticket_key: int) -> ticket_info:
         ticket = self.__get(ticket_key)
         info = ticket.get_info()
+        info['shared'] = tickets_manager.tickets_dict[ticket_key].get('shared', False)
         info['editors'] = list(tickets_manager.tickets_dict[ticket_key]['editors'])
         return info
     

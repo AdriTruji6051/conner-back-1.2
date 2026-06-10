@@ -52,6 +52,7 @@ ROUTE_CREATE_TICKET = f'{TICKETS_BASE}/new'
 # Tickets - Get
 ROUTE_GET_TICKET_KEYS = f'{TICKETS_BASE}/get/keys'
 ROUTE_GET_TICKET_KEYS_SHARED = f'{TICKETS_BASE}/get/keys/shared'
+ROUTE_SET_TICKET_SHARED = f'{TICKETS_BASE}/share/<int:ticket_key>'
 ROUTE_GET_TICKET = f'{TICKETS_BASE}/get/<int:key>'
 ROUTE_GET_TICKETS_BY_DATE = f'{TICKETS_BASE}/get/date/<string:date>'
 ROUTE_GET_PRODUCTS_IN_TICKET = f'{TICKETS_BASE}/get/products/id/<int:id>'

@@ -26,4 +26,5 @@ class ticket_info(TypedDict):
     discount: float
     wholesale_active: bool
     profit: float
+    shared: bool
     editors: list[editor_entry]

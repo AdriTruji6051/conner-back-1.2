@@ -373,7 +373,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "ticket", "get", "keys"]
             },
-            "description": "Get all ticket keys for the current user's IP"
+            "description": "Get all ticket keys for the current user's IP. Response body now returns objects with `id` and `shared` status."
           },
           "response": []
         },
@@ -385,9 +385,45 @@
             "url": {
               "raw": "{{base_url}}/api/ticket/get/keys/shared",
               "host": ["{{base_url}}"],
-              "path": ["api", "ticket", "get", "keys", "shared"]
+              "path": ["api", "ticket", "get", "keys", "shared"],
+              "query": [
+                {
+                  "key": "sharedKeysOnly",
+                  "value": "true"
+                }
+              ]
             },
-            "description": "Get all shared ticket keys"
+            "description": "Get all shared ticket keys. Response body now returns objects with `id` and `shared` status."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Ticket Shared Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shared\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ticket/share/{{ticket_key}}?shared=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ticket", "share", "{{ticket_key}}"],
+              "query": [
+                {
+                  "key": "shared",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Update the shared status of an in-memory ticket. Can send shared=true/false as a JSON body or via query string: ?shared=false."
           },
           "response": []
         },
