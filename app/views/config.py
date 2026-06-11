@@ -8,7 +8,8 @@ from app.helpers.helpers import AppResponse, ValidationError
 from app.routes_constants import (
     ROUTE_GET_USERS, ROUTE_LOGIN_USER, ROUTE_CREATE_USER, ROUTE_UPDATE_USER, ROUTE_DELETE_USER,
     ROUTE_GET_HEADERS, ROUTE_UPDATE_HEADERS, ROUTE_GET_FOOTERS, ROUTE_UPDATE_FOOTERS,
-    ROUTE_GET_FONTS, ROUTE_CREATE_FONT
+    ROUTE_GET_FONTS, ROUTE_CREATE_FONT, ROUTE_GET_BODY_FONT, ROUTE_SET_BODY_FONT,
+    ROUTE_GET_HEADER_FONT, ROUTE_SET_HEADER_FONT
 )
 
 routesConfig = Blueprint('routes-config', __name__)
@@ -168,3 +169,51 @@ def create_font():
     except Exception as e:
         logging.exception(f'{ROUTE_CREATE_FONT}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error creating font').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_GET_BODY_FONT, methods=['GET'])
+def get_body_font():
+    try:
+        return AppResponse.success(Config.Ticket_text.get_body_font()).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_GET_BODY_FONT}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error retrieving body font').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_SET_BODY_FONT, methods=['PUT'])
+def set_body_font():
+    try:
+        data = dict(request.get_json())
+        Config.Ticket_text.set_body_font(int(data['font_config_id']))
+        return AppResponse.success({'status': 'successfull body font update'}).to_flask_tuple()
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except (ValueError, KeyError) as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_SET_BODY_FONT}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error updating body font').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_GET_HEADER_FONT, methods=['GET'])
+def get_header_font():
+    try:
+        return AppResponse.success(Config.Ticket_text.get_header_font()).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_GET_HEADER_FONT}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error retrieving header font').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_SET_HEADER_FONT, methods=['PUT'])
+def set_header_font():
+    try:
+        data = dict(request.get_json())
+        Config.Ticket_text.set_header_font(int(data['font_config_id']))
+        return AppResponse.success({'status': 'successfull header font update'}).to_flask_tuple()
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except (ValueError, KeyError) as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_SET_HEADER_FONT}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error updating header font').to_flask_tuple()

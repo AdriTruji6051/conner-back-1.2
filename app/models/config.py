@@ -1,5 +1,5 @@
 from app.extensions import db
-from app.models.core_classes import User, TicketText, TicketFontConfig
+from app.models.core_classes import User, TicketText, TicketFontConfig, TicketSettings
 from app.helpers.helpers import raise_exception_if_missing_keys, ValidationError, collect_missing_keys
 from sqlalchemy import event
 
@@ -248,6 +248,74 @@ class Config:
             if not fc:
                 raise ValueError(f'Font config with id {id} not found')
             db.session.delete(fc)
+            db.session.commit()
+
+        @staticmethod
+        def get_body_font() -> dict:
+            """Return the currently configured body font as a dict.
+
+            If no explicit setting exists, ensure the default font config exists and return it.
+            Also create the settings row if missing.
+            """
+            settings = TicketSettings.query.first()
+            if settings and settings.body_font_config:
+                fc = TicketFontConfig.query.get(settings.body_font_config)
+                if fc:
+                    return fc.to_dict()
+
+            # Fallback: ensure default font config exists and persist to settings
+            fc = ensure_default_font_config()
+            if not settings:
+                settings = TicketSettings(body_font_config=fc.id)
+                db.session.add(settings)
+                db.session.commit()
+            return fc.to_dict()
+
+        @staticmethod
+        def set_body_font(font_config_id: int):
+            fc = TicketFontConfig.query.get(font_config_id)
+            if not fc:
+                raise ValueError(f'Font config with id {font_config_id} not found')
+            settings = TicketSettings.query.first()
+            if not settings:
+                settings = TicketSettings(body_font_config=fc.id)
+                db.session.add(settings)
+            else:
+                settings.body_font_config = fc.id
+            db.session.commit()
+
+        @staticmethod
+        def get_header_font() -> dict:
+            """Return the currently configured header font as a dict.
+
+            If no explicit setting exists, ensure the default font config exists and return it.
+            Also create the settings row if missing.
+            """
+            settings = TicketSettings.query.first()
+            if settings and settings.header_font_config:
+                fc = TicketFontConfig.query.get(settings.header_font_config)
+                if fc:
+                    return fc.to_dict()
+
+            # Fallback: ensure default font config exists and persist to settings
+            fc = ensure_default_font_config()
+            if not settings:
+                settings = TicketSettings(header_font_config=fc.id)
+                db.session.add(settings)
+                db.session.commit()
+            return fc.to_dict()
+
+        @staticmethod
+        def set_header_font(font_config_id: int):
+            fc = TicketFontConfig.query.get(font_config_id)
+            if not fc:
+                raise ValueError(f'Font config with id {font_config_id} not found')
+            settings = TicketSettings.query.first()
+            if not settings:
+                settings = TicketSettings(header_font_config=fc.id)
+                db.session.add(settings)
+            else:
+                settings.header_font_config = fc.id
             db.session.commit()
 
 

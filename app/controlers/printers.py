@@ -5,6 +5,7 @@ from datetime import datetime
 from app.controlers.core_classes import ticket_info
 from app.models.config import Config
 
+DEFAULT_FONT = 'Lucida Console'
 class Printers:
     register_printers = dict()
     avaliable_printers = dict()
@@ -124,17 +125,31 @@ class Printers:
             lines = []
             line_number = 0
             
-            # Content font configuration
-            CONTENT_FONT = 'Lucida Console'
-            CONTENT_SIZE = 30
-            CONTENT_WEIGHT = 1500
-            CONTENT_CONFIG = 1
+            # Content font configuration - read from DB (body font)
+            try:
+                body_fc = Config.Ticket_text.get_body_font()
+                CONTENT_FONT = body_fc.get('font') if body_fc else DEFAULT_FONT
+                CONTENT_SIZE = body_fc.get('size') if body_fc else 30
+                CONTENT_WEIGHT = body_fc.get('weigh') if body_fc else 1500
+                CONTENT_CONFIG = body_fc.get('id') if body_fc and 'id' in body_fc else 1
+            except Exception:
+                CONTENT_FONT = DEFAULT_FONT
+                CONTENT_SIZE = 30
+                CONTENT_WEIGHT = 1500
+                CONTENT_CONFIG = 1
             
-            # Header font configuration (larger)
-            HEADER_FONT = 'Lucida Console'
-            HEADER_SIZE = 36
-            HEADER_WEIGHT = 2000
-            HEADER_CONFIG = 2
+            # Header font configuration (larger) - read from DB
+            try:
+                header_fc = Config.Ticket_text.get_header_font()
+                HEADER_FONT = header_fc.get('font') if header_fc else DEFAULT_FONT
+                HEADER_SIZE = header_fc.get('size') if header_fc else 36
+                HEADER_WEIGHT = header_fc.get('weigh') if header_fc else 2000
+                HEADER_CONFIG = header_fc.get('id') if header_fc and 'id' in header_fc else 2
+            except Exception:
+                HEADER_FONT = DEFAULT_FONT
+                HEADER_SIZE = 36
+                HEADER_WEIGHT = 2000
+                HEADER_CONFIG = 2
             
             # Get current date and time
             now = datetime.now()

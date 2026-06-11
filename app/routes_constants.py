@@ -92,6 +92,12 @@ TICKET_FONTS_BASE = f'{CONFIG_BASE}/ticket/fonts'
 
 ROUTE_GET_FONTS = TICKET_FONTS_BASE
 ROUTE_CREATE_FONT = f'{TICKET_FONTS_BASE}/create'
+# Body font selection (current/modify)
+ROUTE_GET_BODY_FONT = f'{TICKET_FONTS_BASE}/body'
+ROUTE_SET_BODY_FONT = f'{TICKET_FONTS_BASE}/body/update'
+# Header font selection (current/modify)
+ROUTE_GET_HEADER_FONT = f'{TICKET_FONTS_BASE}/header'
+ROUTE_SET_HEADER_FONT = f'{TICKET_FONTS_BASE}/header/update'
 
 # ===================== PRINTERS ROUTES =====================
 PRINT_BASE = f'{API_BASE}/print'

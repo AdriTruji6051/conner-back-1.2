@@ -304,6 +304,21 @@ class TicketText(db.Model):
         }
 
 
+class TicketSettings(db.Model):
+    __tablename__ = 'ticket_settings'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    body_font_config = db.Column(db.Integer, db.ForeignKey('ticket_font_configs.id', onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
+    header_font_config = db.Column(db.Integer, db.ForeignKey('ticket_font_configs.id', onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
+
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'body_font_config': self.body_font_config,
+            'header_font_config': self.header_font_config,
+        }
+
+
 # ===================== SQLALCHEMY EVENT: Inventory tracking =====================
 
 from sqlalchemy import event, inspect
