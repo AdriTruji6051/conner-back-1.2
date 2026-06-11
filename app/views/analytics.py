@@ -29,7 +29,7 @@ def insert_inflow():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_INSERT_CASH_INFLOW} Error: {e}.')
+        logging.exception(f'{ROUTE_INSERT_CASH_INFLOW} Error: {e}.')
         return AppResponse.server_error('Unexpected error registering inflow').to_flask_tuple()
     
 @routesAnalitycs.route(ROUTE_INSERT_CASH_OUTFLOW, methods=['POST'])
@@ -45,7 +45,7 @@ def insert_ouflow():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_INSERT_CASH_OUTFLOW}. Error: {e}.')
+        logging.exception(f'{ROUTE_INSERT_CASH_OUTFLOW}. Error: {e}.')
         return AppResponse.server_error('Unexpected error registering cash outflow').to_flask_tuple()
     
 @routesAnalitycs.route(ROUTE_INSERT_CASH_PAYMENT, methods=['POST'])
@@ -61,7 +61,7 @@ def insert_payment():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_INSERT_CASH_PAYMENT}. Error: {e}.')
+        logging.exception(f'{ROUTE_INSERT_CASH_PAYMENT}. Error: {e}.')
         return AppResponse.server_error('Unexpected error registering cash payment').to_flask_tuple()
 
 
@@ -72,7 +72,7 @@ def get_drawer_log(id: str):
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_DRAWER_LOG}. Error: {e}. Id: {id}')
+        logging.exception(f'{ROUTE_GET_DRAWER_LOG}. Error: {e}. Id: {id}')
         return AppResponse.server_error('Unexpected error retrieving drawer log').to_flask_tuple()
     
 @routesAnalitycs.route(ROUTE_GET_DRAWER_LOG_BY_DATE, methods=['GET'])
@@ -82,7 +82,7 @@ def get_drawer_logs_by_date(date: str):
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_DRAWER_LOG_BY_DATE}. Error: {e}. Date: {date}')
+        logging.exception(f'{ROUTE_GET_DRAWER_LOG_BY_DATE}. Error: {e}. Date: {date}')
         return AppResponse.server_error('Unexpected error retrieving drawer logs by date').to_flask_tuple()
     
 @routesAnalitycs.route(ROUTE_GET_PRODUCT_CHANGES, methods=['GET'])
@@ -96,7 +96,7 @@ def get_changes_log(id: str):
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_PRODUCT_CHANGES}. Error: {e}. Id: {id}')
+        logging.exception(f'{ROUTE_GET_PRODUCT_CHANGES}. Error: {e}. Id: {id}')
         return AppResponse.server_error('Unexpected error retrieving product changes').to_flask_tuple()
     
 @routesAnalitycs.route(ROUTE_GET_PRODUCT_CHANGES_BY_DATE, methods=['GET'])
@@ -110,5 +110,5 @@ def get_changes_log_date(date: str):
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_PRODUCT_CHANGES_BY_DATE}. Error: {e}. Date: {date}')
+        logging.exception(f'{ROUTE_GET_PRODUCT_CHANGES_BY_DATE}. Error: {e}. Date: {date}')
         return AppResponse.server_error('Unexpected error retrieving product changes by date').to_flask_tuple()

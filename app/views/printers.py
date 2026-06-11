@@ -22,7 +22,7 @@ def _get_local_ip(request_ip):
             s.connect(('8.8.8.8', 80))
             local_ip = s.getsockname()[0]
         except Exception as e:
-            logging.error(f'Error getting local IP: {e}')
+            logging.exception(f'Error getting local IP: {e}')
             local_ip = HOST
         finally:
             s.close()
@@ -45,7 +45,7 @@ def list_printers():
             'printers': []
         }).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_LIST_PRINTERS}. Catch: {e}.')
+        logging.exception(f'{ROUTE_LIST_PRINTERS}. Catch: {e}.')
         return AppResponse.server_error(ERROR_MESSAGE).to_flask_tuple()
     
 @routesPrinters.route(ROUTE_DICT_PRINTERS, methods=['GET'])
@@ -71,7 +71,7 @@ def dict_printers():
             'printers': {}
         }).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_DICT_PRINTERS}. Catch: {e}.')
+        logging.exception(f'{ROUTE_DICT_PRINTERS}. Catch: {e}.')
         return AppResponse.server_error(ERROR_MESSAGE).to_flask_tuple()
     
 @routesPrinters.route(ROUTE_UPDATE_PRINTER, methods=['PUT'])
@@ -86,5 +86,5 @@ def update_printer(printer):
     except ConnectionRefusedError:
         return AppResponse.server_error('Printer service is not reachable').to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_UPDATE_PRINTER}. Catch: {e}.')
+        logging.exception(f'{ROUTE_UPDATE_PRINTER}. Catch: {e}.')
         return AppResponse.server_error(ERROR_MESSAGE).to_flask_tuple()

@@ -39,7 +39,7 @@ def create_ticket():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_CREATE_TICKET}. Catch: {e}.')
+        logging.exception(f'{ROUTE_CREATE_TICKET}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error creating ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_GET_TICKET_KEYS, methods=['GET'])
@@ -52,7 +52,7 @@ def get_keys_by_ipv4():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_TICKET_KEYS}. Catch: {e}.')
+        logging.exception(f'{ROUTE_GET_TICKET_KEYS}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error fetching ticket keys').to_flask_tuple()
 
 @routesTickets.route(ROUTE_SET_TICKET_SHARED, methods=['PUT'])
@@ -84,7 +84,7 @@ def set_ticket_shared(ticket_key):
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_SET_TICKET_SHARED}. Catch: {e}. Ticket key: {ticket_key}.')
+        logging.exception(f'{ROUTE_SET_TICKET_SHARED}. Catch: {e}. Ticket key: {ticket_key}.')
         return AppResponse.server_error('Unexpected error updating ticket shared status').to_flask_tuple()
 
 @routesTickets.route(ROUTE_GET_TICKET_KEYS_SHARED, methods=['GET'])
@@ -98,7 +98,7 @@ def get_all_keys():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_TICKET_KEYS_SHARED}. Catch: {e}.')
+        logging.exception(f'{ROUTE_GET_TICKET_KEYS_SHARED}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error fetching shared ticket keys').to_flask_tuple()
 
 @routesTickets.route(ROUTE_GET_TICKET, methods=['GET'])
@@ -110,7 +110,7 @@ def get_ticket(key):
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_TICKET}. Catch: {e}. Key: {key}.')
+        logging.exception(f'{ROUTE_GET_TICKET}. Catch: {e}. Key: {key}.')
         return AppResponse.server_error('Unexpected error fetching ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_GET_TICKETS_BY_DATE, methods=['GET'])
@@ -125,7 +125,7 @@ def get_tickets_date(date):
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_TICKETS_BY_DATE}. Catch: {e}. Date: {date}.')
+        logging.exception(f'{ROUTE_GET_TICKETS_BY_DATE}. Catch: {e}. Date: {date}.')
         return AppResponse.server_error('Unexpected error fetching tickets by date').to_flask_tuple()
     
 @routesTickets.route(ROUTE_GET_PRODUCTS_IN_TICKET, methods=['GET'])
@@ -140,7 +140,7 @@ def get_products_in_ticket(id):
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_PRODUCTS_IN_TICKET}. Catch: {e}. Id: {id}.')
+        logging.exception(f'{ROUTE_GET_PRODUCTS_IN_TICKET}. Catch: {e}. Id: {id}.')
         return AppResponse.server_error('Unexpected error fetching products in ticket').to_flask_tuple()
 
 @routesTickets.route(ROUTE_TOOGLE_WHOLESALE, methods=['POST'])
@@ -154,7 +154,7 @@ def toogle_wholesale(ticket_key):
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_TOOGLE_WHOLESALE}. Catch: {e}. Ticket key: {ticket_key}.')
+        logging.exception(f'{ROUTE_TOOGLE_WHOLESALE}. Catch: {e}. Ticket key: {ticket_key}.')
         return AppResponse.server_error('Unexpected error toggling wholesale').to_flask_tuple()
     
 @routesTickets.route(ROUTE_ADD_PRODUCT_TICKET, methods=['POST'])
@@ -173,7 +173,7 @@ def add_product():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_ADD_PRODUCT_TICKET}. Catch: {e}.')
+        logging.exception(f'{ROUTE_ADD_PRODUCT_TICKET}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error adding product to ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_ADD_COMMON_PRODUCT_TICKET, methods=['POST'])
@@ -193,7 +193,7 @@ def add_common_product():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_ADD_COMMON_PRODUCT_TICKET}. Catch: {e}.')
+        logging.exception(f'{ROUTE_ADD_COMMON_PRODUCT_TICKET}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error adding common product to ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_REMOVE_PRODUCT_TICKET, methods=['POST'])
@@ -212,7 +212,7 @@ def remove_product():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_REMOVE_PRODUCT_TICKET}. Catch: {e}.')
+        logging.exception(f'{ROUTE_REMOVE_PRODUCT_TICKET}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error removing product from ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_SET_PRODUCT_QUANTITY, methods=['POST'])
@@ -231,7 +231,7 @@ def set_product_quantity():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_SET_PRODUCT_QUANTITY}. Catch: {e}.')
+        logging.exception(f'{ROUTE_SET_PRODUCT_QUANTITY}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error setting product quantity in ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE, methods=['POST'])
@@ -250,7 +250,7 @@ def update_product_wholesale_price():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE}. Catch: {e}.')
+        logging.exception(f'{ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error updating wholesale price in ticket').to_flask_tuple()
     
 @routesTickets.route(f'{ROUTE_SAVE_TICKET}/<int:ticket_key>', methods=['POST'])
@@ -278,7 +278,7 @@ def save_ticket(ticket_key):
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_SAVE_TICKET}. Catch: {e}.')
+        logging.exception(f'{ROUTE_SAVE_TICKET}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error saving ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_MODIFY_SAVED_TICKET, methods=['PUT'])
@@ -296,7 +296,7 @@ def modify_saved_ticket(ticket_id):
             return AppResponse.not_found(msg).to_flask_tuple()
         return AppResponse.unprocessable(msg).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_MODIFY_SAVED_TICKET}. Catch: {e}.')
+        logging.exception(f'{ROUTE_MODIFY_SAVED_TICKET}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error modifying saved ticket').to_flask_tuple()
 
 @routesTickets.route(ROUTE_QUICKSALE_TICKET, methods=['POST'])
@@ -311,5 +311,5 @@ def quicksale_ticket(amount):
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_QUICKSALE_TICKET}. Catch: {e}.')
+        logging.exception(f'{ROUTE_QUICKSALE_TICKET}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error creating quicksale ticket').to_flask_tuple()

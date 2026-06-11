@@ -43,7 +43,7 @@ def get_product_by_id(code):
     try:
         return AppResponse.success(Products.get(code)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_PRODUCT_BY_CODE}: {e}. Code: {code}')
+        logging.exception(f'{ROUTE_GET_PRODUCT_BY_CODE}: {e}. Code: {code}')
         return AppResponse.server_error('Unexpected error retrieving product').to_flask_tuple()
     
 @routesProducts.route(ROUTE_GET_PRODUCT_BY_DESCRIPTION, methods=['GET'])
@@ -58,7 +58,7 @@ def get_product_by_description(description):
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_PRODUCT_BY_DESCRIPTION}. Error: {e}. Data recieved: {description}')
+        logging.exception(f'{ROUTE_GET_PRODUCT_BY_DESCRIPTION}. Error: {e}. Data recieved: {description}')
         return AppResponse.server_error('Unexpected error searching products').to_flask_tuple()
     
 @routesProducts.route(ROUTE_GET_PRODUCT_SIBLINGS, methods=['GET'])
@@ -68,7 +68,7 @@ def get_siblings(code):
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_PRODUCT_SIBLINGS}. Error: {e}. Data recieved: {code}')
+        logging.exception(f'{ROUTE_GET_PRODUCT_SIBLINGS}. Error: {e}. Data recieved: {code}')
         return AppResponse.server_error('Unexpected error retrieving siblings').to_flask_tuple()
     
 @routesProducts.route(ROUTE_CREATE_PRODUCT, methods=['POST'])
@@ -84,7 +84,7 @@ def create_product():
     except IntegrityError:
         return AppResponse.conflict('A product with that code already exists').to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_CREATE_PRODUCT}. Error: {e}.')
+        logging.exception(f'{ROUTE_CREATE_PRODUCT}. Error: {e}.')
         return AppResponse.server_error('Unexpected error creating product').to_flask_tuple()
     
 @routesProducts.route(ROUTE_UPDATE_PRODUCT, methods=['PUT'])
@@ -100,7 +100,7 @@ def update_product():
     except IntegrityError:
         return AppResponse.conflict('A product with that code already exists').to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_UPDATE_PRODUCT}. Error: {e}.')
+        logging.exception(f'{ROUTE_UPDATE_PRODUCT}. Error: {e}.')
         return AppResponse.server_error('Unexpected error updating product').to_flask_tuple()
     
 @routesProducts.route(ROUTE_UPDATE_INVENTORY, methods=['PUT'])
@@ -113,7 +113,7 @@ def update_inventory(code: str, cantity: str):
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_UPDATE_INVENTORY}. Error: {e}. Product code: {code}. Cantity: {cantity}')
+        logging.exception(f'{ROUTE_UPDATE_INVENTORY}. Error: {e}. Product code: {code}. Cantity: {cantity}')
         return AppResponse.server_error('Unexpected error updating inventory').to_flask_tuple()
     
 @routesProducts.route(ROUTE_ADD_INVENTORY, methods=['PUT'])
@@ -126,7 +126,7 @@ def add_inventory(code: str, cantity: str):
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_ADD_INVENTORY}. Error: {e}. Product code: {code}. Cantity: {cantity}')
+        logging.exception(f'{ROUTE_ADD_INVENTORY}. Error: {e}. Product code: {code}. Cantity: {cantity}')
         return AppResponse.server_error('Unexpected error adding inventory').to_flask_tuple()
     
 @routesProducts.route(ROUTE_REMOVE_INVENTORY, methods=['PUT'])
@@ -139,7 +139,7 @@ def remove_inventory(code: str, cantity: str):
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_REMOVE_INVENTORY}. Error: {e}. Product code: {code}. Cantity: {cantity}')
+        logging.exception(f'{ROUTE_REMOVE_INVENTORY}. Error: {e}. Product code: {code}. Cantity: {cantity}')
         return AppResponse.server_error('Unexpected error removing inventory').to_flask_tuple()
     
 @routesProducts.route(ROUTE_DELETE_PRODUCT, methods=['DELETE'])
@@ -152,7 +152,7 @@ def delete_product(code):
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_DELETE_PRODUCT}. Error: {e}. Data recieved: {code}')
+        logging.exception(f'{ROUTE_DELETE_PRODUCT}. Error: {e}. Data recieved: {code}')
         return AppResponse.server_error('Unexpected error deleting product').to_flask_tuple()
 
 @routesProducts.route(ROUTE_GET_ALL_DEPARTMENTS, methods=['GET'])
@@ -166,7 +166,7 @@ def get_all_departments():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_ALL_DEPARTMENTS}: {e}.')
+        logging.exception(f'{ROUTE_GET_ALL_DEPARTMENTS}: {e}.')
         return AppResponse.server_error('Unexpected error retrieving departments').to_flask_tuple()
     
 @routesProducts.route(ROUTE_GET_DEPARTMENT, methods=['GET'])
@@ -176,7 +176,7 @@ def get_department(code):
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_DEPARTMENT}: {e}. Code: {code}')
+        logging.exception(f'{ROUTE_GET_DEPARTMENT}: {e}. Code: {code}')
         return AppResponse.server_error('Unexpected error retrieving department').to_flask_tuple()
 
 
@@ -192,7 +192,7 @@ def create_department(description):
     except IntegrityError:
         return AppResponse.conflict('A department with that description already exists').to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_CREATE_DEPARTMENT}. Error: {e}.')
+        logging.exception(f'{ROUTE_CREATE_DEPARTMENT}. Error: {e}.')
         return AppResponse.server_error('Unexpected error creating department').to_flask_tuple()
 
 @routesProducts.route(ROUTE_UPDATE_DEPARTMENT, methods=['PUT'])
@@ -205,7 +205,7 @@ def update_department(code: int, description: str):
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_UPDATE_DEPARTMENT}. Error: {e}.')
+        logging.exception(f'{ROUTE_UPDATE_DEPARTMENT}. Error: {e}.')
         return AppResponse.server_error('Unexpected error updating department').to_flask_tuple()
     
 @routesProducts.route(ROUTE_DELETE_DEPARTMENT, methods=['DELETE'])
@@ -218,7 +218,7 @@ def delete_department(code: int):
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_DELETE_DEPARTMENT}. Error: {e}.')
+        logging.exception(f'{ROUTE_DELETE_DEPARTMENT}. Error: {e}.')
         return AppResponse.server_error('Unexpected error deleting department').to_flask_tuple()
     
 @routesProducts.route(ROUTE_GET_ASSOCIATES_RAW_DATA, methods=['GET'])
@@ -232,7 +232,7 @@ def get_raw_data(parent_code: str):
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_ASSOCIATES_RAW_DATA}. Error: {e}.')
+        logging.exception(f'{ROUTE_GET_ASSOCIATES_RAW_DATA}. Error: {e}.')
         return AppResponse.server_error('Unexpected error retrieving associate codes').to_flask_tuple()    
     
 @routesProducts.route(ROUTE_CREATE_ASSOCIATE, methods=['POST'])
@@ -253,7 +253,7 @@ def create_associate():
     except IntegrityError:
         return AppResponse.conflict('An associate with that code already exists').to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_CREATE_ASSOCIATE}. Error: {e}.')
+        logging.exception(f'{ROUTE_CREATE_ASSOCIATE}. Error: {e}.')
         return AppResponse.server_error('Unexpected error creating associate code').to_flask_tuple()    
     
 @routesProducts.route(ROUTE_UPDATE_ASSOCIATE, methods=['PUT'])
@@ -274,7 +274,7 @@ def update_associate():
     except IntegrityError:
         return AppResponse.conflict('An associate with that code already exists').to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_UPDATE_ASSOCIATE}. Error: {e}.')
+        logging.exception(f'{ROUTE_UPDATE_ASSOCIATE}. Error: {e}.')
         return AppResponse.server_error('Unexpected error updating associate code').to_flask_tuple() 
     
 @routesProducts.route(ROUTE_DELETE_ASSOCIATE, methods=['DELETE'])
@@ -287,5 +287,5 @@ def delete_associate(code: str):
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_DELETE_ASSOCIATE}. Error: {e}.')
+        logging.exception(f'{ROUTE_DELETE_ASSOCIATE}. Error: {e}.')
         return AppResponse.server_error('Unexpected error deleting associate code').to_flask_tuple() 

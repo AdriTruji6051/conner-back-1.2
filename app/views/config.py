@@ -42,7 +42,7 @@ def get_users():
         result = Config.Users.get_all(page=page, page_size=page_size)
         return AppResponse.success(result).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_USERS}. Catch: {e}.')
+        logging.exception(f'{ROUTE_GET_USERS}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error retrieving users').to_flask_tuple()
     
 @routesConfig.route(ROUTE_LOGIN_USER, methods=['POST'])
@@ -55,7 +55,7 @@ def login():
     except (ValueError, KeyError):
         return AppResponse.unauthorized('Username or password incorrect').to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_LOGIN_USER}. Catch: {e}.')
+        logging.exception(f'{ROUTE_LOGIN_USER}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error during login').to_flask_tuple()
     
 @routesConfig.route(ROUTE_CREATE_USER, methods=['POST'])
@@ -71,7 +71,7 @@ def create_user():
     except IntegrityError:
         return AppResponse.conflict('A user with that username already exists').to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_CREATE_USER}. Catch: {e}.')
+        logging.exception(f'{ROUTE_CREATE_USER}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error creating user').to_flask_tuple()
     
 @routesConfig.route(ROUTE_UPDATE_USER, methods=['PUT'])
@@ -87,7 +87,7 @@ def update_user():
     except IntegrityError:
         return AppResponse.conflict('A user with that username already exists').to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_UPDATE_USER}. Catch: {e}.')
+        logging.exception(f'{ROUTE_UPDATE_USER}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error updating user').to_flask_tuple()
     
 @routesConfig.route(ROUTE_DELETE_USER, methods=['DELETE'])
@@ -98,7 +98,7 @@ def delete_user(id):
     except ValueError as e:
         return AppResponse.not_found(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_DELETE_USER}. Catch: {e}.')
+        logging.exception(f'{ROUTE_DELETE_USER}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error deleting user').to_flask_tuple()
     
 @routesConfig.route(ROUTE_GET_HEADERS, methods=['GET'])
@@ -106,7 +106,7 @@ def get_headers():
     try:
         return AppResponse.success(Config.Ticket_text.get_headers()).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_HEADERS}. Catch: {e}.')
+        logging.exception(f'{ROUTE_GET_HEADERS}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error retrieving headers').to_flask_tuple()
     
 @routesConfig.route(ROUTE_GET_FOOTERS, methods=['GET'])
@@ -114,7 +114,7 @@ def get_footers():
     try:
         return AppResponse.success(Config.Ticket_text.get_footers()).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_FOOTERS}. Catch: {e}.')
+        logging.exception(f'{ROUTE_GET_FOOTERS}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error retrieving footers').to_flask_tuple()
 
 @routesConfig.route(ROUTE_UPDATE_HEADERS, methods=['PUT'])
@@ -128,7 +128,7 @@ def update_headers():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_UPDATE_HEADERS}. Catch: {e}.')
+        logging.exception(f'{ROUTE_UPDATE_HEADERS}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error updating headers').to_flask_tuple()
     
 @routesConfig.route(ROUTE_UPDATE_FOOTERS, methods=['PUT'])
@@ -142,7 +142,7 @@ def update_footers():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_UPDATE_FOOTERS}. Catch: {e}.')
+        logging.exception(f'{ROUTE_UPDATE_FOOTERS}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error updating footers').to_flask_tuple()
     
 @routesConfig.route(ROUTE_GET_FONTS, methods=['GET'])
@@ -150,7 +150,7 @@ def get_fonts():
     try:
         return AppResponse.success([f.to_dict() for f in Config.Ticket_text.getFonts()]).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_GET_FONTS}. Catch: {e}.')
+        logging.exception(f'{ROUTE_GET_FONTS}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error retrieving fonts').to_flask_tuple()
     
 @routesConfig.route(ROUTE_CREATE_FONT, methods=['POST'])
@@ -166,5 +166,5 @@ def create_font():
     except ValueError as e:
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
-        logging.error(f'{ROUTE_CREATE_FONT}. Catch: {e}.')
+        logging.exception(f'{ROUTE_CREATE_FONT}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error creating font').to_flask_tuple()
