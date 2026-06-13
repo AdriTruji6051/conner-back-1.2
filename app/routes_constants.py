@@ -79,6 +79,7 @@ ROUTE_LOGIN_USER = f'{USERS_CONFIG_BASE}/login'
 ROUTE_CREATE_USER = f'{USERS_CONFIG_BASE}/create'
 ROUTE_UPDATE_USER = f'{USERS_CONFIG_BASE}/update'
 ROUTE_DELETE_USER = f'{USERS_CONFIG_BASE}/delete/<int:id>'
+ROUTE_UPDATE_USER_LANGUAGE = f'{USERS_CONFIG_BASE}/language'
 
 # Config - Ticket Text (Headers, Footers, Fonts)
 TICKET_TEXT_BASE = f'{CONFIG_BASE}/ticket/text'

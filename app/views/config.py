@@ -7,6 +7,7 @@ from app.models.config import Config
 from app.helpers.helpers import AppResponse, ValidationError
 from app.routes_constants import (
     ROUTE_GET_USERS, ROUTE_LOGIN_USER, ROUTE_CREATE_USER, ROUTE_UPDATE_USER, ROUTE_DELETE_USER,
+    ROUTE_UPDATE_USER_LANGUAGE,
     ROUTE_GET_HEADERS, ROUTE_UPDATE_HEADERS, ROUTE_GET_FOOTERS, ROUTE_UPDATE_FOOTERS,
     ROUTE_GET_FONTS, ROUTE_CREATE_FONT, ROUTE_GET_BODY_FONT, ROUTE_SET_BODY_FONT,
     ROUTE_GET_HEADER_FONT, ROUTE_SET_HEADER_FONT, ROUTE_GET_PRINT_FULL_ROW, ROUTE_SET_PRINT_FULL_ROW,
@@ -103,6 +104,44 @@ def delete_user(id):
         logging.exception(f'{ROUTE_DELETE_USER}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error deleting user').to_flask_tuple()
     
+
+@routesConfig.route(ROUTE_UPDATE_USER_LANGUAGE, methods=['PUT'])
+@jwt_required()
+def update_user_language():
+    """Update the language preference for the authenticated user."""
+    try:
+        from flask_jwt_extended import get_jwt_identity
+        from app.helpers.error_codes import ErrorCodes
+        
+        # Get user ID from JWT token
+        user_id = get_jwt_identity()
+        
+        # Get language from request
+        data = dict(request.get_json())
+        language = data.get('language_preference')
+        
+        if not language:
+            return AppResponse.validation_error([
+                {'language_preference': 'Language preference is required'}
+            ]).to_flask_tuple()
+        
+        # Update language preference
+        Config.Users.update_language_preference(user_id, language)
+        
+        return AppResponse.success({
+            'status': 'Language preference updated successfully',
+            'language_preference': language
+        }, error_code=ErrorCodes.SETTINGS_LANGUAGE_CHANGED).to_flask_tuple()
+        
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except ValueError as e:
+        return AppResponse.not_found(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_UPDATE_USER_LANGUAGE}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error updating language preference').to_flask_tuple()
+    
+
 @routesConfig.route(ROUTE_GET_HEADERS, methods=['GET'])
 def get_headers():
     try:

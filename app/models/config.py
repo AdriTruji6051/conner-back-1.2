@@ -155,6 +155,33 @@ class Config:
             db.session.delete(user)
             db.session.commit()
 
+        @staticmethod
+        def update_language_preference(user_id: int, language: str) -> None:
+            """Update user's language preference.
+            
+            Args:
+                user_id: User ID
+                language: Language code ('es-MX' or 'en-US')
+                
+            Raises:
+                ValueError: If user not found or invalid language
+                ValidationError: If validation fails
+            """
+            # Validate language
+            valid_languages = ['es-MX', 'en-US']
+            if language not in valid_languages:
+                raise ValidationError().add('language_preference', 
+                    f'Invalid language. Must be one of: {", ".join(valid_languages)}')
+            
+            # Find user
+            user = User.query.get(user_id)
+            if not user:
+                raise ValueError(f'User with id {user_id} not found')
+            
+            # Update language preference
+            user.language_preference = language
+            db.session.commit()
+
     class Ticket_text:
         @staticmethod
         def raise_exception_if_text_not_valid(data: list[dict], is_header: bool = False):

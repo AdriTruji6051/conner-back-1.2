@@ -242,6 +242,7 @@ class User(db.Model):
     user_name = db.Column(db.Text, nullable=False)
     password = db.Column(db.Text, nullable=False)
     role_type = db.Column(db.Text, nullable=False)
+    language_preference = db.Column(db.Text, nullable=False, default='es-MX')
 
     def to_dict(self, include_password: bool = False) -> dict:
         d = {
@@ -249,6 +250,7 @@ class User(db.Model):
             'user': self.user,
             'user_name': self.user_name,
             'role_type': self.role_type,
+            'language_preference': self.language_preference,
         }
         if include_password:
             d['password'] = self.password

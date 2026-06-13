@@ -79,10 +79,11 @@ def profit_percentage(cost: float, sale_price: float) -> int:
 class AppResponse:
     """Standardized API response wrapper for all endpoints"""
     
-    def __init__(self, response_body: Any, success: bool, status_code: int):
+    def __init__(self, response_body: Any, success: bool, status_code: int, error_code: Optional[str] = None):
         self.response_body = response_body
         self.success = success
         self.status_code = status_code
+        self.error_code = error_code
 
     @staticmethod
     def _split_pagination(payload: Any) -> tuple[Any, Optional[Dict[str, Any]]]:
@@ -102,6 +103,8 @@ class AppResponse:
             'success': self.success,
             'statusCode': self.status_code
         }
+        if self.error_code:
+            res['errorCode'] = self.error_code
         if pagination:
             res.update(pagination)
         return res
@@ -111,19 +114,19 @@ class AppResponse:
         return (jsonify(self.to_dict()), self.status_code)
     
     @staticmethod
-    def success(data: Any, status_code: int = 200) -> 'AppResponse':
+    def success(data: Any, status_code: int = 200, error_code: Optional[str] = None) -> 'AppResponse':
         """Create successful response"""
-        return AppResponse(response_body=data, success=True, status_code=status_code)
+        return AppResponse(response_body=data, success=True, status_code=status_code, error_code=error_code)
     
     @staticmethod
-    def created(data: Any) -> 'AppResponse':
+    def created(data: Any, error_code: Optional[str] = None) -> 'AppResponse':
         """Create 201 created response"""
-        return AppResponse(response_body=data, success=True, status_code=201)
+        return AppResponse(response_body=data, success=True, status_code=201, error_code=error_code)
     
     @staticmethod
-    def error(message: str, status_code: int = 400) -> 'AppResponse':
+    def error(message: str, status_code: int = 400, error_code: Optional[str] = None) -> 'AppResponse':
         """Create error response"""
-        return AppResponse(response_body={'error': message}, success=False, status_code=status_code)
+        return AppResponse(response_body={'error': message}, success=False, status_code=status_code, error_code=error_code)
     
     @staticmethod
     def bad_request(message: str) -> 'AppResponse':
@@ -131,39 +134,39 @@ class AppResponse:
         return AppResponse.error(message, 400)
     
     @staticmethod
-    def unauthorized(message: str = 'Unauthorized') -> 'AppResponse':
+    def unauthorized(message: str = 'Unauthorized', error_code: Optional[str] = None) -> 'AppResponse':
         """Create 401 unauthorized response"""
-        return AppResponse.error(message, 401)
+        return AppResponse.error(message, 401, error_code)
     
     @staticmethod
-    def forbidden(message: str = 'Forbidden') -> 'AppResponse':
+    def forbidden(message: str = 'Forbidden', error_code: Optional[str] = None) -> 'AppResponse':
         """Create 403 forbidden response"""
-        return AppResponse.error(message, 403)
+        return AppResponse.error(message, 403, error_code)
     
     @staticmethod
-    def not_found(message: str = 'Not found') -> 'AppResponse':
+    def not_found(message: str = 'Not found', error_code: Optional[str] = None) -> 'AppResponse':
         """Create 404 not found response"""
-        return AppResponse.error(message, 404)
+        return AppResponse.error(message, 404, error_code)
     
     @staticmethod
-    def validation_error(errors: List[Dict[str, str]]) -> 'AppResponse':
+    def validation_error(errors: List[Dict[str, str]], error_code: Optional[str] = None) -> 'AppResponse':
         """Create 422 response with a list of field-level validation errors.
 
         ``responseBody`` will be the error list directly, e.g.::
 
             [{"cost": "Must be greater than zero"}, {"sale_type": "Invalid"}]
         """
-        return AppResponse(response_body=errors, success=False, status_code=422)
+        return AppResponse(response_body=errors, success=False, status_code=422, error_code=error_code)
 
     @staticmethod
-    def unprocessable(message: str) -> 'AppResponse':
+    def unprocessable(message: str, error_code: Optional[str] = None) -> 'AppResponse':
         """Create 422 unprocessable entity response (single-message variant)"""
-        return AppResponse.error(message, 422)
+        return AppResponse.error(message, 422, error_code)
 
     @staticmethod
-    def conflict(message: str) -> 'AppResponse':
+    def conflict(message: str, error_code: Optional[str] = None) -> 'AppResponse':
         """Create 409 conflict response (e.g. duplicate key)"""
-        return AppResponse.error(message, 409)
+        return AppResponse.error(message, 409, error_code)
 
     @staticmethod
     def no_content(message: str = 'No content') -> 'AppResponse':
