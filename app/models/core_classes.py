@@ -5,6 +5,7 @@ SET_NULL = 'SET NULL'
 CASCADE = 'CASCADE'
 CASCADE_ALL_ORPHANS = 'all, delete-orphan'
 PRODUCTS_CODE = 'products.code'
+TICKET_ID_FK = 'ticket_font_configs.id'
 # ===================== MAIN DB MODELS =====================
 
 class Department(db.Model):
@@ -280,7 +281,7 @@ class TicketText(db.Model):
     text = db.Column(db.Text, nullable=False)
     line = db.Column(db.Integer, nullable=False)
     is_header = db.Column(db.Integer, nullable=False)
-    font_config = db.Column(db.Integer, db.ForeignKey('ticket_font_configs.id', onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
+    font_config = db.Column(db.Integer, db.ForeignKey(TICKET_ID_FK, onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
 
     def to_dict(self) -> dict:
         return {
@@ -293,7 +294,7 @@ class TicketText(db.Model):
 
     def to_display_dict(self) -> dict:
         """Returns dict with font info joined, used for header/footer display."""
-        fc = self.font_config_ref
+        fc   = self.font_config_ref
         return {
             'text': self.text,
             'line': self.line,
@@ -308,14 +309,16 @@ class TicketSettings(db.Model):
     __tablename__ = 'ticket_settings'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    body_font_config = db.Column(db.Integer, db.ForeignKey('ticket_font_configs.id', onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
-    header_font_config = db.Column(db.Integer, db.ForeignKey('ticket_font_configs.id', onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
+    body_font_config = db.Column(db.Integer, db.ForeignKey(TICKET_ID_FK, onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
+    header_font_config = db.Column(db.Integer, db.ForeignKey(TICKET_ID_FK, onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
+    print_full_row = db.Column(db.Boolean, nullable=False, default=True)
 
     def to_dict(self) -> dict:
         return {
             'id': self.id,
             'body_font_config': self.body_font_config,
             'header_font_config': self.header_font_config,
+            'print_full_row': self.print_full_row,
         }
 
 

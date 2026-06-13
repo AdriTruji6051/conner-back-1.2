@@ -6,6 +6,8 @@ from app.controlers.core_classes import ticket_info
 from app.models.config import Config
 
 DEFAULT_FONT = 'Lucida Console'
+REPEAT_CHARS = 30
+
 class Printers:
     register_printers = dict()
     avaliable_printers = dict()
@@ -110,6 +112,178 @@ class Printers:
 
     class Tasks:
         @staticmethod
+        def create_separator_line(line_number: int, font: str, font_config: int, size: int, weight: int, repeat_chars: int = REPEAT_CHARS) -> dict:
+            """
+            Create a separator line for ticket printing.
+            
+            Args:
+                line_number: The line number in the ticket
+                font: Font family to use
+                font_config: Font configuration ID
+                size: Font size
+                weight: Font weight
+                repeat_chars: Number of times to repeat the separator pattern
+            
+            Returns:
+                Dictionary with separator line configuration
+            """
+            return {
+                'font': font,
+                'font_config': font_config,
+                'line': line_number,
+                'size': size,
+                'text': '---' * repeat_chars,
+                'weigh': weight,
+                'cut_row': True,
+                'jumpline': False
+            }
+        
+        @staticmethod
+        def _get_font_config(config_getter, defaults: dict) -> dict:
+            """
+            Helper method to retrieve font configuration with fallback defaults.
+            
+            Args:
+                config_getter: Function to call for config retrieval
+                defaults: Dictionary with default values (font, size, weigh, id)
+            
+            Returns:
+                Dictionary with font configuration
+            """
+            try:
+                config = config_getter()
+                return {
+                    'font': config.get('font') if config else defaults['font'],
+                    'size': config.get('size') if config else defaults['size'],
+                    'weigh': config.get('weigh') if config else defaults['weigh'],
+                    'id': config.get('id') if config and 'id' in config else defaults['id']
+                }
+            except Exception:
+                return defaults
+
+        @staticmethod
+        def _add_header_lines(lines: list, line_number: int, ticket_id: int, header_config: dict) -> int:
+            """
+            Add header lines (date, time, ticket ID) to the ticket.
+            
+            Args:
+                lines: List to append lines to
+                line_number: Current line number
+                ticket_id: Ticket identifier
+                header_config: Header font configuration
+            
+            Returns:
+                Updated line number
+            """
+            now = datetime.now()
+            fecha = now.strftime('%d-%m-%Y')
+            hora = now.strftime('%H:%M')
+            
+            lines.append({
+                'font': header_config['font'],
+                'font_config': header_config['id'],
+                'line': line_number,
+                'size': header_config['size'],
+                'text': f'DATE: {fecha} {hora}',
+                'weigh': header_config['weigh'],
+                'cut_row': False,
+                'jumpline': False
+            })
+            line_number += 1
+            
+            lines.append({
+                'font': header_config['font'],
+                'font_config': header_config['id'],
+                'line': line_number,
+                'size': header_config['size'],
+                'text': f'TICKET º {ticket_id}',
+                'weigh': header_config['weigh'],
+                'cut_row': False,
+                'jumpline': False
+            })
+            return line_number + 1
+
+        @staticmethod
+        def _add_notes_lines(lines: list, line_number: int, notes: str, content_config: dict) -> int:
+            """
+            Add notes lines to the ticket if notes are provided.
+            
+            Args:
+                lines: List to append lines to
+                line_number: Current line number
+                notes: Notes text (may contain newlines)
+                content_config: Content font configuration
+            
+            Returns:
+                Updated line number
+            """
+            if not notes:
+                return line_number
+            
+            note_lines = notes.split('\n')
+            for note_line in note_lines:
+                lines.append({
+                    'font': content_config['font'],
+                    'font_config': content_config['id'],
+                    'line': line_number,
+                    'size': content_config['size'],
+                    'text': note_line,
+                    'weigh': content_config['weigh'],
+                    'cut_row': False,
+                    'jumpline': False
+                })
+                line_number += 1
+            return line_number
+
+        @staticmethod
+        def _add_product_lines(lines: list, line_number: int, products: list, content_config: dict, print_full_row: bool) -> int:
+            """
+            Add product lines to the ticket.
+            
+            Args:
+                lines: List to append lines to
+                line_number: Current line number
+                products: List of product dictionaries
+                content_config: Content font configuration
+                print_full_row: Whether to print full row or cut
+            
+            Returns:
+                Updated line number
+            """
+            for product in products:
+                description = f'{product.get('description', '')}'.strip()
+                
+                lines.append({
+                    'font': content_config['font'],
+                    'font_config': content_config['id'],
+                    'line': line_number,
+                    'size': content_config['size'],
+                    'text': description,
+                    'weigh': content_config['weigh'],
+                    'cut_row': not print_full_row,
+                    'jumpline': not print_full_row
+                })
+                line_number += 1
+                
+                cantity = product.get('cantity', 0)
+                sale_price = product.get('sale_price', 0)
+                total_price = product.get('total_price', 0)
+                detail_line = f'{cantity} PZ\\${sale_price}\\${total_price}'
+                
+                lines.append({
+                    'font': content_config['font'],
+                    'font_config': content_config['id'],
+                    'line': line_number,
+                    'size': content_config['size'],
+                    'text': detail_line,
+                    'weigh': content_config['weigh'],
+                    'cut_row': not print_full_row,
+                    'jumpline': not print_full_row
+                })
+                line_number += 1
+            return line_number
+
+        @staticmethod
         def struct_content(ticket_info: ticket_info, ticket_id: int, notes: str = '') -> list:
             """
             Format ticket information into printer-ready content structure.
@@ -125,171 +299,99 @@ class Printers:
             lines = []
             line_number = 0
             
-            # Content font configuration - read from DB (body font)
+            # Get print_full_row setting from database
             try:
-                body_fc = Config.Ticket_text.get_body_font()
-                CONTENT_FONT = body_fc.get('font') if body_fc else DEFAULT_FONT
-                CONTENT_SIZE = body_fc.get('size') if body_fc else 30
-                CONTENT_WEIGHT = body_fc.get('weigh') if body_fc else 1500
-                CONTENT_CONFIG = body_fc.get('id') if body_fc and 'id' in body_fc else 1
+                print_full_row = Config.Ticket_text.get_print_full_row()
             except Exception:
-                CONTENT_FONT = DEFAULT_FONT
-                CONTENT_SIZE = 30
-                CONTENT_WEIGHT = 1500
-                CONTENT_CONFIG = 1
+                print_full_row = True
             
-            # Header font configuration (larger) - read from DB
-            try:
-                header_fc = Config.Ticket_text.get_header_font()
-                HEADER_FONT = header_fc.get('font') if header_fc else DEFAULT_FONT
-                HEADER_SIZE = header_fc.get('size') if header_fc else 36
-                HEADER_WEIGHT = header_fc.get('weigh') if header_fc else 2000
-                HEADER_CONFIG = header_fc.get('id') if header_fc and 'id' in header_fc else 2
-            except Exception:
-                HEADER_FONT = DEFAULT_FONT
-                HEADER_SIZE = 36
-                HEADER_WEIGHT = 2000
-                HEADER_CONFIG = 2
+            # Get font configurations
+            content_config = Printers.Tasks._get_font_config(
+                Config.Ticket_text.get_body_font,
+                {'font': DEFAULT_FONT, 'size': 30, 'weigh': 1500, 'id': 1}
+            )
+            header_config = Printers.Tasks._get_font_config(
+                Config.Ticket_text.get_header_font,
+                {'font': DEFAULT_FONT, 'size': 36, 'weigh': 2000, 'id': 2}
+            )
             
-            # Get current date and time
-            now = datetime.now()
-            fecha = now.strftime('%d-%m-%Y')
-            hora = now.strftime('%H:%M')
+            # Add header lines
+            line_number = Printers.Tasks._add_header_lines(lines, line_number, ticket_id, header_config)
             
-            # Header line: FECHA and TICKET
-            lines.append({
-                'font': HEADER_FONT,
-                'font_config': HEADER_CONFIG,
-                'line': line_number,
-                'size': HEADER_SIZE,
-                'text': f'DATE: {fecha} {hora}',
-                'weigh': HEADER_WEIGHT
-            })
-            line_number += 1
-            
-            lines.append({
-                'font': HEADER_FONT,
-                'font_config': HEADER_CONFIG,
-                'line': line_number,
-                'size': HEADER_SIZE,
-                'text': f'TICKET º {ticket_id}',
-                'weigh': HEADER_WEIGHT
-            })
-            line_number += 1
+            # Add notes if provided
+            line_number = Printers.Tasks._add_notes_lines(lines, line_number, notes, content_config)
             
             # Empty line for spacing
             lines.append({
-                'font': CONTENT_FONT,
-                'font_config': CONTENT_CONFIG,
+                'font': content_config['font'],
+                'font_config': content_config['id'],
                 'line': line_number,
-                'size': CONTENT_SIZE,
+                'size': content_config['size'],
                 'text': '',
-                'weigh': CONTENT_WEIGHT
+                'weigh': content_config['weigh'],
+                'cut_row': False,
+                'jumpline': False
             })
             line_number += 1
             
             # Column headers
             lines.append({
-                'font': CONTENT_FONT,
-                'font_config': CONTENT_CONFIG,
+                'font': content_config['font'],
+                'font_config': content_config['id'],
                 'line': line_number,
-                'size': CONTENT_SIZE,
-                'text': 'CANTITY\t\PRICE\t\TOTAL',
-                'weigh': CONTENT_WEIGHT
+                'size': content_config['size'],
+                'text': 'CANTITY\\PRICE\\TOTAL',
+                'weigh': content_config['weigh'],
+                'cut_row': False,
+                'jumpline': False
             })
             line_number += 1
             
             # Separator line
-            lines.append({
-                'font': CONTENT_FONT,
-                'font_config': CONTENT_CONFIG,
-                'line': line_number,
-                'size': CONTENT_SIZE,
-                'text': '---' * 20,
-                'weigh': CONTENT_WEIGHT
-            })
+            lines.append(Printers.Tasks.create_separator_line(
+                line_number, content_config['font'], content_config['id'],
+                content_config['size'], content_config['weigh']
+            ))
             line_number += 1
             
-            # Product lines
-            for product in ticket_info.get('products', []):
-                # Product name/code and description
-                code = product.get('code', '')
-                description = product.get('description', '')
-                product_name = f'{code} {description}'.strip()
-                
-                lines.append({
-                    'font': CONTENT_FONT,
-                    'font_config': CONTENT_CONFIG,
-                    'line': line_number,
-                    'size': CONTENT_SIZE,
-                    'text': product_name,
-                    'weigh': CONTENT_WEIGHT
-                })
-                line_number += 1
-                
-                # Product detail line: quantity, unit price, total price
-                cantity = product.get('cantity', 0)
-                sale_price = product.get('sale_price', 0)
-                total_price = product.get('total_price', 0)
-                
-                detail_line = f'{cantity} PZ\t\t${sale_price}\t\t${total_price}'
-                lines.append({
-                    'font': CONTENT_FONT,
-                    'font_config': CONTENT_CONFIG,
-                    'line': line_number,
-                    'size': CONTENT_SIZE,
-                    'text': detail_line,
-                    'weigh': CONTENT_WEIGHT
-                })
-                line_number += 1
+            # Add product lines
+            line_number = Printers.Tasks._add_product_lines(
+                lines, line_number, ticket_info.get('products', []), content_config, print_full_row
+            )
             
             # Separator line before totals
-            lines.append({
-                'font': CONTENT_FONT,
-                'font_config': CONTENT_CONFIG,
-                'line': line_number,
-                'size': CONTENT_SIZE,
-                'text': '---' * 20,
-                'weigh': CONTENT_WEIGHT
-            })
+            lines.append(Printers.Tasks.create_separator_line(
+                line_number, content_config['font'], content_config['id'],
+                content_config['size'], content_config['weigh']
+            ))
             line_number += 1
             
             # Total line
             total = ticket_info.get('sub_total', 0)
             lines.append({
-                'font': HEADER_FONT,
-                'font_config': HEADER_CONFIG,
+                'font': header_config['font'],
+                'font_config': header_config['id'],
                 'line': line_number,
-                'size': HEADER_SIZE,
+                'size': header_config['size'] * 1.2,
                 'text': f'TOTAL: $ {total}',
-                'weigh': HEADER_WEIGHT
+                'weigh': header_config['weigh'],
+                'cut_row': False,
+                'jumpline': False
             })
             line_number += 1
             
             # Products count
             articles_count = ticket_info.get('articles_count', 0)
-            
             lines.append({
-                'font': CONTENT_FONT,
-                'font_config': CONTENT_CONFIG,
+                'font': content_config['font'],
+                'font_config': content_config['id'],
                 'line': line_number,
-                'size': CONTENT_SIZE,
-                'text': f'PRODUCTOS: {articles_count}',
-                'weigh': CONTENT_WEIGHT
+                'size': content_config['size'],
+                'text': f'PRODUCTS: {articles_count}',
+                'weigh': content_config['weigh'],
+                'cut_row': False,
+                'jumpline': False
             })
-            line_number += 1
-            
-            # Notes if provided
-            if notes:
-                lines.append({
-                    'font': CONTENT_FONT,
-                    'font_config': CONTENT_CONFIG,
-                    'line': line_number,
-                    'size': CONTENT_SIZE,
-                    'text': notes,
-                    'weigh': CONTENT_WEIGHT
-                })
-                line_number += 1
             
             return lines
         

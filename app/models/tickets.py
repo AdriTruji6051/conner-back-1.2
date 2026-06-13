@@ -11,7 +11,7 @@ create_product_in_tickets_keys = ['code', 'description', 'cantity', 'profit', 'w
 update_ticket_keys = ['sub_total', 'total', 'discount', 'profit', 'products_count', 'id']
 update_product_in_tickets_keys = ['cantity', 'profit', 'id']
 
-_GTE_ZERO_MSG = 'Must be greater than or equal to zero'
+GTE_ZERO_MSG = 'Must be greater than or equal to zero'
 
 
 def raise_exception_if_ticket_invalid_data(data: dict, is_update: bool = False):
@@ -438,21 +438,21 @@ def raise_exception_if_modify_product_invalid_data(data_array: list[dict]):
                 if key not in prod:
                     v.add(f'{prefix}{key}', 'Missing required field for update action')
             if 'cantity' in prod and prod['cantity'] < 0:
-                v.add(f'{prefix}cantity', 'Must be greater than or equal to zero')
+                v.add(f'{prefix}cantity', GTE_ZERO_MSG)
             if 'profit' in prod and prod['profit'] < 0:
-                v.add(f'{prefix}profit', 'Must be greater than or equal to zero')
+                v.add(f'{prefix}profit', GTE_ZERO_MSG)
             if 'sale_price' in prod and prod['sale_price'] < 0:
-                v.add(f'{prefix}sale_price', 'Must be greater than or equal to zero')
+                v.add(f'{prefix}sale_price', GTE_ZERO_MSG)
 
         elif action == 'add':
             for key in ('code', 'description', 'cantity', 'sale_price'):
                 if key not in prod:
                     v.add(f'{prefix}{key}', 'Missing required field for add action')
             if 'cantity' in prod and prod['cantity'] < 0:
-                v.add(f'{prefix}cantity', 'Must be greater than or equal to zero')
+                v.add(f'{prefix}cantity', GTE_ZERO_MSG)
             if 'sale_price' in prod and prod['sale_price'] < 0:
-                v.add(f'{prefix}sale_price', 'Must be greater than or equal to zero')
+                v.add(f'{prefix}sale_price', GTE_ZERO_MSG)
             if 'profit' in prod and prod['profit'] is not None and prod['profit'] < 0:
-                v.add(f'{prefix}profit', 'Must be greater than or equal to zero')
+                v.add(f'{prefix}profit', GTE_ZERO_MSG)
 
     v.raise_if_errors()

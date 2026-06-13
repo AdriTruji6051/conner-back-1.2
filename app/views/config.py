@@ -9,7 +9,7 @@ from app.routes_constants import (
     ROUTE_GET_USERS, ROUTE_LOGIN_USER, ROUTE_CREATE_USER, ROUTE_UPDATE_USER, ROUTE_DELETE_USER,
     ROUTE_GET_HEADERS, ROUTE_UPDATE_HEADERS, ROUTE_GET_FOOTERS, ROUTE_UPDATE_FOOTERS,
     ROUTE_GET_FONTS, ROUTE_CREATE_FONT, ROUTE_GET_BODY_FONT, ROUTE_SET_BODY_FONT,
-    ROUTE_GET_HEADER_FONT, ROUTE_SET_HEADER_FONT
+    ROUTE_GET_HEADER_FONT, ROUTE_SET_HEADER_FONT, ROUTE_GET_PRINT_FULL_ROW, ROUTE_SET_PRINT_FULL_ROW
 )
 
 routesConfig = Blueprint('routes-config', __name__)
@@ -217,3 +217,33 @@ def set_header_font():
     except Exception as e:
         logging.exception(f'{ROUTE_SET_HEADER_FONT}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error updating header font').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_GET_PRINT_FULL_ROW, methods=['GET'])
+def get_print_full_row():
+    try:
+        value = Config.Ticket_text.get_print_full_row()
+        return AppResponse.success({'print_full_row': value}).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_GET_PRINT_FULL_ROW}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error retrieving print_full_row setting').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_SET_PRINT_FULL_ROW, methods=['PUT'])
+def set_print_full_row():
+    try:
+        data = dict(request.get_json())
+        if 'print_full_row' not in data:
+            return AppResponse.validation_error([{'print_full_row': 'Field is required'}]).to_flask_tuple()
+        
+        value = data['print_full_row']
+        if not isinstance(value, bool):
+            return AppResponse.validation_error([{'print_full_row': 'Must be a boolean value'}]).to_flask_tuple()
+        
+        Config.Ticket_text.set_print_full_row(value)
+        return AppResponse.success({'status': 'print_full_row setting updated successfully'}).to_flask_tuple()
+    except ValueError as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_SET_PRINT_FULL_ROW}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error updating print_full_row setting').to_flask_tuple()

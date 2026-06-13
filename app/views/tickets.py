@@ -11,7 +11,8 @@ from app.routes_constants import (
     ROUTE_GET_TICKET_KEYS_SHARED, ROUTE_SET_TICKET_SHARED, ROUTE_GET_TICKET, ROUTE_GET_TICKETS_BY_DATE,
     ROUTE_GET_PRODUCTS_IN_TICKET, ROUTE_TOOGLE_WHOLESALE, ROUTE_ADD_PRODUCT_TICKET,
     ROUTE_REMOVE_PRODUCT_TICKET, ROUTE_SAVE_TICKET, ROUTE_ADD_COMMON_PRODUCT_TICKET,
-    ROUTE_MODIFY_SAVED_TICKET, ROUTE_SET_PRODUCT_QUANTITY, ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE
+    ROUTE_MODIFY_SAVED_TICKET, ROUTE_SET_PRODUCT_QUANTITY, ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE,
+    ROUTE_REPRINT_TICKET
 )
 
 TICKET_MANAGER = tickets_manager()
@@ -312,4 +313,62 @@ def quicksale_ticket(amount):
         return AppResponse.unprocessable(str(e)).to_flask_tuple()
     except Exception as e:
         logging.exception(f'{ROUTE_QUICKSALE_TICKET}. Catch: {e}.')
+
+@routesTickets.route(ROUTE_REPRINT_TICKET, methods=['POST'])
+def reprint_ticket(ticket_id):
+    try:
+        data = request.get_json(silent=True) or {}
+        printer_name = data.get('printer_name')
+        print_many = data.get('print', 1)
+        
+        if print_many is not None:
+            print_many = int(print_many)
+        
+        if not printer_name:
+            raise ValueError('printer_name is required')
+        
+        # Get ticket from database
+        ticket = Tickets.get(ticket_id)
+        
+        # Get products in ticket
+        products = Tickets.Product_in_ticket.get_by_ticket(ticket_id)
+        
+        # Calculate total_price for each product (not stored in DB)
+        products_list = []
+        for p in products:
+            product_dict = p.to_dict()
+            # Calculate total_price = sale_price * cantity
+            product_dict['total_price'] = round(p.sale_price * p.cantity, 2)
+            products_list.append(product_dict)
+        
+        # Structure ticket info for printing
+        ticket_info = {
+            'products': products_list,
+            'products_count': ticket.products_count,
+            'articles_count': len(products),
+            'sub_total': ticket.sub_total,
+            'discount': ticket.discount if ticket.discount else 0.0,
+            'wholesale_active': False,  # Not stored in DB, set to False for reprints
+            'profit': ticket.profit,
+            'total': ticket.total,
+            'notes': ticket.notes or '',
+        }
+        
+        # Print ticket
+        from app.controlers.printers import Printers
+        printers = Printers()
+        printers.print_ticket(ticket_info, ticket_id, ticket.notes or '', printer_name, request.remote_addr, print_many)
+        
+        return AppResponse.success({'ticket_id': ticket_id, 'printed': print_many}).to_flask_tuple()
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except ValueError as e:
+        msg = str(e)
+        if 'not found' in msg.lower():
+            return AppResponse.not_found(msg).to_flask_tuple()
+        return AppResponse.unprocessable(msg).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_REPRINT_TICKET}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error reprinting ticket').to_flask_tuple()
+
         return AppResponse.server_error('Unexpected error creating quicksale ticket').to_flask_tuple()

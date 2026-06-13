@@ -66,6 +66,7 @@ ROUTE_SET_PRODUCT_QUANTITY = f'{TICKETS_BASE}/set-quantity'
 ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE = f'{TICKETS_BASE}/update/wholesale-price'
 ROUTE_SAVE_TICKET = f'{TICKETS_BASE}/save'
 ROUTE_MODIFY_SAVED_TICKET = f'{TICKETS_BASE}/modify/<int:ticket_id>'
+ROUTE_REPRINT_TICKET = f'{TICKETS_BASE}/reprint/<int:ticket_id>'
 
 # ===================== CONFIG ROUTES =====================
 CONFIG_BASE = f'{API_BASE}/config'
@@ -98,6 +99,10 @@ ROUTE_SET_BODY_FONT = f'{TICKET_FONTS_BASE}/body/update'
 # Header font selection (current/modify)
 ROUTE_GET_HEADER_FONT = f'{TICKET_FONTS_BASE}/header'
 ROUTE_SET_HEADER_FONT = f'{TICKET_FONTS_BASE}/header/update'
+
+# Config - Ticket Print Settings
+ROUTE_GET_PRINT_FULL_ROW = f'{CONFIG_BASE}/ticket/print-full-row'
+ROUTE_SET_PRINT_FULL_ROW = f'{CONFIG_BASE}/ticket/print-full-row/update'
 
 # ===================== PRINTERS ROUTES =====================
 PRINT_BASE = f'{API_BASE}/print'

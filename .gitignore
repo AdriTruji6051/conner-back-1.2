@@ -4,6 +4,7 @@ backup/
 build/
 dist/
 venv-back/
+back-venv/
 conner-back-1.2/
 docs/
 db/

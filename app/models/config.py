@@ -8,7 +8,7 @@ update_user_keys = ['user', 'user_name', 'password', 'role_type', 'id']
 create_text_keys = ['text', 'line', 'is_header', 'font_config']
 create_font_config_keys = ['font', 'weigh', 'size']
 
-DEFAULT_FONT_NAME = 'Console'
+DEFAULT_FONT_NAME = 'Consolas'
 DEFAULT_FONT_SIZE = 12
 DEFAULT_FONT_WEIGHT = 500
 
@@ -36,6 +36,27 @@ def ensure_default_font_config() -> TicketFontConfig:
 
     _DEFAULT_FONT_CONFIG_ID = font_cfg.id
     return font_cfg
+
+
+def ensure_at_least_one_user() -> User:
+    """Ensure at least one user exists in the database.
+    
+    Creates a default admin user if no users are found.
+    This prevents the system from being locked out on first run.
+    """
+    user_count = User.query.count()
+    if user_count > 0:
+        return User.query.first()
+    
+    admin_user = User(
+        user='admin',
+        user_name='admin',
+        password='admin',
+        role_type='admin'
+    )
+    db.session.add(admin_user)
+    db.session.commit()
+    return admin_user
 
 
 def is_protected_font_config(candidate: TicketFontConfig | int | None) -> bool:
@@ -316,6 +337,48 @@ class Config:
                 db.session.add(settings)
             else:
                 settings.header_font_config = fc.id
+            db.session.commit()
+
+        @staticmethod
+        def get_print_full_row() -> bool:
+            """Return the current print_full_row setting.
+            
+            If no settings exist, create default with print_full_row=True.
+            """
+            settings = TicketSettings.query.first()
+            if not settings:
+                # Create default settings
+                fc = ensure_default_font_config()
+                settings = TicketSettings(
+                    body_font_config=fc.id,
+                    header_font_config=fc.id,
+                    print_full_row=True
+                )
+                db.session.add(settings)
+                db.session.commit()
+            return settings.print_full_row
+
+        @staticmethod
+        def set_print_full_row(value: bool):
+            """Update the print_full_row setting.
+            
+            Args:
+                value: Boolean indicating whether to print full rows
+            """
+            if not isinstance(value, bool):
+                raise ValueError('print_full_row must be a boolean value')
+            
+            settings = TicketSettings.query.first()
+            if not settings:
+                fc = ensure_default_font_config()
+                settings = TicketSettings(
+                    body_font_config=fc.id,
+                    header_font_config=fc.id,
+                    print_full_row=value
+                )
+                db.session.add(settings)
+            else:
+                settings.print_full_row = value
             db.session.commit()
 
 
