@@ -90,14 +90,34 @@ class Tickets:
         return ticket
 
     @staticmethod
-    def list_created_at(date: str) -> list[TicketModel]:
-        tickets = TicketModel.query.filter(
+    def list_created_at(date: str, page: int = 1, per_page: int = 50) -> dict:
+        """List tickets created or modified on a specific date with pagination.
+        
+        Args:
+            date: Date string in YYYY-MM-DD format
+            page: Page number (1-indexed)
+            per_page: Number of items per page
+            
+        Returns:
+            dict with keys: tickets, total, page, per_page, total_pages
+        """
+        query = TicketModel.query.filter(
             db.or_(
                 TicketModel.created_at.like(f'{date}%'),
                 TicketModel.modified_at.like(f'{date}%')
             )
-        ).all()
-        return tickets
+        ).order_by(TicketModel.created_at.desc())
+        
+        # Get paginated results
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        return {
+            'tickets': pagination.items,
+            'total': pagination.total,
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'total_pages': pagination.pages
+        }
 
     @staticmethod
     def create(data: dict) -> int:

@@ -23,7 +23,16 @@ def insert_inflow():
         description = request.args.get('description')
 
         Analytics.Cash_flow.insert(amount=amount, in_or_out=1, is_payment=0, description=description)
-        return AppResponse.success(PRINTERS_MANAGER.open_drawer()).to_flask_tuple()
+        
+        # Try to open drawer, but don't fail if printer service is unavailable
+        drawer_result = {'message': 'Cash inflow registered successfully'}
+        try:
+            drawer_result = PRINTERS_MANAGER.open_drawer()
+        except Exception as drawer_error:
+            logging.warning(f'Could not open drawer: {drawer_error}')
+            drawer_result['drawer_warning'] = 'Drawer could not be opened'
+        
+        return AppResponse.success(drawer_result).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -39,7 +48,16 @@ def insert_ouflow():
         drawer = request.args.get('drawer')
         description = request.args.get('description')
         Analytics.Cash_flow.insert(amount=amount, in_or_out=0, is_payment=0, description=description)
-        return AppResponse.success(PRINTERS_MANAGER.open_drawer()).to_flask_tuple()
+        
+        # Try to open drawer, but don't fail if printer service is unavailable
+        drawer_result = {'message': 'Cash outflow registered successfully'}
+        try:
+            drawer_result = PRINTERS_MANAGER.open_drawer()
+        except Exception as drawer_error:
+            logging.warning(f'Could not open drawer: {drawer_error}')
+            drawer_result['drawer_warning'] = 'Drawer could not be opened'
+        
+        return AppResponse.success(drawer_result).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -55,7 +73,16 @@ def insert_payment():
         drawer = request.args.get('drawer')
         description = request.args.get('description')
         Analytics.Cash_flow.insert(amount=amount, in_or_out=0, is_payment=1, description=description)
-        return AppResponse.success(PRINTERS_MANAGER.open_drawer()).to_flask_tuple()
+        
+        # Try to open drawer, but don't fail if printer service is unavailable
+        drawer_result = {'message': 'Cash payment registered successfully'}
+        try:
+            drawer_result = PRINTERS_MANAGER.open_drawer()
+        except Exception as drawer_error:
+            logging.warning(f'Could not open drawer: {drawer_error}')
+            drawer_result['drawer_warning'] = 'Drawer could not be opened'
+        
+        return AppResponse.success(drawer_result).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:

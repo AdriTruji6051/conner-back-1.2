@@ -117,9 +117,28 @@ def get_ticket(key):
 @routesTickets.route(ROUTE_GET_TICKETS_BY_DATE, methods=['GET'])
 def get_tickets_date(date):
     try:
+        # Get pagination parameters from query string
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        
+        # Validate pagination parameters
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 50
+        
+        # Get paginated results
+        result = Tickets.list_created_at(date, page=page, per_page=per_page)
+        
         return AppResponse.success({
-            'tickets': [t.to_dict() for t in Tickets.list_created_at(date)],
-            'date': date
+            'tickets': [t.to_dict() for t in result['tickets']],
+            'date': date,
+            'pagination': {
+                'page': result['page'],
+                'per_page': result['per_page'],
+                'total': result['total'],
+                'total_pages': result['total_pages']
+            }
         }).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()

@@ -50,17 +50,18 @@ def transform_tickets_products(row: Dict[str, Any]) -> Dict[str, Any]:
     used = row.get('usedPrice')
     is_wholesale = row.get('isWholesale')
 
-    # If isWholesale is truthy (1/True), set wholesale_price; otherwise set sale_price.
+    # sale_price is NOT NULL in destination, so always set it
+    # If isWholesale is truthy (1/True), set wholesale_price and use it as sale_price too
     try:
         if is_wholesale is not None and float(is_wholesale):
             mapped['wholesale_price'] = used
-            mapped['sale_price'] = None
+            mapped['sale_price'] = used  # Set sale_price to same value to satisfy NOT NULL constraint
         else:
             mapped['wholesale_price'] = None
             mapped['sale_price'] = used
     except Exception:
         mapped['wholesale_price'] = None
-        mapped['sale_price'] = used
+        mapped['sale_price'] = used if used is not None else 0.0
 
     return mapped
 
@@ -119,7 +120,9 @@ def transform_tickets(row: Dict[str, Any]) -> Dict[str, Any]:
     mapped['products_count'] = row.get('articleCount')
     mapped['notes'] = row.get('notes')
     mapped['discount'] = row.get('discount')
-    # destination has user_id and ipv4_sender not present in source; leave them NULL
+    # destination has user_id and ipv4_sender not present in source; set defaults
+    mapped['user_id'] = 1  # Default to admin user
+    mapped['ipv4_sender'] = '127.0.0.1'  # Default localhost
     return mapped
 
 
