@@ -9,7 +9,8 @@ from app.routes_constants import (
     ROUTE_GET_USERS, ROUTE_LOGIN_USER, ROUTE_CREATE_USER, ROUTE_UPDATE_USER, ROUTE_DELETE_USER,
     ROUTE_GET_HEADERS, ROUTE_UPDATE_HEADERS, ROUTE_GET_FOOTERS, ROUTE_UPDATE_FOOTERS,
     ROUTE_GET_FONTS, ROUTE_CREATE_FONT, ROUTE_GET_BODY_FONT, ROUTE_SET_BODY_FONT,
-    ROUTE_GET_HEADER_FONT, ROUTE_SET_HEADER_FONT, ROUTE_GET_PRINT_FULL_ROW, ROUTE_SET_PRINT_FULL_ROW
+    ROUTE_GET_HEADER_FONT, ROUTE_SET_HEADER_FONT, ROUTE_GET_PRINT_FULL_ROW, ROUTE_SET_PRINT_FULL_ROW,
+    ROUTE_UPLOAD_PHOTO, ROUTE_GET_PHOTO_CONFIG, ROUTE_UPDATE_PHOTO_CONFIG, ROUTE_DELETE_PHOTO, ROUTE_GET_PHOTO_DATA
 )
 
 routesConfig = Blueprint('routes-config', __name__)
@@ -247,3 +248,86 @@ def set_print_full_row():
     except Exception as e:
         logging.exception(f'{ROUTE_SET_PRINT_FULL_ROW}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error updating print_full_row setting').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_UPLOAD_PHOTO, methods=['POST'])
+def upload_photo():
+    try:
+        if 'photo' not in request.files:
+            return AppResponse.validation_error([{'photo': 'Photo file is required'}]).to_flask_tuple()
+        
+        photo_file = request.files['photo']
+        if photo_file.filename == '':
+            return AppResponse.validation_error([{'photo': 'No file selected'}]).to_flask_tuple()
+        
+        # Get optional parameters
+        position = request.form.get('position', 'header')
+        height = request.form.get('height', type=int)
+        width = request.form.get('width', type=int, default=640)
+        
+        # Read file data
+        photo_data = photo_file.read()
+        
+        result = Config.Ticket_text.upload_photo(photo_data, position, height, width)
+        return AppResponse.success(result).to_flask_tuple()
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except ValueError as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_UPLOAD_PHOTO}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error uploading photo').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_GET_PHOTO_CONFIG, methods=['GET'])
+def get_photo_config():
+    try:
+        return AppResponse.success(Config.Ticket_text.get_photo_config()).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_GET_PHOTO_CONFIG}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error retrieving photo config').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_UPDATE_PHOTO_CONFIG, methods=['PUT'])
+def update_photo_config():
+    try:
+        data = dict(request.get_json())
+        enabled = data.get('enabled')
+        position = data.get('position')
+        height = data.get('height')
+        width = data.get('width')
+        
+        Config.Ticket_text.update_photo_config(enabled, position, height, width)
+        return AppResponse.success({'status': 'photo config updated successfully'}).to_flask_tuple()
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except ValueError as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_UPDATE_PHOTO_CONFIG}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error updating photo config').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_DELETE_PHOTO, methods=['DELETE'])
+def delete_photo():
+    try:
+        Config.Ticket_text.delete_photo()
+        return AppResponse.success({'status': 'photo deleted successfully'}).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_DELETE_PHOTO}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error deleting photo').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_GET_PHOTO_DATA, methods=['GET'])
+def get_photo_data():
+    try:
+        photo_data = Config.Ticket_text.get_photo_data()
+        if photo_data is None:
+            return AppResponse.not_found('No photo configured').to_flask_tuple()
+        
+        from flask import send_file
+        import io
+        return send_file(io.BytesIO(photo_data), mimetype='image/png')
+    except Exception as e:
+        logging.exception(f'{ROUTE_GET_PHOTO_DATA}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error retrieving photo data').to_flask_tuple()

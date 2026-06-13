@@ -1,3 +1,6 @@
+import socket
+import json
+import base64
 from typing import Any, Dict, List, Optional
 from flask import jsonify
 
@@ -171,3 +174,162 @@ class AppResponse:
     def server_error(message: str = 'Internal server error') -> 'AppResponse':
         """Create 500 server error response"""
         return AppResponse.error(message, 500)
+
+
+# ---------------------------------------------------------------------------
+# Photo Distribution Functions
+# ---------------------------------------------------------------------------
+
+def get_printer_service_hosts() -> List[str]:
+    """Get all registered printer service hosts from Printers manager."""
+    try:
+        from app.controlers.printers import Printers
+        printers_manager = Printers()
+        
+        # Get printer dictionary which includes host information
+        # Try localhost first, then get from dict
+        printers_dict = printers_manager.dict('127.0.0.1', refresh=True)
+        
+        # Extract unique hosts from printer dictionary
+        hosts = set()
+        for printer_name, printer_info in printers_dict.items():
+            if isinstance(printer_info, dict) and 'host' in printer_info:
+                hosts.add(printer_info['host'])
+        
+        # If no hosts found, default to localhost
+        if not hosts:
+            hosts.add('127.0.0.1')
+        
+        return list(hosts)
+    except Exception as e:
+        print(f"Error getting printer hosts: {e}")
+        # Fallback to localhost
+        return ['127.0.0.1']
+
+
+def push_photo_to_service(host: str, port: int, photo_id: str, photo_data: bytes) -> bool:
+    """Push photo to a single printer service.
+    
+    Args:
+        host: Service host IP address
+        port: Service port (default 9100)
+        photo_id: Unique photo identifier
+        photo_data: Processed photo bytes (PNG format)
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Encode photo data to base64
+        photo_base64 = base64.b64encode(photo_data).decode('utf-8')
+        
+        # Create request
+        request = {
+            "action": "photo/save",
+            "photo_id": photo_id,
+            "photo_data": photo_base64,
+            "overwrite": True
+        }
+        
+        # Send to service
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(10)
+            s.connect((host, port))
+            s.sendall(json.dumps(request).encode('utf-8'))
+            
+            # Receive response
+            response = s.recv(4096).decode('utf-8')
+            result = json.loads(response)
+            
+            success = result.get('status') == 'success'
+            if success:
+                print(f"Photo {photo_id} pushed to {host}:{port}")
+            else:
+                print(f"Failed to push photo to {host}:{port}: {result.get('message')}")
+            
+            return success
+    except Exception as e:
+        print(f"Failed to push photo to {host}:{port} - {e}")
+        return False
+
+
+def push_photo_to_all_services(photo_id: str, photo_data: bytes) -> Dict[str, bool]:
+    """Push photo to all registered printer services.
+    
+    Args:
+        photo_id: Unique photo identifier
+        photo_data: Processed photo bytes (PNG format)
+        
+    Returns:
+        Dictionary mapping host to success status
+    """
+    hosts = get_printer_service_hosts()
+    results = {}
+    
+    if not hosts:
+        print("Warning: No printer service hosts found")
+        return results
+    
+    for host in hosts:
+        port = 9100  # Default printer service port
+        success = push_photo_to_service(host, port, photo_id, photo_data)
+        results[host] = success
+    
+    return results
+
+
+def delete_photo_from_service(host: str, port: int, photo_id: str) -> bool:
+    """Delete photo from a single printer service.
+    
+    Args:
+        host: Service host IP address
+        port: Service port (default 9100)
+        photo_id: Unique photo identifier
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        request = {
+            "action": "photo/delete",
+            "photo_id": photo_id
+        }
+        
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(5)
+            s.connect((host, port))
+            s.sendall(json.dumps(request).encode('utf-8'))
+            response = s.recv(4096).decode('utf-8')
+            result = json.loads(response)
+            
+            success = result.get('status') == 'success'
+            if success:
+                print(f"Photo {photo_id} deleted from {host}:{port}")
+            else:
+                print(f"Failed to delete photo from {host}:{port}: {result.get('message')}")
+            
+            return success
+    except Exception as e:
+        print(f"Failed to delete photo from {host}:{port} - {e}")
+        return False
+
+
+def delete_photo_from_all_services(photo_id: str) -> Dict[str, bool]:
+    """Delete photo from all registered printer services.
+    
+    Args:
+        photo_id: Unique photo identifier
+        
+    Returns:
+        Dictionary mapping host to success status
+    """
+    hosts = get_printer_service_hosts()
+    results = {}
+    
+    for host in hosts:
+        port = 9100
+        success = delete_photo_from_service(host, port, photo_id)
+        results[host] = success
+    
+    return results
+

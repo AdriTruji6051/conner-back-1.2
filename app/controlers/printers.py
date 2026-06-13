@@ -398,7 +398,7 @@ class Printers:
         @staticmethod
         def struct_ticket(ticket_info: ticket_info, ticket_id: int, notes: str = '') -> dict:
             """
-            Format complete ticket structure with headers, content, and footers.
+            Format complete ticket structure with headers, content, footers, and optional photo.
             
             Args:
                 ticket_info: Dictionary containing ticket products and totals
@@ -406,10 +406,27 @@ class Printers:
                 notes: Optional notes to include on ticket
             
             Returns:
-                Dictionary with 'header', 'content', and 'footer' sections
+                Dictionary with 'header', 'content', 'footer', and optional 'photo' sections
             """
-            return {
+            result = {
                 'header': Config.Ticket_text.get_headers(),
                 'content': Printers.Tasks.struct_content(ticket_info, ticket_id, notes),
                 'footer': Config.Ticket_text.get_footers()
             }
+            
+            # Add photo configuration if enabled (send photo_id, not data)
+            try:
+                from app.models.core_classes import TicketSettings
+                settings = TicketSettings.query.first()
+                if settings and settings.photo_enabled and settings.photo_id:
+                    result['photo'] = {
+                        'enabled': True,
+                        'photo_id': settings.photo_id,
+                        'position': settings.photo_position or 'header',
+                        'height': settings.photo_height
+                    }
+            except Exception as e:
+                # Log but don't fail ticket printing if photo fails
+                print(f'Warning: Could not include photo in ticket: {e}')
+            
+            return result

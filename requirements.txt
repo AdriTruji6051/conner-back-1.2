@@ -8,3 +8,4 @@ Flask-SQLAlchemy==3.1.1
 greenlet==3.1.1
 gevent==24.2.1
 gevent-websocket==0.10.1
+Pillow==10.4.0

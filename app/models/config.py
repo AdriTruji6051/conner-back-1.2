@@ -2,6 +2,7 @@ from app.extensions import db
 from app.models.core_classes import User, TicketText, TicketFontConfig, TicketSettings
 from app.helpers.helpers import raise_exception_if_missing_keys, ValidationError, collect_missing_keys
 from sqlalchemy import event
+import uuid
 
 create_user_keys = ['user', 'user_name', 'password', 'role_type']
 update_user_keys = ['user', 'user_name', 'password', 'role_type', 'id']
@@ -380,6 +381,174 @@ class Config:
             else:
                 settings.print_full_row = value
             db.session.commit()
+
+        @staticmethod
+        def upload_photo(photo_data: bytes, position: str = 'header', height: int | None = None, width: int = 640):
+            """Upload and process a photo for ticket printing.
+            
+            Args:
+                photo_data: Raw image bytes
+                position: 'header' or 'footer' - where to print the photo
+                height: Optional custom height in pixels (50-1000)
+                width: Width in pixels (100-640). Default 640 for 80mm thermal printer
+            """
+            from PIL import Image
+            import io
+            
+            v = ValidationError()
+            if not photo_data:
+                v.add('photo_data', 'Photo data is required')
+            if position not in ['header', 'footer']:
+                v.add('position', 'Position must be "header" or "footer"')
+            if height is not None and (height < 50 or height > 1000):
+                v.add('height', 'Height must be between 50 and 1000 pixels')
+            if width < 100 or width > 640:
+                v.add('width', 'Width must be between 100 and 640 pixels')
+            v.raise_if_errors()
+            
+            # Process image: convert to grayscale and resize to specified width
+            img = Image.open(io.BytesIO(photo_data))
+            
+            # Convert to grayscale
+            img = img.convert('L')
+            
+            # Calculate aspect ratio
+            aspect_ratio = img.height / img.width
+            
+            if height is None:
+                # Auto-calculate height based on aspect ratio and width
+                new_height = int(width * aspect_ratio)
+            else:
+                new_height = height
+            
+            # Resize image
+            img = img.resize((width, new_height), Image.Resampling.LANCZOS)
+            
+            # Convert back to bytes
+            output = io.BytesIO()
+            img.save(output, format='PNG')
+            processed_data = output.getvalue()
+            
+            # Generate unique photo ID
+            photo_id = str(uuid.uuid4())
+            
+            # Save to database
+            settings = TicketSettings.query.first()
+            if not settings:
+                fc = ensure_default_font_config()
+                settings = TicketSettings(
+                    body_font_config=fc.id,
+                    header_font_config=fc.id,
+                    photo_id=photo_id,
+                    photo_data=processed_data,
+                    photo_position=position,
+                    photo_height=new_height,
+                    photo_width=width,
+                    photo_enabled=True
+                )
+                db.session.add(settings)
+            else:
+                settings.photo_id = photo_id
+                settings.photo_data = processed_data
+                settings.photo_position = position
+                settings.photo_height = new_height
+                settings.photo_width = width
+                settings.photo_enabled = True
+            
+            db.session.commit()
+            
+            # Push photo to all printer services
+            from app.helpers.helpers import push_photo_to_all_services
+            push_results = push_photo_to_all_services(photo_id, processed_data)
+            
+            return {
+                'photo_id': photo_id,
+                'height': new_height, 
+                'width': width,
+                'distributed_to': push_results
+            }
+
+        @staticmethod
+        def get_photo_config() -> dict:
+            """Get current photo configuration."""
+            settings = TicketSettings.query.first()
+            if not settings:
+                return {
+                    'photo_enabled': False,
+                    'photo_position': 'header',
+                    'photo_height': None,
+                    'photo_width': 640,
+                    'has_photo': False
+                }
+            
+            return {
+                'photo_enabled': settings.photo_enabled,
+                'photo_position': settings.photo_position,
+                'photo_height': settings.photo_height,
+                'photo_width': settings.photo_width or 640,
+                'has_photo': settings.photo_data is not None
+            }
+
+        @staticmethod
+        def get_photo_data() -> bytes | None:
+            """Get the raw photo data for printing."""
+            settings = TicketSettings.query.first()
+            if not settings or not settings.photo_data:
+                return None
+            return settings.photo_data
+
+        @staticmethod
+        def update_photo_config(enabled: bool | None = None, position: str | None = None, height: int | None = None, width: int | None = None):
+            """Update photo configuration without changing the photo itself."""
+            v = ValidationError()
+            if position is not None and position not in ['header', 'footer']:
+                v.add('position', 'Position must be "header" or "footer"')
+            if height is not None and (height < 50 or height > 1000):
+                v.add('height', 'Height must be between 50 and 1000 pixels')
+            if width is not None and (width < 100 or width > 640):
+                v.add('width', 'Width must be between 100 and 640 pixels')
+            v.raise_if_errors()
+            
+            settings = TicketSettings.query.first()
+            if not settings:
+                fc = ensure_default_font_config()
+                settings = TicketSettings(
+                    body_font_config=fc.id,
+                    header_font_config=fc.id
+                )
+                db.session.add(settings)
+            
+            if enabled is not None:
+                settings.photo_enabled = enabled
+            if position is not None:
+                settings.photo_position = position
+            if height is not None:
+                settings.photo_height = height
+            if width is not None:
+                settings.photo_width = width
+            
+            db.session.commit()
+
+        @staticmethod
+        def delete_photo():
+            """Remove the photo from ticket configuration and all printer services."""
+            settings = TicketSettings.query.first()
+            if settings and settings.photo_id:
+                photo_id = settings.photo_id
+                
+                # Delete from all printer services
+                from app.helpers.helpers import delete_photo_from_all_services
+                delete_results = delete_photo_from_all_services(photo_id)
+                
+                # Delete from database
+                settings.photo_id = None
+                settings.photo_data = None
+                settings.photo_enabled = False
+                settings.photo_height = None
+                db.session.commit()
+                
+                return delete_results
+            return {}
 
 
 @event.listens_for(TicketFontConfig, 'before_update')

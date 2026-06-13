@@ -104,6 +104,15 @@ ROUTE_SET_HEADER_FONT = f'{TICKET_FONTS_BASE}/header/update'
 ROUTE_GET_PRINT_FULL_ROW = f'{CONFIG_BASE}/ticket/print-full-row'
 ROUTE_SET_PRINT_FULL_ROW = f'{CONFIG_BASE}/ticket/print-full-row/update'
 
+# Config - Ticket Photo
+TICKET_PHOTO_BASE = f'{CONFIG_BASE}/ticket/photo'
+
+ROUTE_UPLOAD_PHOTO = f'{TICKET_PHOTO_BASE}/upload'
+ROUTE_GET_PHOTO_CONFIG = f'{TICKET_PHOTO_BASE}/config'
+ROUTE_UPDATE_PHOTO_CONFIG = f'{TICKET_PHOTO_BASE}/config'
+ROUTE_DELETE_PHOTO = TICKET_PHOTO_BASE
+ROUTE_GET_PHOTO_DATA = f'{TICKET_PHOTO_BASE}/data'
+
 # ===================== PRINTERS ROUTES =====================
 PRINT_BASE = f'{API_BASE}/print'
 

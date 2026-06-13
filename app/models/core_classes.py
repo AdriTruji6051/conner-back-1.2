@@ -312,6 +312,12 @@ class TicketSettings(db.Model):
     body_font_config = db.Column(db.Integer, db.ForeignKey(TICKET_ID_FK, onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
     header_font_config = db.Column(db.Integer, db.ForeignKey(TICKET_ID_FK, onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
     print_full_row = db.Column(db.Boolean, nullable=False, default=True)
+    photo_id = db.Column(db.String(36), nullable=True, unique=True)  # UUID for photo identification
+    photo_data = db.Column(db.LargeBinary, nullable=True)
+    photo_position = db.Column(db.Text, nullable=True, default='header')
+    photo_height = db.Column(db.Integer, nullable=True)
+    photo_width = db.Column(db.Integer, nullable=True, default=640)  # Width in pixels for scaling
+    photo_enabled = db.Column(db.Boolean, nullable=False, default=False)
 
     def to_dict(self) -> dict:
         return {
@@ -319,6 +325,12 @@ class TicketSettings(db.Model):
             'body_font_config': self.body_font_config,
             'header_font_config': self.header_font_config,
             'print_full_row': self.print_full_row,
+            'photo_id': self.photo_id,
+            'photo_enabled': self.photo_enabled,
+            'photo_position': self.photo_position,
+            'photo_height': self.photo_height,
+            'photo_width': self.photo_width,
+            'has_photo': self.photo_data is not None,
         }
 
 
