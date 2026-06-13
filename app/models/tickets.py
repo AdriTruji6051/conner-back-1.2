@@ -339,6 +339,17 @@ class Tickets:
                     if not pit:
                         continue
 
+                    # Validate sale_price >= cost
+                    new_sale_price = prod.get('sale_price', pit.sale_price)
+                    product_data = Products.get(pit.code)
+                    if product_data and product_data.get('cost') is not None:
+                        product_cost = product_data['cost']
+                        if new_sale_price < product_cost:
+                            raise ValueError(
+                                f'Sale price (${new_sale_price:.2f}) cannot be less than cost (${product_cost:.2f}) '
+                                f'for product {pit.code} - {pit.description}'
+                            )
+
                     old_cantity = pit.cantity
                     new_cantity = prod['cantity']
                     diff = new_cantity - old_cantity
@@ -355,14 +366,31 @@ class Tickets:
                             Products.add_inventory(pit.code, abs(diff))
 
                     pit.cantity = new_cantity
-                    pit.profit = prod.get('profit', pit.profit)
                     pit.sale_price = prod.get('sale_price', pit.sale_price)
                     pit.wholesale_price = prod.get('wholesale_price', pit.wholesale_price)
                     pit.description = prod.get('description', pit.description)
+                    
+                    # Recalculate profit based on new sale_price and product cost
+                    if product_data and product_data.get('cost') is not None:
+                        product_cost = product_data['cost']
+                        pit.profit = (pit.sale_price - product_cost) * pit.cantity
+                    else:
+                        pit.profit = prod.get('profit', pit.profit)
 
                 elif action == 'add':
                     code = prod['code']
                     cantity = prod['cantity']
+                    sale_price = prod['sale_price']
+
+                    # Validate sale_price >= cost
+                    product_data = Products.get(code)
+                    if product_data and product_data.get('cost') is not None:
+                        product_cost = product_data['cost']
+                        if sale_price < product_cost:
+                            raise ValueError(
+                                f'Sale price (${sale_price:.2f}) cannot be less than cost (${product_cost:.2f}) '
+                                f'for product {code} - {prod["description"]}'
+                            )
 
                     if _should_adjust_inventory(code):
                         if not Products.enough_inventory(code, cantity):
@@ -372,23 +400,46 @@ class Tickets:
                             )
                         Products.remove_inventory(code, cantity)
 
+                    # Calculate profit based on sale_price and product cost
+                    profit = prod.get('profit')
+                    if product_data and product_data.get('cost') is not None:
+                        product_cost = product_data['cost']
+                        profit = (sale_price - product_cost) * cantity
+                    
                     pit = ProductInTicket(
                         ticket_id=ticket_id,
                         code=code,
                         description=prod['description'],
                         cantity=cantity,
-                        profit=prod.get('profit'),
+                        profit=profit,
                         wholesale_price=prod.get('wholesale_price'),
-                        sale_price=prod['sale_price'],
+                        sale_price=sale_price,
                     )
                     db.session.add(pit)
 
-            # Update ticket header
-            ticket.sub_total = data['sub_total']
-            ticket.total = data['total']
-            ticket.discount = data['discount']
-            ticket.profit = data['profit']
-            ticket.products_count = data['products_count']
+            # Recalculate ticket totals based on current products
+            products_in_ticket = ProductInTicket.query.filter_by(ticket_id=ticket_id).all()
+            
+            recalculated_subtotal = 0.0
+            recalculated_profit = 0.0
+            recalculated_products_count = 0
+            
+            for pit in products_in_ticket:
+                item_total = pit.sale_price * pit.cantity
+                recalculated_subtotal += item_total
+                recalculated_profit += (pit.profit or 0.0)
+                recalculated_products_count += 1
+            
+            # Calculate total with discount
+            discount = data.get('discount', 0.0)
+            recalculated_total = recalculated_subtotal - discount
+            
+            # Update ticket header with recalculated values
+            ticket.sub_total = recalculated_subtotal
+            ticket.total = recalculated_total
+            ticket.discount = discount
+            ticket.profit = recalculated_profit
+            ticket.products_count = recalculated_products_count
             if 'notes' in data:
                 ticket.notes = data['notes']
             ticket.modified_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
