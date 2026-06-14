@@ -1,5 +1,5 @@
 from app.extensions import db
-from app.models.core_classes import User, TicketText, TicketFontConfig, TicketSettings
+from app.models.core_classes import User, TicketText, TicketFontConfig, TicketSettings, PriceTagSettings
 from app.helpers.helpers import raise_exception_if_missing_keys, ValidationError, collect_missing_keys
 from sqlalchemy import event
 import uuid
@@ -13,7 +13,13 @@ DEFAULT_FONT_NAME = 'Consolas'
 DEFAULT_FONT_SIZE = 12
 DEFAULT_FONT_WEIGHT = 500
 
+# Price tag large font for price display
+PRICE_TAG_LARGE_FONT_NAME = 'Consolas'
+PRICE_TAG_LARGE_FONT_SIZE = 100
+PRICE_TAG_LARGE_FONT_WEIGHT = 700
+
 _DEFAULT_FONT_CONFIG_ID: int | None = None
+_PRICE_TAG_LARGE_FONT_CONFIG_ID: int | None = None
 
 
 def ensure_default_font_config() -> TicketFontConfig:
@@ -36,6 +42,29 @@ def ensure_default_font_config() -> TicketFontConfig:
         db.session.commit()
 
     _DEFAULT_FONT_CONFIG_ID = font_cfg.id
+    return font_cfg
+
+
+def ensure_price_tag_large_font_config() -> TicketFontConfig:
+    """Ensure the price tag large font exists and cache its id."""
+    global _PRICE_TAG_LARGE_FONT_CONFIG_ID
+
+    font_cfg = TicketFontConfig.query.filter_by(
+        font=PRICE_TAG_LARGE_FONT_NAME,
+        size=PRICE_TAG_LARGE_FONT_SIZE,
+        weigh=PRICE_TAG_LARGE_FONT_WEIGHT,
+    ).first()
+
+    if not font_cfg:
+        font_cfg = TicketFontConfig(
+            font=PRICE_TAG_LARGE_FONT_NAME,
+            size=PRICE_TAG_LARGE_FONT_SIZE,
+            weigh=PRICE_TAG_LARGE_FONT_WEIGHT,
+        )
+        db.session.add(font_cfg)
+        db.session.commit()
+
+    _PRICE_TAG_LARGE_FONT_CONFIG_ID = font_cfg.id
     return font_cfg
 
 
@@ -733,13 +762,110 @@ class Config:
             db.session.commit()
 
 
-@event.listens_for(TicketFontConfig, 'before_update')
-def _prevent_default_font_update(mapper, connection, target):
-    if is_protected_font_config(target):
-        raise ValueError('Default ticket font cannot be modified.')
+    class PriceTag:
+        @staticmethod
+        def get_settings() -> dict:
+            """Get current price tag settings.
+            
+            If no settings exist, create default with large font for price.
+            """
+            settings = PriceTagSettings.query.first()
+            if not settings:
+                # Ensure fonts exist
+                default_font = ensure_default_font_config()
+                large_font = ensure_price_tag_large_font_config()
+                
+                settings = PriceTagSettings(
+                    code_font_config=default_font.id,
+                    description_font_config=default_font.id,
+                    price_font_config=large_font.id,
+                    wholesale_price_font_config=default_font.id,
+                    show_wholesale_price=False,
+                    enable_cut_row=True,
+                    show_barcode=True,
+                    barcode_height=50,
+                    barcode_width=0.2
+                )
+                db.session.add(settings)
+                db.session.commit()
+            
+            return settings.to_dict()
 
+        @staticmethod
+        def update_settings(data: dict):
+            """Update price tag settings.
+            
+            Args:
+                data: Dictionary with optional keys:
+                    - code_font_config: Font config ID for product code
+                    - description_font_config: Font config ID for description
+                    - price_font_config: Font config ID for price
+                    - wholesale_price_font_config: Font config ID for wholesale price
+                    - show_wholesale_price: Boolean to show/hide wholesale price
+                    - enable_cut_row: Boolean to enable/disable row cutting
+                    - show_barcode: Boolean to show/hide barcode
+                    - barcode_height: Barcode height in mm (10-100)
+                    - barcode_width: Barcode module width in mm (0.1-1.0)
+            """
+            v = ValidationError()
+            
+            # Validate font configs if provided
+            for key in ['code_font_config', 'description_font_config', 'price_font_config', 'wholesale_price_font_config']:
+                if key in data and data[key] is not None:
+                    fc = TicketFontConfig.query.get(data[key])
+                    if not fc:
+                        v.add(key, f'Font config with id {data[key]} not found')
+            
+            # Validate barcode dimensions
+            if 'barcode_height' in data:
+                if not isinstance(data['barcode_height'], (int, float)) or data['barcode_height'] < 10 or data['barcode_height'] > 100:
+                    v.add('barcode_height', 'Must be between 10 and 100 mm')
+            
+            if 'barcode_width' in data:
+                if not isinstance(data['barcode_width'], (int, float)) or data['barcode_width'] < 0.1 or data['barcode_width'] > 1.0:
+                    v.add('barcode_width', 'Must be between 0.1 and 1.0 mm')
+            
+            v.raise_if_errors()
+            
+            # Get or create settings
+            settings = PriceTagSettings.query.first()
+            if not settings:
+                default_font = ensure_default_font_config()
+                large_font = ensure_price_tag_large_font_config()
+                settings = PriceTagSettings(
+                    code_font_config=default_font.id,
+                    description_font_config=default_font.id,
+                    price_font_config=large_font.id,
+                    wholesale_price_font_config=default_font.id
+                )
+                db.session.add(settings)
+            
+            # Update settings
+            if 'code_font_config' in data:
+                settings.code_font_config = data['code_font_config']
+            if 'description_font_config' in data:
+                settings.description_font_config = data['description_font_config']
+            if 'price_font_config' in data:
+                settings.price_font_config = data['price_font_config']
+            if 'wholesale_price_font_config' in data:
+                settings.wholesale_price_font_config = data['wholesale_price_font_config']
+            if 'show_wholesale_price' in data:
+                settings.show_wholesale_price = bool(data['show_wholesale_price'])
+            if 'enable_cut_row' in data:
+                settings.enable_cut_row = bool(data['enable_cut_row'])
+            if 'show_barcode' in data:
+                settings.show_barcode = bool(data['show_barcode'])
+            if 'barcode_height' in data:
+                settings.barcode_height = data['barcode_height']
+            if 'barcode_width' in data:
+                settings.barcode_width = data['barcode_width']
+            
+            db.session.commit()
 
-@event.listens_for(TicketFontConfig, 'before_delete')
-def _prevent_default_font_delete(mapper, connection, target):
-    if is_protected_font_config(target):
-        raise ValueError('Default ticket font cannot be deleted.')
+        @staticmethod
+        def get_font_config(config_id: int) -> dict:
+            """Get a specific font configuration by ID."""
+            fc = TicketFontConfig.query.get(config_id)
+            if not fc:
+                raise ValueError(f'Font config with id {config_id} not found')
+            return fc.to_dict()

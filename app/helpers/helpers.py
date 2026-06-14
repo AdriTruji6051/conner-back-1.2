@@ -336,3 +336,77 @@ def delete_photo_from_all_services(photo_id: str) -> Dict[str, bool]:
     
     return results
 
+
+
+
+
+def send_to_printer_service(command: dict, printer_name: str = None, ipv4: str = '127.0.0.1', port: int = 9100) -> dict:
+    """Send a command to the printer service.
+    
+    Args:
+        command: Dictionary command to send to printer service
+        printer_name: Optional printer name to use (will update printer before sending)
+        ipv4: IP address of printer service
+        port: Port of printer service (default 9100)
+        
+    Returns:
+        Response dictionary from printer service
+    """
+    try:
+        from app.controlers.printers import Printers
+        printers_manager = Printers()
+        
+        # If printer_name specified, update the printer first
+        if printer_name:
+            try:
+                printers_manager.update_printer(printer_name, ipv4)
+            except Exception as e:
+                print(f"Warning: Could not set printer {printer_name}: {e}")
+        
+        # Send command to service
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(10)
+            s.connect((ipv4, port))
+            s.sendall(json.dumps(command).encode('utf-8'))
+            
+            # Receive response
+            response = s.recv(4096).decode('utf-8')
+            
+            # Check if response is empty
+            if not response or not response.strip():
+                print(f"Warning: Printer service returned empty response")
+                return {
+                    'status': 'warning',
+                    'message': 'Printer service returned empty response. The action may not be supported yet.'
+                }
+            
+            # Try to parse JSON response
+            try:
+                result = json.loads(response)
+                return result
+            except json.JSONDecodeError as json_err:
+                print(f"Warning: Could not parse printer service response: {response[:100]}")
+                return {
+                    'status': 'warning',
+                    'message': f'Printer service returned invalid JSON: {str(json_err)}',
+                    'raw_response': response[:200]
+                }
+            
+    except ConnectionRefusedError:
+        print(f"Error: Printer service not reachable at {ipv4}:{port}")
+        return {
+            'status': 'error',
+            'message': f'Printer service not reachable at {ipv4}:{port}. Make sure the service is running.'
+        }
+    except socket.timeout:
+        print(f"Error: Printer service timeout at {ipv4}:{port}")
+        return {
+            'status': 'error',
+            'message': f'Printer service timeout. The service may be busy or not responding.'
+        }
+    except Exception as e:
+        print(f"Error sending to printer service: {e}")
+        return {
+            'status': 'error',
+            'message': str(e)
+        }

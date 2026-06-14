@@ -342,6 +342,35 @@ class TicketSettings(db.Model):
         }
 
 
+class PriceTagSettings(db.Model):
+    __tablename__ = 'price_tag_settings'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    code_font_config = db.Column(db.Integer, db.ForeignKey(TICKET_ID_FK, onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
+    description_font_config = db.Column(db.Integer, db.ForeignKey(TICKET_ID_FK, onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
+    price_font_config = db.Column(db.Integer, db.ForeignKey(TICKET_ID_FK, onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
+    wholesale_price_font_config = db.Column(db.Integer, db.ForeignKey(TICKET_ID_FK, onupdate=CASCADE, ondelete=SET_NULL), nullable=True)
+    show_wholesale_price = db.Column(db.Boolean, nullable=False, default=False)
+    enable_cut_row = db.Column(db.Boolean, nullable=False, default=True)
+    show_barcode = db.Column(db.Boolean, nullable=False, default=True)
+    barcode_height = db.Column(db.Integer, nullable=False, default=50)  # Height in mm
+    barcode_width = db.Column(db.Float, nullable=False, default=0.2)  # Module width in mm
+
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'code_font_config': self.code_font_config,
+            'description_font_config': self.description_font_config,
+            'price_font_config': self.price_font_config,
+            'wholesale_price_font_config': self.wholesale_price_font_config,
+            'show_wholesale_price': self.show_wholesale_price,
+            'enable_cut_row': self.enable_cut_row,
+            'show_barcode': self.show_barcode,
+            'barcode_height': self.barcode_height,
+            'barcode_width': self.barcode_width,
+        }
+
+
 # ===================== SQLALCHEMY EVENT: Inventory tracking =====================
 
 from sqlalchemy import event, inspect

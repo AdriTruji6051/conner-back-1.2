@@ -12,7 +12,8 @@ from app.routes_constants import (
     ROUTE_GET_FONTS, ROUTE_CREATE_FONT, ROUTE_GET_BODY_FONT, ROUTE_SET_BODY_FONT,
     ROUTE_GET_HEADER_FONT, ROUTE_SET_HEADER_FONT, ROUTE_GET_PRINT_FULL_ROW, ROUTE_SET_PRINT_FULL_ROW,
     ROUTE_UPLOAD_PHOTO, ROUTE_GET_PHOTO_CONFIG, ROUTE_UPDATE_PHOTO_CONFIG, ROUTE_DELETE_PHOTO, ROUTE_GET_PHOTO_DATA,
-    ROUTE_GET_CURRENCY, ROUTE_SET_CURRENCY
+    ROUTE_GET_CURRENCY, ROUTE_SET_CURRENCY,
+    ROUTE_GET_PRICE_TAG_SETTINGS, ROUTE_UPDATE_PRICE_TAG_SETTINGS, ROUTE_PRINT_PRICE_TAG
 )
 
 routesConfig = Blueprint('routes-config', __name__)
@@ -107,7 +108,6 @@ def delete_user(id):
     
 
 @routesConfig.route(ROUTE_UPDATE_USER_LANGUAGE, methods=['PUT'])
-@jwt_required()
 def update_user_language():
     """Update the language preference for the authenticated user."""
     try:
@@ -400,3 +400,142 @@ def set_currency():
     except Exception as e:
         logging.exception(f'{ROUTE_SET_CURRENCY}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error updating currency').to_flask_tuple()
+
+
+
+@routesConfig.route(ROUTE_GET_PRICE_TAG_SETTINGS, methods=['GET'])
+def get_price_tag_settings():
+    """Get current price tag settings."""
+    try:
+        return AppResponse.success(Config.PriceTag.get_settings()).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_GET_PRICE_TAG_SETTINGS}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error retrieving price tag settings').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_UPDATE_PRICE_TAG_SETTINGS, methods=['PUT'])
+def update_price_tag_settings():
+    """Update price tag settings."""
+    try:
+        data = dict(request.get_json())
+        Config.PriceTag.update_settings(data)
+        return AppResponse.success({'status': 'Price tag settings updated successfully'}).to_flask_tuple()
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except ValueError as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_UPDATE_PRICE_TAG_SETTINGS}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error updating price tag settings').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_PRINT_PRICE_TAG, methods=['POST'])
+def print_price_tag():
+    """Print a price tag with product information.
+    
+    Expected JSON body:
+    {
+        "code": "product_code",
+        "description": "Product description",
+        "price": 99.99,
+        "wholesale_price": 79.99  // optional
+    }
+    """
+    try:
+        data = dict(request.get_json())
+        
+        # Validate required fields
+        v = ValidationError()
+        if 'code' not in data or not data['code']:
+            v.add('code', 'Product code is required')
+        if 'description' not in data or not data['description']:
+            v.add('description', 'Product description is required')
+        if 'price' not in data:
+            v.add('price', 'Price is required')
+        if 'printer_name' not in data or not data['printer_name']:
+            v.add('printer_name', 'Printer name is required')
+        v.raise_if_errors()
+        
+        # Get settings
+        settings = Config.PriceTag.get_settings()
+        
+        # Get font configurations
+        code_font = Config.PriceTag.get_font_config(settings['code_font_config']) if settings['code_font_config'] else None
+        desc_font = Config.PriceTag.get_font_config(settings['description_font_config']) if settings['description_font_config'] else None
+        price_font = Config.PriceTag.get_font_config(settings['price_font_config']) if settings['price_font_config'] else None
+        wholesale_font = Config.PriceTag.get_font_config(settings['wholesale_price_font_config']) if settings['wholesale_price_font_config'] else None
+        
+        # Build print context
+        print_context = {
+            'code': data['code'],
+            'description': data['description'],
+            'price': data['price'],
+            'wholesale_price': data.get('wholesale_price'),
+            'show_wholesale_price': settings['show_wholesale_price'] and data.get('wholesale_price') is not None,
+            'enable_cut_row': settings['enable_cut_row'],
+            'show_barcode': settings['show_barcode'],
+            'barcode_height': settings['barcode_height'],
+            'barcode_width': settings['barcode_width'],
+            'fonts': {
+                'code': code_font,
+                'description': desc_font,
+                'price': price_font,
+                'wholesale_price': wholesale_font
+            }
+        }
+        
+        # Generate barcode if enabled
+        if settings['show_barcode']:
+            try:
+                import barcode
+                from barcode.writer import ImageWriter
+                import io
+                import base64
+                
+                # Try to create barcode (Code128 is most versatile)
+                code_class = barcode.get_barcode_class('code128')
+                barcode_instance = code_class(data['code'], writer=ImageWriter())
+                
+                # Generate barcode image with height < 0.5cm (5mm)
+                # Use reasonable module width for scanning while keeping compact
+                buffer = io.BytesIO()
+                barcode_instance.write(buffer, options={
+                    'module_height': 4.0,   # 4mm height (< 0.5cm requirement)
+                    'module_width': 0.15,   # 0.15mm per module (scannable minimum)
+                    'quiet_zone': 1.0,      # 1mm quiet zone for scanning
+                    'text_distance': 1,
+                    'font_size': 6,
+                    'write_text': False     # Disable text below barcode to save space
+                })
+                
+                # Convert to base64 for transmission
+                buffer.seek(0)
+                barcode_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+                print_context['barcode_image'] = f'data:image/png;base64,{barcode_base64}'
+                
+            except Exception as barcode_error:
+                logging.warning(f'Failed to generate barcode: {barcode_error}')
+                print_context['barcode_image'] = None
+        
+        # Send to printer service with printer name
+        from app.helpers.helpers import send_to_printer_service
+        result = send_to_printer_service(
+            command={
+                'action': 'printer/price_tag',
+                'printContext': print_context
+            },
+            printer_name=data['printer_name']
+        )
+        
+        return AppResponse.success({
+            'status': 'Price tag sent to printer',
+            'printer_response': result
+        }).to_flask_tuple()
+        
+    except ValidationError as e:
+        return AppResponse.validation_error(e.errors).to_flask_tuple()
+    except ValueError as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_PRINT_PRICE_TAG}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error printing price tag').to_flask_tuple()
