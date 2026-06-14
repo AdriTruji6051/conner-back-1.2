@@ -320,6 +320,9 @@ class TicketSettings(db.Model):
     photo_height = db.Column(db.Integer, nullable=True)
     photo_width = db.Column(db.Integer, nullable=True, default=640)  # Width in pixels for scaling
     photo_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    header_align = db.Column(db.Text, nullable=False, default='center')  # 'left', 'center', 'right'
+    footer_align = db.Column(db.Text, nullable=False, default='center')  # 'left', 'center', 'right'
+    currency = db.Column(db.Text, nullable=False, default='MXN')  # Currency code (e.g., MXN, USD, EUR)
 
     def to_dict(self) -> dict:
         return {
@@ -333,6 +336,9 @@ class TicketSettings(db.Model):
             'photo_height': self.photo_height,
             'photo_width': self.photo_width,
             'has_photo': self.photo_data is not None,
+            'header_align': self.header_align,
+            'footer_align': self.footer_align,
+            'currency': self.currency,
         }
 
 

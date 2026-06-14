@@ -1,0 +1,12 @@
+{
+  "TICKET": {
+    "DATE": "FECHA",
+    "TICKET_NUMBER": "TICKET º",
+    "PRODUCTS": "PRODUCTOS",
+    "QUANTITY": "CANTIDAD",
+    "PRICE": "PRECIO",
+    "TOTAL": "TOTAL",
+    "ARTICLES_COUNT": "ARTÍCULOS",
+    "DISCOUNT": "DESCUENTO"
+  }
+}

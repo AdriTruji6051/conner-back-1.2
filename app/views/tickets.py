@@ -288,8 +288,9 @@ def save_ticket(ticket_key):
             print_many = int(print_many)
             
         printer_name = data.get('printer_name')
+        language = data.get('language', 'es-MX')  # Default to Spanish
 
-        saved_id = TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total, ipv4=request.remote_addr, print_many=print_many, printer_name=printer_name)
+        saved_id = TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total, ipv4=request.remote_addr, print_many=print_many, printer_name=printer_name, language=language)
         # Notify any subscribed clients that the ticket was finalized/updated
         broadcast_ticket_update(ticket_key)
         return AppResponse.success(saved_id).to_flask_tuple()
@@ -339,6 +340,7 @@ def reprint_ticket(ticket_id):
         data = request.get_json(silent=True) or {}
         printer_name = data.get('printer_name')
         print_many = data.get('print', 1)
+        language = data.get('language', 'es-MX')  # Default to Spanish
         
         if print_many is not None:
             print_many = int(print_many)
@@ -373,10 +375,10 @@ def reprint_ticket(ticket_id):
             'notes': ticket.notes or '',
         }
         
-        # Print ticket
+        # Print ticket with language support
         from app.controlers.printers import Printers
         printers = Printers()
-        printers.print_ticket(ticket_info, ticket_id, ticket.notes or '', printer_name, request.remote_addr, print_many)
+        printers.print_ticket(ticket_info, ticket_id, ticket.notes or '', printer_name, request.remote_addr, print_many, language)
         
         return AppResponse.success({'ticket_id': ticket_id, 'printed': print_many}).to_flask_tuple()
     except ValidationError as e:

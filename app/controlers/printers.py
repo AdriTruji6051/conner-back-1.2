@@ -1,9 +1,11 @@
 import json
 import socket
 from datetime import datetime
+from num2words import num2words
 
 from app.controlers.core_classes import ticket_info
 from app.models.config import Config
+from app.helpers.i18n import get_translation
 
 DEFAULT_FONT = 'Lucida Console'
 REPEAT_CHARS = 30
@@ -74,7 +76,7 @@ class Printers:
     def stop_service(self, ipv4: str = '127.0.0.1'):
         return self.__query_service('service/stop', ipv4)
     
-    def print_ticket(self, ticket_info: ticket_info, ticket_id: int, notes: str, printer_name: str, ipv4: str = '127.0.0.1', print_many: int = 1):
+    def print_ticket(self, ticket_info: ticket_info, ticket_id: int, notes: str, printer_name: str, ipv4: str = '127.0.0.1', print_many: int = 1, language: str = 'es-MX'):
         """
         Structure ticket data and send to printer multiple times.
         
@@ -85,6 +87,7 @@ class Printers:
             printer_name: Name of the printer to send to
             ipv4: IP address of the printer service
             print_many: Number of times to print the ticket
+            language: Language code for translations (default: 'es-MX')
         """
         if print_many <= 0 or not printer_name:
             return
@@ -94,7 +97,7 @@ class Printers:
             raise ValueError(f'Printer "{printer_name}" not found in available printers on host {ipv4}')
         
         # Structure ticket content with headers, content, and footers
-        printer_content = Printers.Tasks.struct_ticket(ticket_info, ticket_id, notes)
+        printer_content = Printers.Tasks.struct_ticket(ticket_info, ticket_id, notes, language)
         
         # Send to printer multiple times
         for attempt in range(print_many):
@@ -104,7 +107,6 @@ class Printers:
                     'action': 'printer/ticket',
                     'printContext': printer_content
                 }
-                print(print_query)
                 self.__query_service(print_query, ipv4)
             except Exception as e:
                 # Log warning but don't fail - ticket is already saved
@@ -162,7 +164,7 @@ class Printers:
                 return defaults
 
         @staticmethod
-        def _add_header_lines(lines: list, line_number: int, ticket_id: int, header_config: dict) -> int:
+        def _add_header_lines(lines: list, line_number: int, ticket_id: int, header_config: dict, language: str = 'es-MX') -> int:
             """
             Add header lines (date, time, ticket ID) to the ticket.
             
@@ -171,6 +173,7 @@ class Printers:
                 line_number: Current line number
                 ticket_id: Ticket identifier
                 header_config: Header font configuration
+                language: Language code for translations
             
             Returns:
                 Updated line number
@@ -179,12 +182,15 @@ class Printers:
             fecha = now.strftime('%d-%m-%Y')
             hora = now.strftime('%H:%M')
             
+            date_label = get_translation('TICKET.DATE', language)
+            ticket_label = get_translation('TICKET.TICKET_NUMBER', language)
+            
             lines.append({
                 'font': header_config['font'],
                 'font_config': header_config['id'],
                 'line': line_number,
                 'size': header_config['size'],
-                'text': f'DATE: {fecha} {hora}',
+                'text': f'{date_label}: {fecha} {hora}',
                 'weigh': header_config['weigh'],
                 'cut_row': False,
                 'jumpline': False
@@ -196,7 +202,7 @@ class Printers:
                 'font_config': header_config['id'],
                 'line': line_number,
                 'size': header_config['size'],
-                'text': f'TICKET º {ticket_id}',
+                'text': f'{ticket_label} {ticket_id}',
                 'weigh': header_config['weigh'],
                 'cut_row': False,
                 'jumpline': False
@@ -284,7 +290,7 @@ class Printers:
             return line_number
 
         @staticmethod
-        def struct_content(ticket_info: ticket_info, ticket_id: int, notes: str = '') -> list:
+        def struct_content(ticket_info: ticket_info, ticket_id: int, notes: str = '', language: str = 'es-MX') -> list:
             """
             Format ticket information into printer-ready content structure.
             
@@ -292,6 +298,7 @@ class Printers:
                 ticket_info: Dictionary containing ticket products and totals
                 ticket_id: The ticket identifier
                 notes: Optional notes to include on ticket
+                language: Language code for translations
             
             Returns:
                 List of line objects formatted for printer with font, size, weight config
@@ -315,8 +322,14 @@ class Printers:
                 {'font': DEFAULT_FONT, 'size': 36, 'weigh': 2000, 'id': 2}
             )
             
+            # Get translations
+            quantity_label = get_translation('TICKET.QUANTITY', language)
+            price_label = get_translation('TICKET.PRICE', language)
+            total_label = get_translation('TICKET.TOTAL', language)
+            products_label = get_translation('TICKET.PRODUCTS', language)
+            
             # Add header lines
-            line_number = Printers.Tasks._add_header_lines(lines, line_number, ticket_id, header_config)
+            line_number = Printers.Tasks._add_header_lines(lines, line_number, ticket_id, header_config, language)
             
             # Add notes if provided
             line_number = Printers.Tasks._add_notes_lines(lines, line_number, notes, content_config)
@@ -340,7 +353,7 @@ class Printers:
                 'font_config': content_config['id'],
                 'line': line_number,
                 'size': content_config['size'],
-                'text': 'CANTITY\\PRICE\\TOTAL',
+                'text': f'{quantity_label}\\{price_label}\\{total_label}',
                 'weigh': content_config['weigh'],
                 'cut_row': False,
                 'jumpline': False
@@ -366,37 +379,106 @@ class Printers:
             ))
             line_number += 1
             
-            # Total line
+            # Total line with currency
             total = ticket_info.get('sub_total', 0)
+            try:
+                currency = Config.Ticket_text.get_currency()
+            except Exception:
+                currency = 'MXN'
+            
             lines.append({
                 'font': header_config['font'],
                 'font_config': header_config['id'],
                 'line': line_number,
                 'size': header_config['size'] * 1.2,
-                'text': f'TOTAL: $ {total}',
+                'text': f'{total_label}: $ {total} {currency}',
                 'weigh': header_config['weigh'],
                 'cut_row': False,
                 'jumpline': False
             })
             line_number += 1
             
+            # Total in words
+            try:
+                # Map language codes to num2words language codes
+                lang_map = {
+                    'es-MX': 'es',
+                    'es': 'es',
+                    'en-US': 'en',
+                    'en': 'en'
+                }
+                num2words_lang = lang_map.get(language, 'es')
+                
+                # Convert total to words (cardinal = just the number, no currency)
+                total_in_words = num2words(total, lang=num2words_lang, to='cardinal')
+                
+                # Capitalize first letter
+                total_in_words = total_in_words[0].upper() + total_in_words[1:] if total_in_words else ''
+                
+                lines.append({
+                    'font': content_config['font'],
+                    'font_config': content_config['id'],
+                    'line': line_number,
+                    'size': content_config['size'],
+                    'text': f'{total_in_words} {currency}',
+                    'weigh': content_config['weigh'],
+                    'cut_row': False,
+                    'jumpline': False
+                })
+                line_number += 1
+            except Exception as e:
+                # If num2words fails, just skip this line
+                print(f'Warning: Could not convert total to words: {e}')
+            
             # Products count
-            articles_count = ticket_info.get('articles_count', 0)
+            products_count = ticket_info.get('products_count', 0)
             lines.append({
                 'font': content_config['font'],
                 'font_config': content_config['id'],
                 'line': line_number,
                 'size': content_config['size'],
-                'text': f'PRODUCTS: {articles_count}',
+                'text': f'{products_label}: {products_count}',
                 'weigh': content_config['weigh'],
                 'cut_row': False,
                 'jumpline': False
             })
+            line_number += 1
+            
+            # Articles count
+            articles_count = ticket_info.get('articles_count', 0)
+            articles_label = get_translation('TICKET.ARTICLES_COUNT', language)
+            lines.append({
+                'font': content_config['font'],
+                'font_config': content_config['id'],
+                'line': line_number,
+                'size': content_config['size'],
+                'text': f'{articles_label}: {articles_count}',
+                'weigh': content_config['weigh'],
+                'cut_row': False,
+                'jumpline': False
+            })
+            line_number += 1
+            
+            # Discount (only if > 0)
+            discount = ticket_info.get('discount', 0)
+            if discount > 0:
+                discount_label = get_translation('TICKET.DISCOUNT', language)
+                lines.append({
+                    'font': content_config['font'],
+                    'font_config': content_config['id'],
+                    'line': line_number,
+                    'size': content_config['size'],
+                    'text': f'{discount_label}: $ {discount}',
+                    'weigh': content_config['weigh'],
+                    'cut_row': False,
+                    'jumpline': False
+                })
+                line_number += 1
             
             return lines
         
         @staticmethod
-        def struct_ticket(ticket_info: ticket_info, ticket_id: int, notes: str = '') -> dict:
+        def struct_ticket(ticket_info: ticket_info, ticket_id: int, notes: str = '', language: str = 'es-MX') -> dict:
             """
             Format complete ticket structure with headers, content, footers, and optional photo.
             
@@ -404,14 +486,36 @@ class Printers:
                 ticket_info: Dictionary containing ticket products and totals
                 ticket_id: The ticket identifier
                 notes: Optional notes to include on ticket
+                language: Language code for translations
             
             Returns:
-                Dictionary with 'header', 'content', 'footer', and optional 'photo' sections
+                Dictionary with 'header', 'content', 'footer', 'header_align', 'footer_align', and optional 'photo' sections
             """
+            # Get alignment settings
+            header_align = Config.Ticket_text.get_header_align()
+            footer_align = Config.Ticket_text.get_footer_align()
+            
+            # Map alignment to font_config: left=0, center=2, right=0
+            alignment_to_config = {'left': 0, 'center': 2, 'right': 0}
+            
+            # Get headers and apply alignment override
+            headers = Config.Ticket_text.get_headers()
+            for header_line in headers:
+                if header_align in alignment_to_config:
+                    header_line['font_config'] = alignment_to_config[header_align]
+            
+            # Get footers and apply alignment override
+            footers = Config.Ticket_text.get_footers()
+            for footer_line in footers:
+                if footer_align in alignment_to_config:
+                    footer_line['font_config'] = alignment_to_config[footer_align]
+            
             result = {
-                'header': Config.Ticket_text.get_headers(),
-                'content': Printers.Tasks.struct_content(ticket_info, ticket_id, notes),
-                'footer': Config.Ticket_text.get_footers()
+                'header': headers,
+                'content': Printers.Tasks.struct_content(ticket_info, ticket_id, notes, language),
+                'footer': footers,
+                'header_align': header_align,
+                'footer_align': footer_align
             }
             
             # Add photo configuration if enabled (send photo_id, not data)

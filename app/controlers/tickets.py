@@ -264,7 +264,7 @@ class tickets_manager:
     def remove(self, ticket_key: int):
         tickets_manager.tickets_dict.pop(ticket_key)
 
-    def save(self, ticket_key: int, notes: str, total: float = 0, ipv4: str = '127.0.0.1', user_id: int = 0, print_many: int = 0, printer_name: str = None):
+    def save(self, ticket_key: int, notes: str, total: float = 0, ipv4: str = '127.0.0.1', user_id: int = 0, print_many: int = 0, printer_name: str = None, language: str = 'es-MX'):
         """Save at database the Ticket object with the ticket_key and return the ticket id saved at the database"""
         self.__track_editor(ticket_key, ipv4, user_id, 'save')
         ticket_info = self.__get(ticket_key).get_info()
@@ -283,7 +283,7 @@ class tickets_manager:
 
         if print_many > 0 and printer_name:
             printers = Printers()
-            printers.print_ticket(ticket_info, ticket_id, notes, printer_name, ipv4, print_many)
+            printers.print_ticket(ticket_info, ticket_id, notes, printer_name, ipv4, print_many, language)
 
         # Mark the in-memory ticket as no longer shared since it was finalized
         tickets_manager.tickets_dict[ticket_key]['shared'] = False
@@ -293,7 +293,6 @@ class tickets_manager:
     def get_keys(self, ipv4: str = '127.0.0.1', shared_only: bool = False) -> set:
         """Return ticket keys by ipv4 and optional shared status."""
         keys = set(tickets_manager.tickets_dict)
-        print(f'ipv4: {ipv4}, shared_only: {shared_only}, keys: {keys}')
 
         if ipv4 == '127.0.0.1':
             keys_by_ip = keys
@@ -512,6 +511,5 @@ class tickets_manager:
         }
 
         ticket = Tickets.create(quicksale_info)
-        print(printer_name) # TODO Add logic to send tickket to printer and send ticket_infor obj
 
         return ticket

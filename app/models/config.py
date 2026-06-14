@@ -577,6 +577,161 @@ class Config:
                 return delete_results
             return {}
 
+        @staticmethod
+        def get_header_align() -> str:
+            """Get the current header alignment setting.
+            
+            Returns:
+                Alignment string: 'left', 'center', or 'right'. Defaults to 'center'.
+            """
+            settings = TicketSettings.query.first()
+            if not settings:
+                # Create default settings
+                fc = ensure_default_font_config()
+                settings = TicketSettings(
+                    body_font_config=fc.id,
+                    header_font_config=fc.id,
+                    header_align='center',
+                    footer_align='center'
+                )
+                db.session.add(settings)
+                db.session.commit()
+            return settings.header_align
+
+        @staticmethod
+        def set_header_align(align: str):
+            """Set the header alignment.
+            
+            Args:
+                align: Alignment string - must be 'left', 'center', or 'right'
+                
+            Raises:
+                ValueError: If alignment value is invalid
+            """
+            valid_alignments = ['left', 'center', 'right']
+            if align not in valid_alignments:
+                raise ValueError(f'Invalid alignment. Must be one of: {", ".join(valid_alignments)}')
+            
+            settings = TicketSettings.query.first()
+            if not settings:
+                fc = ensure_default_font_config()
+                settings = TicketSettings(
+                    body_font_config=fc.id,
+                    header_font_config=fc.id,
+                    header_align=align,
+                    footer_align='center'
+                )
+                db.session.add(settings)
+            else:
+                settings.header_align = align
+            db.session.commit()
+
+        @staticmethod
+        def get_footer_align() -> str:
+            """Get the current footer alignment setting.
+            
+            Returns:
+                Alignment string: 'left', 'center', or 'right'. Defaults to 'center'.
+            """
+            settings = TicketSettings.query.first()
+            if not settings:
+                # Create default settings
+                fc = ensure_default_font_config()
+                settings = TicketSettings(
+                    body_font_config=fc.id,
+                    header_font_config=fc.id,
+                    header_align='center',
+                    footer_align='center'
+                )
+                db.session.add(settings)
+                db.session.commit()
+            return settings.footer_align
+
+        @staticmethod
+        def set_footer_align(align: str):
+            """Set the footer alignment.
+            
+            Args:
+                align: Alignment string - must be 'left', 'center', or 'right'
+                
+            Raises:
+                ValueError: If alignment value is invalid
+            """
+            valid_alignments = ['left', 'center', 'right']
+            if align not in valid_alignments:
+                raise ValueError(f'Invalid alignment. Must be one of: {", ".join(valid_alignments)}')
+            
+            settings = TicketSettings.query.first()
+            if not settings:
+                fc = ensure_default_font_config()
+                settings = TicketSettings(
+                    body_font_config=fc.id,
+                    header_font_config=fc.id,
+                    header_align='center',
+                    footer_align=align
+                )
+                db.session.add(settings)
+            else:
+                settings.footer_align = align
+            db.session.commit()
+
+        @staticmethod
+        def get_currency() -> str:
+            """Get the current currency setting.
+            
+            Returns:
+                Currency code string (e.g., 'MXN', 'USD', 'EUR'). Defaults to 'MXN'.
+            """
+            settings = TicketSettings.query.first()
+            if not settings:
+                # Create default settings
+                fc = ensure_default_font_config()
+                settings = TicketSettings(
+                    body_font_config=fc.id,
+                    header_font_config=fc.id,
+                    header_align='center',
+                    footer_align='center',
+                    currency='MXN'
+                )
+                db.session.add(settings)
+                db.session.commit()
+            return settings.currency
+
+        @staticmethod
+        def set_currency(currency: str):
+            """Set the currency code.
+            
+            Args:
+                currency: Currency code string (e.g., 'MXN', 'USD', 'EUR')
+                
+            Raises:
+                ValueError: If currency is empty or invalid
+            """
+            if not currency or not currency.strip():
+                raise ValueError('Currency code cannot be empty')
+            
+            currency = currency.strip().upper()
+            
+            # Optional: Validate against common currency codes
+            # For now, we'll accept any 3-letter code
+            if len(currency) < 2 or len(currency) > 5:
+                raise ValueError('Currency code must be between 2 and 5 characters')
+            
+            settings = TicketSettings.query.first()
+            if not settings:
+                fc = ensure_default_font_config()
+                settings = TicketSettings(
+                    body_font_config=fc.id,
+                    header_font_config=fc.id,
+                    header_align='center',
+                    footer_align='center',
+                    currency=currency
+                )
+                db.session.add(settings)
+            else:
+                settings.currency = currency
+            db.session.commit()
+
 
 @event.listens_for(TicketFontConfig, 'before_update')
 def _prevent_default_font_update(mapper, connection, target):

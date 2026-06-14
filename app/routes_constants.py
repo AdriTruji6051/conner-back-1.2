@@ -105,6 +105,10 @@ ROUTE_SET_HEADER_FONT = f'{TICKET_FONTS_BASE}/header/update'
 ROUTE_GET_PRINT_FULL_ROW = f'{CONFIG_BASE}/ticket/print-full-row'
 ROUTE_SET_PRINT_FULL_ROW = f'{CONFIG_BASE}/ticket/print-full-row/update'
 
+# Config - Ticket Currency
+ROUTE_GET_CURRENCY = f'{CONFIG_BASE}/ticket/currency'
+ROUTE_SET_CURRENCY = f'{CONFIG_BASE}/ticket/currency/update'
+
 # Config - Ticket Photo
 TICKET_PHOTO_BASE = f'{CONFIG_BASE}/ticket/photo'
 

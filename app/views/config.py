@@ -11,7 +11,8 @@ from app.routes_constants import (
     ROUTE_GET_HEADERS, ROUTE_UPDATE_HEADERS, ROUTE_GET_FOOTERS, ROUTE_UPDATE_FOOTERS,
     ROUTE_GET_FONTS, ROUTE_CREATE_FONT, ROUTE_GET_BODY_FONT, ROUTE_SET_BODY_FONT,
     ROUTE_GET_HEADER_FONT, ROUTE_SET_HEADER_FONT, ROUTE_GET_PRINT_FULL_ROW, ROUTE_SET_PRINT_FULL_ROW,
-    ROUTE_UPLOAD_PHOTO, ROUTE_GET_PHOTO_CONFIG, ROUTE_UPDATE_PHOTO_CONFIG, ROUTE_DELETE_PHOTO, ROUTE_GET_PHOTO_DATA
+    ROUTE_UPLOAD_PHOTO, ROUTE_GET_PHOTO_CONFIG, ROUTE_UPDATE_PHOTO_CONFIG, ROUTE_DELETE_PHOTO, ROUTE_GET_PHOTO_DATA,
+    ROUTE_GET_CURRENCY, ROUTE_SET_CURRENCY
 )
 
 routesConfig = Blueprint('routes-config', __name__)
@@ -370,3 +371,32 @@ def get_photo_data():
     except Exception as e:
         logging.exception(f'{ROUTE_GET_PHOTO_DATA}. Catch: {e}.')
         return AppResponse.server_error('Unexpected error retrieving photo data').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_GET_CURRENCY, methods=['GET'])
+def get_currency():
+    """Get the current currency setting."""
+    try:
+        currency = Config.Ticket_text.get_currency()
+        return AppResponse.success({'currency': currency}).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_GET_CURRENCY}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error retrieving currency').to_flask_tuple()
+
+
+@routesConfig.route(ROUTE_SET_CURRENCY, methods=['PUT'])
+def set_currency():
+    """Set the currency code."""
+    try:
+        data = dict(request.get_json())
+        if 'currency' not in data:
+            return AppResponse.validation_error([{'currency': 'Currency field is required'}]).to_flask_tuple()
+        
+        currency = data['currency']
+        Config.Ticket_text.set_currency(currency)
+        return AppResponse.success({'status': 'Currency updated successfully', 'currency': currency}).to_flask_tuple()
+    except ValueError as e:
+        return AppResponse.unprocessable(str(e)).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'{ROUTE_SET_CURRENCY}. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error updating currency').to_flask_tuple()
