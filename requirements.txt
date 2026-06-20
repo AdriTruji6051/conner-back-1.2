@@ -11,3 +11,4 @@ gevent-websocket==0.10.1
 Pillow==10.4.0
 num2words==0.5.13
 python-barcode==0.15.1
+pyinstaller==6.3.0

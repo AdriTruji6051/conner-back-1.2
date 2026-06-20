@@ -9,6 +9,26 @@
   },
   "item": [
     {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "status"]
+            },
+            "description": "Health check endpoint to verify API is operational"
+          },
+          "response": []
+        }
+      ],
+      "description": "Health check and status endpoints"
+    },
+    {
       "name": "Products",
       "item": [
         {

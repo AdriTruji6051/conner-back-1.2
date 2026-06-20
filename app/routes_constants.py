@@ -7,6 +7,9 @@ Routes are organized by domain with base paths concatenated for better maintaina
 # ===================== BASE PATHS =====================
 API_BASE = '/api'
 
+# ===================== HEALTH CHECK ROUTES =====================
+ROUTE_STATUS = f'{API_BASE}/status'
+
 # ===================== PRODUCTS ROUTES =====================
 PRODUCTS_BASE = f'{API_BASE}/product'
 

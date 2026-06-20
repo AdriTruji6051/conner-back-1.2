@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from app.models.config import Config
 from app.helpers.helpers import AppResponse, ValidationError
 from app.routes_constants import (
+    ROUTE_STATUS,
     ROUTE_GET_USERS, ROUTE_LOGIN_USER, ROUTE_CREATE_USER, ROUTE_UPDATE_USER, ROUTE_DELETE_USER,
     ROUTE_UPDATE_USER_LANGUAGE,
     ROUTE_GET_HEADERS, ROUTE_UPDATE_HEADERS, ROUTE_GET_FOOTERS, ROUTE_UPDATE_FOOTERS,
@@ -39,6 +40,14 @@ def _parse_pagination_args(args, default_page: int = 1, default_page_size: int =
         page_size = max_page_size
 
     return page, page_size
+
+@routesConfig.route(ROUTE_STATUS, methods=['GET'])
+def status():
+    """Health check endpoint to verify API is operational."""
+    return AppResponse.success({
+        'status': 'ok',
+        'message': 'API is running'
+    }).to_flask_tuple()
 
 @routesConfig.route(ROUTE_GET_USERS, methods=['GET'])
 def get_users():
