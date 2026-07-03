@@ -1,4 +1,5 @@
 printing tests/
+node_modules/
 __pycache__/
 backup/
 build/
@@ -21,3 +22,4 @@ my_stuff.py
 *.db
 *.env
 *.log
+*.json

@@ -69,6 +69,13 @@ def create_app():
         static_url_path='/static'
     )
     
+    # Add route to serve i18n files from /i18n/ (for Angular translations)
+    @app.route('/i18n/<path:filename>')
+    def serve_i18n(filename):
+        from flask import send_from_directory
+        i18n_dir = os.path.join(base_path, 'static', 'browser', 'i18n')
+        return send_from_directory(i18n_dir, filename)
+    
     app.config.from_object(Config)
 
     # Initialize SQLAlchemy ORM
@@ -84,14 +91,18 @@ def create_app():
     from app.views.printers import routesPrinters
     from app.views.templates import routesTemplates
 
+    # IMPORTANT: Register API blueprints BEFORE templates blueprint
+    # This ensures API routes have priority over Angular catch-all routes
     app.register_blueprint(routesProducts)
     app.register_blueprint(routesTickets)
     app.register_blueprint(routesAnalitycs)
     app.register_blueprint(routesConfig)
     app.register_blueprint(routesPrinters)
-    app.register_blueprint(routesTemplates)
-
+    
     _register_error_handlers(app)
+    
+    # Register templates blueprint LAST to catch all remaining routes for Angular
+    app.register_blueprint(routesTemplates)
 
     # Initialize SocketIO with the app
     socketio.init_app(app, cors_allowed_origins='*')

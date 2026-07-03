@@ -1,10 +1,12 @@
 from flask import jsonify, Blueprint, request
 from flask_jwt_extended import jwt_required
 import logging
+import socket
 from sqlalchemy.exc import IntegrityError
 
 from app.models.config import Config
 from app.helpers.helpers import AppResponse, ValidationError
+from config.config import Config as AppConfig
 from app.routes_constants import (
     ROUTE_STATUS,
     ROUTE_GET_USERS, ROUTE_LOGIN_USER, ROUTE_CREATE_USER, ROUTE_UPDATE_USER, ROUTE_DELETE_USER,
@@ -48,6 +50,46 @@ def status():
         'status': 'ok',
         'message': 'API is running'
     }).to_flask_tuple()
+
+
+def get_local_ip():
+    """
+    Get the local IP address of the machine.
+    Returns '127.0.0.1' as fallback if detection fails.
+    """
+    try:
+        # Create temporary socket to get local IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return local_ip
+    except Exception:
+        return "127.0.0.1"
+
+
+@routesConfig.route('/api/config', methods=['GET'])
+def get_server_config():
+    """
+    Endpoint to get server configuration.
+    Returns the base API URL so frontend can connect dynamically.
+    This endpoint does not require authentication.
+    """
+    try:
+        local_ip = get_local_ip()
+        port = AppConfig.PORT
+        
+        return AppResponse.success(
+            message="Server configuration retrieved",
+            data={
+                "apiUrl": f"http://{local_ip}:{port}",
+                "socketUrl": f"http://{local_ip}:{port}",
+                "version": "1.2.0"
+            }
+        ).to_flask_tuple()
+    except Exception as e:
+        logging.exception(f'/api/config. Catch: {e}.')
+        return AppResponse.server_error('Unexpected error retrieving server configuration').to_flask_tuple()
 
 @routesConfig.route(ROUTE_GET_USERS, methods=['GET'])
 def get_users():

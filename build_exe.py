@@ -31,6 +31,141 @@ if sys.platform == 'win32':
     sys.stderr.reconfigure(encoding='utf-8')
 
 
+def build_and_copy_frontend() -> bool:
+    """
+    Build Angular frontend and copy to backend static folder.
+    Also fixes base href in templates/index.html.
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    logger.info("=" * 70)
+    logger.info("BUILDING ANGULAR FRONTEND")
+    logger.info("=" * 70)
+    
+    frontend_dir = os.path.join('..', 'conner-front-1.2')
+    
+    if not os.path.exists(frontend_dir):
+        logger.error(f"Frontend directory not found: {frontend_dir}")
+        return False
+    
+    try:
+        # Build Angular app using npm (works better with PATH)
+        logger.info("Building Angular application...")
+        result = subprocess.run(
+            ['npm', 'run', 'build'],
+            cwd=frontend_dir,
+            capture_output=True,
+            text=True,
+            timeout=600,  # 10 minutes timeout
+            shell=True  # Use shell to find npm in PATH
+        )
+        
+        if result.returncode != 0:
+            logger.error("Angular build failed")
+            logger.error(f"Error output: {result.stderr}")
+            return False
+        
+        logger.info("✓ Angular build completed successfully")
+        
+        # Copy static files
+        logger.info("Copying static files to backend...")
+        dist_browser = os.path.join(frontend_dir, 'dist', 'conner-front-1.2', 'browser')
+        backend_static = os.path.join('static', 'browser')
+        
+        if os.path.exists(backend_static):
+            shutil.rmtree(backend_static)
+        
+        shutil.copytree(dist_browser, backend_static)
+        logger.info("✓ Static files copied")
+        
+        # Copy and fix index.html
+        logger.info("Copying and fixing index.html...")
+        index_source = os.path.join(dist_browser, 'index.html')
+        index_dest = os.path.join('templates', 'index.html')
+        
+        with open(index_source, 'r', encoding='utf-8') as f:
+            index_content = f.read()
+        
+        # Fix base href
+        index_content = index_content.replace('<base href="/">', '<base href="/page/">')
+        
+        with open(index_dest, 'w', encoding='utf-8') as f:
+            f.write(index_content)
+        
+        logger.info("✓ index.html copied and base href fixed to /page/")
+        
+        # Verify
+        with open(index_dest, 'r', encoding='utf-8') as f:
+            verify_content = f.read()
+            if '<base href="/page/">' in verify_content:
+                logger.info("✓ Base href verified: /page/")
+            else:
+                logger.warning("⚠ Base href verification failed")
+        
+        # Check i18n files
+        i18n_path = os.path.join(backend_static, 'i18n')
+        if os.path.exists(i18n_path):
+            i18n_files = [f for f in os.listdir(i18n_path) if f.endswith('.json')]
+            logger.info(f"✓ i18n files found: {len(i18n_files)}")
+        else:
+            logger.warning("⚠ i18n directory not found")
+        
+        logger.info("=" * 70)
+        logger.info("✓ FRONTEND BUILD AND COPY COMPLETED")
+        logger.info("=" * 70)
+        return True
+        
+    except subprocess.TimeoutExpired:
+        logger.error("✗ Angular build timeout (>10 minutes)")
+        return False
+    except FileNotFoundError:
+        logger.error("✗ Angular CLI (ng) not found")
+        logger.error("Install Angular CLI with: npm install -g @angular/cli")
+        return False
+    except Exception as e:
+        logger.error(f"✗ Error building frontend: {e}")
+        return False
+
+
+def verify_network_config() -> None:
+    """
+    Verify and display network configuration of the server.
+    """
+    logger.info("=" * 70)
+    logger.info("NETWORK CONFIGURATION")
+    logger.info("=" * 70)
+    
+    # Load .env
+    load_dotenv()
+    host = os.getenv("HOST", "0.0.0.0")
+    port = os.getenv("PORT", "5000")
+    
+    logger.info(f"Host: {host}")
+    logger.info(f"Port: {port}")
+    
+    if host == "127.0.0.1":
+        logger.warning("⚠ WARNING: Backend configured for localhost only")
+        logger.warning("  Other computers won't be able to connect")
+        logger.warning("  Change HOST to 0.0.0.0 in .env for network access")
+    elif host == "0.0.0.0":
+        logger.info("✓ Backend configured for network access")
+        
+        # Get local IP
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+            logger.info(f"✓ Local IP detected: {local_ip}")
+            logger.info(f"  Access from other computers: http://{local_ip}:{port}/")
+        except Exception as e:
+            logger.warning(f"⚠ Could not detect local IP: {e}")
+    
+    logger.info("=" * 70)
+
+
 def load_compile_config() -> dict:
     """
     Load configuration from .compile.env
@@ -163,7 +298,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx={str(use_upx)},
-    console=False,  # No console window
+    console=True,  # Enable console window for logs
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
@@ -373,6 +508,61 @@ echo.
 pause
 """
     
+    # Crear script de configuración de firewall
+    firewall_bat = """@echo off
+echo ========================================
+echo Configurando Firewall para Conner POS
+echo ========================================
+echo.
+
+REM Verificar privilegios de administrador
+net session >nul 2>&1
+if %%errorLevel%% neq 0 (
+    echo ERROR: Este script requiere privilegios de administrador.
+    echo.
+    echo Por favor:
+    echo 1. Haz clic derecho en este archivo
+    echo 2. Selecciona "Ejecutar como administrador"
+    echo.
+    pause
+    exit /b 1
+)
+
+echo Eliminando regla anterior si existe...
+netsh advfirewall firewall delete rule name="Conner POS - Flask Server" >nul 2>&1
+
+echo Creando regla de firewall para el puerto 5000...
+netsh advfirewall firewall add rule name="Conner POS - Flask Server" dir=in action=allow protocol=TCP localport=5000 profile=any
+
+if %%errorLevel%% equ 0 (
+    echo.
+    echo ========================================
+    echo CONFIGURACION EXITOSA
+    echo ========================================
+    echo.
+    echo El servidor Flask ahora es accesible desde otros equipos en la red local.
+    echo.
+    echo PROXIMOS PASOS:
+    echo.
+    echo 1. Inicia el servidor Conner POS
+    echo.
+    echo 2. Obten tu IP local ejecutando: ipconfig
+    echo    Busca "Direccion IPv4" (ejemplo: 192.168.1.126^)
+    echo.
+    echo 3. Desde otros equipos en la red, accede a:
+    echo    http://[TU_IP]:5000/
+    echo.
+    echo    Ejemplo: http://192.168.1.126:5000/
+    echo.
+) else (
+    echo.
+    echo ERROR: No se pudo crear la regla de firewall.
+    echo.
+)
+
+pause
+"""
+    
     # Crear README
     readme_txt = """CONNER POS - Sistema de Punto de Venta
 =======================================
@@ -382,6 +572,8 @@ INSTALACIÓN
 1. Ejecutar install.bat como Administrador
 2. Seguir las instrucciones en pantalla
 3. El acceso directo se creará en el escritorio
+4. IMPORTANTE: Ejecutar setup_firewall.bat como Administrador
+   (Necesario para acceso desde otros equipos en la red)
 
 PRIMER USO
 ----------
@@ -404,9 +596,15 @@ ACCESO DESDE OTROS EQUIPOS
 
 Ejemplo: http://192.168.1.100:5000/dashboard
 
-CONFIGURACIÓN DEL FIREWALL
----------------------------
-Si no puedes acceder desde otros equipos:
+CONFIGURACIÓN DEL FIREWALL (IMPORTANTE)
+----------------------------------------
+Para acceder desde otros equipos en la red local:
+
+OPCIÓN 1 - Script Automático (Recomendado):
+1. Ejecutar setup_firewall.bat como Administrador
+2. Seguir las instrucciones en pantalla
+
+OPCIÓN 2 - Configuración Manual:
 1. Abrir "Firewall de Windows Defender"
 2. Clic en "Configuración avanzada"
 3. Clic en "Reglas de entrada" > "Nueva regla"
@@ -414,7 +612,9 @@ Si no puedes acceder desde otros equipos:
 5. TCP, puerto específico: 5000 > Siguiente
 6. Permitir la conexión > Siguiente
 7. Aplicar a todos los perfiles > Siguiente
-8. Nombre: "Conner POS" > Finalizar
+8. Nombre: "Conner POS - Flask Server" > Finalizar
+
+NOTA: Sin esta configuración, solo podrás acceder desde localhost.
 
 DESINSTALACIÓN
 --------------
@@ -467,6 +667,9 @@ Compilado: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         with open(os.path.join(installer_dir, 'README.txt'), 'w', encoding='utf-8') as f:
             f.write(readme_txt)
         
+        with open(os.path.join(installer_dir, 'setup_firewall.bat'), 'w', encoding='utf-8') as f:
+            f.write(firewall_bat)
+        
         logger.info(f"✓ Installer structure created: {installer_dir}")
         return True
         
@@ -487,27 +690,36 @@ def main() -> int:
     logger.info("=" * 70)
     
     try:
-        # 1. Load configuration
+        # 0. Verify network configuration
+        verify_network_config()
+        
+        # 1. Build and copy frontend first
+        logger.info("\nStep 1: Building Angular frontend...")
+        if not build_and_copy_frontend():
+            logger.error("Frontend build failed. Aborting compilation.")
+            return 1
+        
+        # 2. Load configuration
         config = load_compile_config()
         
-        # 2. Generate .spec file
+        # 3. Generate .spec file
         spec_file = generate_spec_file(config)
         
-        # 3. Execute PyInstaller
+        # 4. Execute PyInstaller
         if not run_pyinstaller(spec_file):
             logger.error("Compilation error")
             return 1
         
-        # 4. Verify executable
+        # 5. Verify executable
         if not verify_executable(config['exe_name']):
             logger.error("Executable was not generated correctly")
             return 1
         
-        # 5. Create installer structure
+        # 6. Create installer structure
         if not create_installer_structure(config['exe_name']):
             logger.warning("Could not create installer structure")
         
-        # 6. Clean temporary files
+        # 7. Clean temporary files
         if config['clean_temp_files']:
             clean_temp_files()
         

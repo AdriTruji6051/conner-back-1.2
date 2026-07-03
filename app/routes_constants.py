@@ -156,7 +156,7 @@ ROUTE_GET_PRODUCT_CHANGES = f'{PRODUCT_LOG_BASE}/<string:id>'
 ROUTE_GET_PRODUCT_CHANGES_BY_DATE = f'{PRODUCT_LOG_BASE}/date/<string:date>'
 
 # ===================== TEMPLATES ROUTES =====================
+# All Angular pages are served under /page/ prefix to avoid conflicts with API routes
 ROUTE_INDEX = '/'
-ROUTE_DASHBOARD = '/dashboard'
-ROUTE_DYNAMIC_PATH = '/<path:path>'
-ROUTE_DASHBOARD_DYNAMIC_PATH = '/dashboard/<path:path>'
+ROUTE_PAGE_INDEX = '/page'
+ROUTE_PAGE_DYNAMIC = '/page/<path:path>'
