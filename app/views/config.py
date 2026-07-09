@@ -80,7 +80,6 @@ def get_server_config():
         port = AppConfig.PORT
         
         return AppResponse.success(
-            message="Server configuration retrieved",
             data={
                 "apiUrl": f"http://{local_ip}:{port}",
                 "socketUrl": f"http://{local_ip}:{port}",

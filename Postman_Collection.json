@@ -915,11 +915,28 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/print/list",
+              "raw": "{{base_url}}/api/print/list?refresh_printers=false&host=&all_hosts=false",
               "host": ["{{base_url}}"],
-              "path": ["api", "print", "list"]
+              "path": ["api", "print", "list"],
+              "query": [
+                {
+                  "key": "refresh_printers",
+                  "value": "false",
+                  "description": "Optional: Set to 'true' to force refresh printer list from service. Defaults to 'false' (use cached list)."
+                },
+                {
+                  "key": "host",
+                  "value": "",
+                  "description": "Optional: Specify a different host/IPv4 address to query printers from (e.g., '192.168.1.100'). If omitted, uses the requesting client's IP address."
+                },
+                {
+                  "key": "all_hosts",
+                  "value": "false",
+                  "description": "Optional: Set to 'true' to retrieve printers from all registered hosts. Returns a dictionary with host IPs as keys. Defaults to 'false'."
+                }
+              ]
             },
-            "description": "Get a list of available printers"
+            "description": "Get a list of available printers. Can query a specific host, the local host, or all registered hosts.\n\n**Query Parameters:**\n- `refresh_printers` (boolean): Force refresh from printer service\n- `host` (string): Specific IPv4 address to query\n- `all_hosts` (boolean): Retrieve printers from all registered hosts\n\n**Response (single host):**\n```json\n{\n  \"status\": \"success\",\n  \"data\": {\n    \"host\": \"192.168.1.100\",\n    \"printers\": [\"Printer1\", \"Printer2\"]\n  }\n}\n```\n\n**Response (all hosts):**\n```json\n{\n  \"status\": \"success\",\n  \"data\": {\n    \"hosts\": {\n      \"192.168.1.100\": [\"Printer1\", \"Printer2\"],\n      \"192.168.1.101\": [\"Printer3\"]\n    }\n  }\n}\n```"
           },
           "response": []
         },
@@ -929,11 +946,33 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/print/dict",
+              "raw": "{{base_url}}/api/print/dict?refresh_printers=false&host=&all_hosts=false&onlyDefault=false",
               "host": ["{{base_url}}"],
-              "path": ["api", "print", "dict"]
+              "path": ["api", "print", "dict"],
+              "query": [
+                {
+                  "key": "refresh_printers",
+                  "value": "false",
+                  "description": "Optional: Set to 'true' to force refresh printer list from service. Defaults to 'false' (use cached list)."
+                },
+                {
+                  "key": "host",
+                  "value": "",
+                  "description": "Optional: Specify a different host/IPv4 address to query printers from (e.g., '192.168.1.100'). If omitted, uses the requesting client's IP address."
+                },
+                {
+                  "key": "all_hosts",
+                  "value": "false",
+                  "description": "Optional: Set to 'true' to retrieve printers from all registered hosts. Returns a dictionary with host IPs as keys. Defaults to 'false'."
+                },
+                {
+                  "key": "onlyDefault",
+                  "value": "false",
+                  "description": "Optional: Set to 'true' to filter and return only printers marked as default. Works with both single host and all_hosts queries. Defaults to 'false'."
+                }
+              ]
             },
-            "description": "Get printer information as a dictionary"
+            "description": "Get printer information as a dictionary with detailed metadata. Can query a specific host, the local host, or all registered hosts. Optionally filter to show only default printers.\n\n**Query Parameters:**\n- `refresh_printers` (boolean): Force refresh from printer service\n- `host` (string): Specific IPv4 address to query\n- `all_hosts` (boolean): Retrieve printers from all registered hosts\n- `onlyDefault` (boolean): Filter to show only default printers\n\n**Response (single host):**\n```json\n{\n  \"status\": \"success\",\n  \"data\": {\n    \"host\": \"192.168.1.100\",\n    \"printers\": {\n      \"Printer1\": {\n        \"is_default\": true,\n        \"status\": \"ready\",\n        \"ip\": \"192.168.1.100\"\n      },\n      \"Printer2\": {\n        \"is_default\": false,\n        \"status\": \"ready\",\n        \"ip\": \"192.168.1.100\"\n      }\n    }\n  }\n}\n```\n\n**Response (all hosts):**\n```json\n{\n  \"status\": \"success\",\n  \"data\": {\n    \"hosts\": {\n      \"192.168.1.100\": {\n        \"Printer1\": {\"is_default\": true, \"status\": \"ready\"},\n        \"Printer2\": {\"is_default\": false, \"status\": \"ready\"}\n      },\n      \"192.168.1.101\": {\n        \"Printer3\": {\"is_default\": true, \"status\": \"ready\"}\n      }\n    }\n  }\n}\n```\n\n**Response (with onlyDefault=true):**\nOnly printers where `is_default: true` will be included in the response."
           },
           "response": []
         },
@@ -957,7 +996,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "print", "update", "{{printer_name}}"]
             },
-            "description": "Update printer configuration"
+            "description": "Update printer configuration and set it as the default printer for the specified host.\n\n**Path Parameters:**\n- `printer_name` (string, required): Name of the printer to update\n\n**Note:** This endpoint automatically detects the requesting client's IP address. The printer will be set as default for that specific host/IPv4 address. The printer service maintains separate default printer settings per host.\n\n**Response:**\n```json\n{\n  \"status\": \"success\",\n  \"data\": \"Printer updated successfully\"\n}\n```\n\n**Errors:**\n- Returns validation error if printer name is not found in available printers for the host\n- Returns server error if printer service is not reachable"
           },
           "response": []
         }

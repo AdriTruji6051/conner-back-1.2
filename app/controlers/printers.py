@@ -14,6 +14,22 @@ class Printers:
     register_printers = dict()
     avaliable_printers = dict()
 
+    @staticmethod
+    def _strip_ip_suffix(printer_name: str) -> str:
+        """
+        Remove IP suffix from printer name if present.
+        Examples:
+            "80 Printer.200" -> "80 Printer"
+            "HP LaserJet.150" -> "HP LaserJet"
+            "Canon Printer" -> "Canon Printer"
+        """
+        if not printer_name:
+            return printer_name
+        
+        import re
+        pattern = r'\.\d{1,3}$'
+        return re.sub(pattern, '', printer_name)
+
     def __query_service(self, query: object, ipv4: str = '127.0.0.1', port: int = 9100) -> any:
         try:
             if not query:
@@ -49,14 +65,25 @@ class Printers:
         return cached
     
     def update_printer(self, printer: str, ipv4: str = '127.0.0.1') -> str:
+        # Strip IP suffix from printer name before validation and update
+        clean_printer = Printers._strip_ip_suffix(printer)
+        
         # Ensure we have an up-to-date list of printers from the service before validating
         printers = self.list(ipv4, refresh=True)
-        if printer not in printers:
+        
+        # Check if clean printer name matches any available printer (with flexible matching)
+        printer_found = False
+        for available_printer in printers:
+            if Printers._strip_ip_suffix(available_printer) == clean_printer:
+                printer_found = True
+                break
+        
+        if not printer_found:
             raise ValueError(f'Printer not in avaliable printers in host: {ipv4}')
         
         query = {
             'action': 'printer/put',
-            'printer': printer,
+            'printer': clean_printer,  # Send clean name to service
         }
 
         result = self.__query_service(query, ipv4)

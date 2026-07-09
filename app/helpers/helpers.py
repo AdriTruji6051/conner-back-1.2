@@ -189,15 +189,19 @@ def get_printer_service_hosts() -> List[str]:
         from app.controlers.printers import Printers
         printers_manager = Printers()
         
-        # Get printer dictionary which includes host information
-        # Try localhost first, then get from dict
-        printers_dict = printers_manager.dict('127.0.0.1', refresh=True)
-        
-        # Extract unique hosts from printer dictionary
+        # Get all registered hosts from avaliable_printers cache
         hosts = set()
-        for printer_name, printer_info in printers_dict.items():
-            if isinstance(printer_info, dict) and 'host' in printer_info:
-                hosts.add(printer_info['host'])
+        
+        # If cache is empty, try to populate it with localhost
+        if not printers_manager.avaliable_printers:
+            try:
+                printers_manager.dict('127.0.0.1', refresh=True)
+            except Exception:
+                pass
+        
+        # Collect all hosts from the cache
+        for host in printers_manager.avaliable_printers.keys():
+            hosts.add(host)
         
         # If no hosts found, default to localhost
         if not hosts:

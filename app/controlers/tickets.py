@@ -32,7 +32,8 @@ def validate_common_product(product: dict):
     if product.get('cost', 0) > product['sale_price']:
         v.add('sale_price', 'Must be greater than or equal to cost')
 
-    if product.get('wholesale_price', 0) > product['sale_price']:
+    wholesale_price = product.get('wholesale_price')
+    if wholesale_price is not None and wholesale_price > product['sale_price']:
         v.add('sale_price', 'Must be greater than or equal to wholesale_price')
 
     if product['sale_type'] != 'U' and product['sale_type'] != 'D':
@@ -69,30 +70,36 @@ class Ticket:
             self.__products_count += product['cantity']
             self.__total += product['sale_price'] * product['cantity']
 
-            self.__discount += (
-                (product['sale_price'] * product['cantity']) - 
-                (product['wholesale_price'] * product['cantity'] 
-                if product['wholesale_price'] 
-                else product['sale_price'] * product['cantity'])
-            )
-
-            product['total_price'] = (
-                product['sale_price'] * product['cantity']
-                if not self.__is_discount_applied 
-                else (
-                    product['wholesale_price'] * product['cantity']
-                    if product['wholesale_price'] 
-                    else product['sale_price'] * product['cantity']
+            # Handle None wholesale_price in discount calculation
+            wholesale_price = product.get('wholesale_price')
+            if wholesale_price is not None and wholesale_price > 0:
+                self.__discount += (
+                    (product['sale_price'] * product['cantity']) - 
+                    (wholesale_price * product['cantity'])
                 )
-            )
+            else:
+                # No discount if wholesale_price is None or 0
+                self.__discount += 0
+
+            # Handle None wholesale_price in total_price calculation
+            if not self.__is_discount_applied:
+                product['total_price'] = product['sale_price'] * product['cantity']
+            else:
+                if wholesale_price is not None and wholesale_price > 0:
+                    product['total_price'] = wholesale_price * product['cantity']
+                else:
+                    product['total_price'] = product['sale_price'] * product['cantity']
+            
             # Round total_price to 2 decimal places to prevent floating-point precision errors
             product['total_price'] = format_to_two_decimals(product['total_price'])
 
-            product['profit'] = (
-                product['total_price'] - (product['cost'] * product['cantity']) 
-                if product['cost'] 
-                else product['total_price'] * UNDEFINED_PROFIT_MARGIN 
-            )
+            # Handle None cost in profit calculation
+            cost = product.get('cost')
+            if cost is not None and cost > 0:
+                product['profit'] = product['total_price'] - (cost * product['cantity'])
+            else:
+                product['profit'] = product['total_price'] * UNDEFINED_PROFIT_MARGIN
+            
             # Round profit to 2 decimal places
             product['profit'] = format_to_two_decimals(product['profit'])
 
@@ -171,9 +178,10 @@ class Ticket:
         for product in self.__products:
             formatted_product = product.copy()
             formatted_product['cantity'] = format_to_two_decimals(formatted_product['cantity'])
-            formatted_product['cost'] = format_to_two_decimals(formatted_product['cost'])
+            formatted_product['cost'] = format_to_two_decimals(formatted_product['cost']) if formatted_product['cost'] is not None else None
             formatted_product['sale_price'] = format_to_two_decimals(formatted_product['sale_price'])
-            formatted_product['wholesale_price'] = format_to_two_decimals(formatted_product['wholesale_price'])
+            # Handle None wholesale_price
+            formatted_product['wholesale_price'] = format_to_two_decimals(formatted_product['wholesale_price']) if formatted_product['wholesale_price'] is not None else None
             # Apply custom_round to total_price to match sub_total rounding consistency
             formatted_product['total_price'] = format_to_two_decimals(custom_round(formatted_product['total_price']))
             formatted_product['profit'] = format_to_two_decimals(formatted_product['profit'])

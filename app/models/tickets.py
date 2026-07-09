@@ -66,11 +66,11 @@ def raise_exception_if_product_in_ticket_invalid_data(data_array: list[dict], is
                 for err in collect_missing_keys(data, update_product_in_tickets_keys, 'product_in_ticket update data')
             )
 
-        # Only check values if the keys exist
+        # Only check values if the keys exist and are not None
         if not is_update:
-            if 'wholesale_price' in data and data['wholesale_price'] < 0:
+            if 'wholesale_price' in data and data['wholesale_price'] is not None and data['wholesale_price'] < 0:
                 v.add(f'{prefix}wholesale_price', _GTE_ZERO_MSG)
-            if 'sale_price' in data and data['sale_price'] < 0:
+            if 'sale_price' in data and data['sale_price'] is not None and data['sale_price'] < 0:
                 v.add(f'{prefix}sale_price', _GTE_ZERO_MSG)
 
         if 'profit' in data and data['profit'] < 0:

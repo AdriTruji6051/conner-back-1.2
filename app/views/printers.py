@@ -32,14 +32,33 @@ def _get_local_ip(request_ip):
 @routesPrinters.route(ROUTE_LIST_PRINTERS, methods=['GET'])
 def list_printers():
     try:
-        ipv4 = _get_local_ip(request.remote_addr)
+        # Allow specifying a different host via query parameter
+        host_param = request.args.get('host')
+        ipv4 = host_param if host_param else _get_local_ip(request.remote_addr)
         refresh = request.args.get('refresh_printers', 'false').lower() == 'true'
+        
+        # Check if requesting all registered hosts
+        all_hosts = request.args.get('all_hosts', 'true').lower() == 'true'
+        
+        if all_hosts:
+            # Return printers from all registered hosts
+            all_printers = {}
+            for registered_host in PRINTERS_MANAGER.avaliable_printers.keys():
+                try:
+                    printers = PRINTERS_MANAGER.list(registered_host, refresh=refresh)
+                    all_printers[registered_host] = printers
+                except ConnectionRefusedError:
+                    all_printers[registered_host] = []
+            return AppResponse.success({
+                'hosts': all_printers
+            }).to_flask_tuple()
+        
         return AppResponse.success({
             'host': ipv4,
             'printers': PRINTERS_MANAGER.list(ipv4, refresh=refresh)
         }).to_flask_tuple()
     except ConnectionRefusedError:
-        ipv4 = _get_local_ip(request.remote_addr)
+        ipv4 = request.args.get('host', _get_local_ip(request.remote_addr))
         return AppResponse.success({
             'host': ipv4,
             'printers': []
@@ -51,12 +70,38 @@ def list_printers():
 @routesPrinters.route(ROUTE_DICT_PRINTERS, methods=['GET'])
 def dict_printers():
     try:
-        ipv4 = _get_local_ip(request.remote_addr)
+        # Allow specifying a different host via query parameter
+        host_param = request.args.get('host')
+        ipv4 = host_param if host_param else _get_local_ip(request.remote_addr)
         refresh = request.args.get('refresh_printers', 'false').lower() == 'true'
-        printers_dict = PRINTERS_MANAGER.dict(ipv4, refresh=refresh)
+        
+        # Check if requesting all registered hosts
+        all_hosts = request.args.get('all_hosts', 'false').lower() == 'true'
         
         # Check query param 'onlyDefault'
         only_default = request.args.get('onlyDefault', 'false').lower() == 'true'
+        
+        if all_hosts:
+            # Return printers from all registered hosts
+            all_printers = {}
+            for registered_host in PRINTERS_MANAGER.avaliable_printers.keys():
+                try:
+                    printers_dict = PRINTERS_MANAGER.dict(registered_host, refresh=refresh)
+                    
+                    # Filter by default if requested
+                    if only_default:
+                        printers_dict = {name: data for name, data in printers_dict.items() if data.get('is_default')}
+                    
+                    all_printers[registered_host] = printers_dict
+                except ConnectionRefusedError:
+                    all_printers[registered_host] = {}
+            return AppResponse.success({
+                'hosts': all_printers
+            }).to_flask_tuple()
+        
+        printers_dict = PRINTERS_MANAGER.dict(ipv4, refresh=refresh)
+        
+        # Filter by default if requested
         if only_default:
             printers_dict = {name: data for name, data in printers_dict.items() if data.get('is_default')}
 
@@ -65,7 +110,7 @@ def dict_printers():
             'printers': printers_dict
         }).to_flask_tuple()
     except ConnectionRefusedError:
-        ipv4 = _get_local_ip(request.remote_addr)
+        ipv4 = request.args.get('host', _get_local_ip(request.remote_addr))
         return AppResponse.success({
             'host': ipv4,
             'printers': {}

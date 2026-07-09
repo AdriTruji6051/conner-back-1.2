@@ -1,71 +1,175 @@
-Migration README — conner-back -> conner-back-1.2
+# Migration README — conner-back -> conner-back-1.2
 
-Purpose
+## Purpose
 
-This document explains which tables (and columns) will be migrated from the original conner-back database (source)
-located at C:\Users\SrPap\Documents\GitHub\conner-back\db\data_base.db to the new V2 database used by
-conner.1.2 at C:\Users\SrPap\Documents\GitHub\conner.1.2\conner-back-1.2\db\conner.db using migrate_db.py.
+This document explains which tables (and columns) will be migrated from the original conner-back database (source) to the new V2 database used by conner-back-1.2 using `migrate_db.py`.
 
-Note about the current migration script
+## Migration Script Overview
 
-- The provided script copies rows only for columns that have identical names in source and destination tables (intersection of column names).
-- Columns that were renamed (camelCase -> snake_case, or different names) will NOT be migrated unless the destination uses the same column name.
-- If a source table has no matching table in the destination, all rows from that table are recorded as failed (reason: table_missing) and written to the failed CSV.
+The migration script (`migrate_db.py`) includes:
+- **Explicit table and column mappings** for handling schema changes (camelCase → snake_case renames)
+- **Custom transformation functions** for complex data conversions
+- **Automatic table creation** for new destination tables (e.g., `products_family`)
+- **UPSERT support** for products table to handle existing records
+- **Comprehensive error logging** with CSV output for failed/skipped records
 
-Table-level mapping (what will be moved and what will be lost or needs manual mapping)
+## Table-Level Mapping
 
-1) departments -> departments
-- Source columns: code (INTEGER, pk), description (TEXT)
-- Destination columns: code (INTEGER, pk), description (TEXT)
-- Migration: Direct; column names match. Expected to migrate without change.
+### 1. departments → departments
+**Source columns:** `code` (INTEGER, pk), `description` (TEXT)  
+**Destination columns:** `code` (INTEGER, pk), `description` (TEXT)  
+**Migration:** Direct mapping; column names match exactly.
 
-2) products -> products
-- Source columns: code, description, saleType, cost, salePrice, department, wholesalePrice, priority, inventory, modifiedAt, profitMargin, parentCode, familyCode
-- Destination columns: code, description, sale_type, cost, sale_price, department, wholesale_price, priority, inventory, modified_at, profit_margin, parent_code
-- Notes / changes:
-  - Several column names were renamed from camelCase (saleType, salePrice, wholesalePrice, modifiedAt, profitMargin, parentCode) to snake_case in destination (sale_type, sale_price, wholesale_price, modified_at, profit_margin, parent_code). The current script will NOT move these renamed columns because it only copies identically-named columns. Only columns with exact name matches (code, description, cost, department, priority, inventory) will be migrated.
-  - familyCode has no direct column in destination; the productsFamily table in the source has no direct equivalent in destination. familyCode and productsFamily data will NOT be migrated by the script; consider adding a destination table or mapping familyCode into an existing field before running migration.
+### 2. products → products
+**Source columns:** `code`, `description`, `saleType`, `cost`, `salePrice`, `department`, `wholesalePrice`, `priority`, `inventory`, `modifiedAt`, `profitMargin`, `parentCode`, `familyCode`
 
-3) productsFamily -> (no equivalent)
-- Source: productsFamily (code INTEGER pk, description TEXT)
-- Destination: no matching table found.
-- Action: Records from this table are treated as failures (table_missing). If you need this data in V2, add a destination table (e.g., products_family) or export/import as a separate CSV and re-create in the new schema.
+**Destination columns:** `code`, `description`, `sale_type`, `cost`, `sale_price`, `department`, `wholesale_price`, `priority`, `inventory`, `modified_at`, `profit_margin`, `parent_code`
 
-4) tickets -> tickets
-- Source columns: ID (INTEGER pk), createdAt, subTotal, total, profit, articleCount, notes, discount
-- Destination columns: id (INTEGER pk), created_at, modified_at, sub_total, total, profit, products_count, notes, user_id, ipv4_sender, discount
-- Notes / changes:
-  - Several renamed columns: ID -> id, createdAt -> created_at, subTotal -> sub_total, articleCount -> products_count. The current script will NOT move renamed columns unless names match.
-  - Destination has additional columns (modified_at, user_id, ipv4_sender) which are not present in source; those will remain NULL or default.
+**Changes handled by migration script:**
+- ✅ Column renames: `saleType` → `sale_type`, `salePrice` → `sale_price`, `wholesalePrice` → `wholesale_price`, `modifiedAt` → `modified_at`, `profitMargin` → `profit_margin`, `parentCode` → `parent_code`
+- ✅ Inventory normalization: Values < 1 are set to NULL (indicating no inventory tracking)
+- ✅ UPSERT logic: Existing products are updated rather than skipped
+- ⚠️ `familyCode` has no direct destination column (legacy field, not migrated)
 
-5) ticketsProducts -> product_in_ticket
-- Source columns: ID (pk), ticketId, code, description, cantity, profit, paidAt, isWholesale, usedPrice
-- Destination columns: id (pk), ticket_id, code, description, cantity, profit, wholesale_price, sale_price
-- Notes / changes:
-  - Column renames: ticketId -> ticket_id, usedPrice -> sale_price. paidAt and isWholesale do not have direct equivalents; wholesale_price exists in destination but mapping from isWholesale may require custom logic (boolean -> price or flag) and thus is not automatically migrated.
-  - The current script will only copy columns with identical names (code, description, cantity, profit) and will skip renamed columns unless the script is extended with explicit column mappings.
+### 3. productsFamily → products_family
+**Source:** `productsFamily` (`code` INTEGER pk, `description` TEXT)  
+**Destination:** `products_family` (auto-created by migration script)  
+**Migration:** The script automatically creates the `products_family` table if it doesn't exist.
 
-Tables present in destination but not in source (no-op for migration)
+### 4. tickets → tickets
+**Source columns:** `ID`, `createdAt`, `subTotal`, `total`, `profit`, `articleCount`, `notes`, `discount`
 
-- associates_codes, cash_flow, drawer_logs, inventory_log, products_changes, product_in_ticket (target for ticketsProducts), ticket_font_configs, ticket_text, users, and others.
-- These destination-only tables will be left unchanged; some (product_in_ticket) will receive migrated rows (where column names match or after mapping adjustments).
+**Destination columns:** `id`, `created_at`, `modified_at`, `sub_total`, `total`, `profit`, `products_count`, `notes`, `user_id`, `ipv4_sender`, `discount`
 
-Recommendations / next steps
+**Changes handled by migration script:**
+- ✅ Column renames: `ID` → `id`, `createdAt` → `created_at`, `subTotal` → `sub_total`, `articleCount` → `products_count`
+- ✅ Default values: `user_id` = 1 (admin), `ipv4_sender` = '127.0.0.1', `modified_at` = NULL
 
-- Update the migration script to include a mapping dictionary for known renamed columns (camelCase -> snake_case). Example mapping for products:
-  {"saleType": "sale_type", "salePrice": "sale_price", "wholesalePrice": "wholesale_price", "modifiedAt": "modified_at", "profitMargin": "profit_margin", "parentCode": "parent_code"}
-- Add a mapping for the tickets/ticketsProducts renames as well (ID->id, createdAt->created_at, subTotal->sub_total, articleCount->products_count, ticketId->ticket_id, usedPrice->sale_price).
-- Decide how to handle productsFamily -> new schema (create a products_family table or map familyCode to an existing column).
-- Backup both source and destination DBs before running any migration and test on a copy first.
-- Use the migration script flags:
-  - --record-skipped to also record rows skipped due to existing primary/unique keys
-  - --disable-fk to temporarily disable foreign key enforcement on the destination while running the migration (use with caution)
+### 5. ticketsProducts → product_in_ticket
+**Source columns:** `ID`, `ticketId`, `code`, `description`, `cantity`, `profit`, `paidAt`, `isWholesale`, `usedPrice`
 
-Running the current script
+**Destination columns:** `id`, `ticket_id`, `code`, `description`, `cantity`, `profit`, `wholesale_price`, `sale_price`
 
-Example (from project root):
-  python conner-back-1.2\migrate_db.py --src "C:\\Users\\SrPap\\Documents\\GitHub\\conner-back\\db" --dst "C:\\Users\\SrPap\\Documents\\GitHub\\conner.1.2\\conner-back-1.2\\db" --failed-csv migration_failed_records.csv --record-skipped
+**Changes handled by migration script:**
+- ✅ Column renames: `ID` → `id`, `ticketId` → `ticket_id`
+- ✅ Price logic: If `isWholesale` is true, both `wholesale_price` and `sale_price` are set to `usedPrice`; otherwise only `sale_price` is set
+- ⚠️ `paidAt` field is not migrated (no equivalent in destination)
 
-This will write migration_failed_records.csv containing failed rows (default) and, with --record-skipped, also rows that were skipped because they already existed in the destination.
+## Destination-Only Tables
 
-If you want, I can update migrate_db.py now to implement the recommended column-name mappings and to auto-create a small products_family table in the destination (or export productsFamily to a separate CSV). Which behavior should I implement?
+The following tables exist in the destination database but have no source equivalent. They will remain empty after migration:
+- `associates_codes`
+- `cash_flow`
+- `drawer_logs`
+- `inventory_log`
+- `products_changes`
+- `ticket_font_configs`
+- `ticket_text`
+- `users`
+
+## Running the Migration
+
+### Prerequisites
+1. **Backup both databases** before running migration
+2. Ensure Python 3.8+ is installed
+3. Install required dependencies (if any)
+
+### Basic Usage
+
+```bash
+# From the conner-back-1.2 directory
+python migrate_db.py --src "/path/to/source/database.db" --dst "/path/to/destination/conner.db" --failed-csv "migration_failed_records.csv"
+```
+
+### Command-Line Options
+
+- `--src`: Path to source database file or directory containing the database
+- `--dst`: Path to destination database file or directory
+- `--failed-csv`: Path for CSV file containing failed/skipped records (default: `migration_failed_records.csv`)
+- `--record-skipped`: Include skipped records (due to existing primary keys) in the CSV output
+- `--disable-fk`: Temporarily disable foreign key enforcement during migration (use with caution)
+
+### Example with All Options
+
+```bash
+python migrate_db.py \
+  --src "/path/to/old/conner-back/db" \
+  --dst "/path/to/new/conner-back-1.2/db" \
+  --failed-csv "migration_results.csv" \
+  --record-skipped
+```
+
+### Example Output
+
+```
+2026-07-06 16:47:08,559 INFO: Found 5 tables in source and 14 in destination
+2026-07-06 16:47:08,562 INFO: Table departments stats: total=20, migrated=20, skipped_existing=0, failed=0
+2026-07-06 16:47:08,626 INFO: Table products stats: total=2659, migrated=2659, skipped_existing=0, failed=0
+2026-07-06 16:47:09,466 INFO: Table tickets stats: total=55255, migrated=55252, skipped_existing=3, failed=0
+2026-07-06 16:47:12,773 INFO: Table ticketsProducts stats: total=249380, migrated=249375, skipped_existing=5, failed=0
+
+=== MIGRATION SUMMARY ===
+Tables processed: 5
+Total rows: 307314
+Migrated: 307306
+Skipped (existing): 8
+Failed: 0
+Success rate: 100.00%
+```
+
+## Post-Migration Verification
+
+After running the migration, verify the results:
+
+1. **Check migration summary** in console output for success rate
+2. **Review failed records CSV** for any issues
+3. **Run verification scripts:**
+   ```bash
+   python db_inspect.py          # Inspect database structure and counts
+   python verify_migration.py    # Verify data integrity
+   python check_family_codes.py  # Check product relationships
+   ```
+
+4. **Test the application** with migrated data
+
+## Important Notes
+
+- The migration script uses **UPSERT** for products, so running it multiple times will update existing records
+- For other tables, duplicate primary keys will be **skipped** (not overwritten)
+- The script handles **camelCase → snake_case** conversions automatically
+- **Foreign key constraints** are respected by default (use `--disable-fk` only if necessary)
+- The `products_family` table is **auto-created** if it doesn't exist
+- **Inventory values < 1** are normalized to NULL (indicating no tracking)
+
+## Troubleshooting
+
+### Migration fails with "table not found"
+- Verify both database paths are correct
+- Ensure destination database has been initialized with the correct schema
+
+### High number of skipped records
+- This is normal if re-running migration on a database that already has data
+- Use `--record-skipped` to see which records were skipped
+
+### Foreign key constraint errors
+- Ensure related tables are migrated in the correct order (the script handles this automatically)
+- Consider using `--disable-fk` temporarily if issues persist
+
+### Performance issues with large databases
+- The script processes records in batches
+- For very large databases (>1M records), consider running in background
+- Monitor disk space and memory usage
+
+## Schema Differences Summary
+
+| Aspect | Source (v1) | Destination (v2) |
+|--------|-------------|------------------|
+| Naming Convention | camelCase | snake_case |
+| Products Family | Separate table | Integrated (auto-created) |
+| Ticket User Tracking | Not present | Added (user_id, ipv4_sender) |
+| Inventory Tracking | Numeric values | NULL for untracked items |
+| Price Fields | Single usedPrice | Separate wholesale_price, sale_price |
+
+## Author
+
+- [@adriandDev](https://www.github.com/adritruji6051)

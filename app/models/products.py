@@ -120,12 +120,17 @@ update_siblings_keys = ["sale_type", "cost", "sale_price", "department", "wholes
 
 def update_siblings_products(data: dict, siblings_codes: list[str]):
     if len(siblings_codes):
+        # Normalizar wholesale_price: convertir 0 a None
+        normalized_data = data.copy()
+        if normalized_data.get('wholesale_price') == 0:
+            normalized_data['wholesale_price'] = None
+            
         for sibling_code in siblings_codes:
             try:
                 product = Product.query.get(sibling_code)
                 if product:
                     for key in update_siblings_keys:
-                        setattr(product, key, data[key])
+                        setattr(product, key, normalized_data[key])
                     db.session.commit()
             except Exception:
                 continue
@@ -172,8 +177,10 @@ class Products:
         if data['wholesale_price'] > data['sale_price']:
             v.add('sale_price', 'Must be greater than or equal to wholesale_price')
 
-        if data['cost'] is not None and data['cost'] != 0 and data['wholesale_price'] < data['cost']:
-            v.add('wholesale_price', 'Must be greater than or equal to cost')
+        # Solo validar wholesale_price >= cost cuando wholesale_price > 0
+        if data['wholesale_price'] is not None and data['wholesale_price'] > 0:
+            if data['cost'] is not None and data['cost'] != 0 and data['wholesale_price'] < data['cost']:
+                v.add('wholesale_price', 'Must be greater than or equal to cost')
 
         if data['sale_type'] != 'U' and data['sale_type'] != 'D':
             v.add('sale_type', 'Must have a value of "U" or "D"')
@@ -338,6 +345,10 @@ class Products:
             raise ValueError('Protected placeholder products cannot be used as parent.')
         modified_date = datetime.now().strftime('%Y-%m-%d')
 
+        # Normalizar wholesale_price: convertir 0 a None
+        if data['wholesale_price'] == 0:
+            data['wholesale_price'] = None
+
         product = Product(
             code=data['code'],
             description=data['description'],
@@ -374,6 +385,10 @@ class Products:
         product = Product.query.get(original_code)
         if not product:
             raise ValueError(f'Product with code {original_code} not found')
+
+        # Normalizar wholesale_price: convertir 0 a None
+        if data['wholesale_price'] == 0:
+            data['wholesale_price'] = None
 
         # If code is being changed, handle it
         if original_code != data['code']:
