@@ -2,22 +2,21 @@ from app.models.products import Products, QUICKSALE_CODE, COMMONSALE_CODE
 from app.models.tickets import Tickets
 from app.controlers.core_classes import product_ticket, ticket_info, editor_entry
 from app.controlers.printers import Printers
-from app.helpers.helpers import ValidationError, collect_missing_keys
+from app.helpers.helpers import ValidationError, collect_missing_keys, format_to_two_decimals
 
 from datetime import datetime
 import math
+import threading
 
 UNDEFINED_PROFIT_MARGIN = 0.20
 
 def custom_round(number: float) -> float:
+    """Round to nearest 0.5 (e.g., 1.3 -> 1.5, 1.7 -> 2.0)"""
     return round(number * 2) / 2
 
 def custom_floor(number) -> float:
+    """Floor to nearest 0.1 (e.g., 1.37 -> 1.3)"""
     return math.floor(number * 10) / 10
-
-def format_to_two_decimals(number: float) -> float:
-    """Round and format a number to 2 decimal places to prevent floating-point precision errors."""
-    return round(number, 2)
 
 def validate_common_product(product: dict):
     v = ValidationError()
@@ -200,6 +199,9 @@ class Ticket:
         }
     
 class tickets_manager:
+    # Class-level lock for thread-safe operations
+    _lock = threading.Lock()
+    
     ticket_id_new = 1
     tickets_dict = {}
     tickets_dict[0] = {
@@ -258,44 +260,49 @@ class tickets_manager:
     
     def add(self, ipv4: str = '127.0.0.1') -> int:
         """Create a Ticket object and return his Key to access it."""
-        tickets_manager.tickets_dict[tickets_manager.ticket_id_new] = {
-            'ipv4': ipv4,
-            'ticket': Ticket(),
-            'commonsale_counter': 0,
-            'editors': [],
-            'shared': False
-        }
-        tickets_manager.ticket_id_new += 1
-        
-        return tickets_manager.ticket_id_new - 1
+        with tickets_manager._lock:
+            tickets_manager.tickets_dict[tickets_manager.ticket_id_new] = {
+                'ipv4': ipv4,
+                'ticket': Ticket(),
+                'commonsale_counter': 0,
+                'editors': [],
+                'shared': False
+            }
+            tickets_manager.ticket_id_new += 1
+            
+            return tickets_manager.ticket_id_new - 1
 
     def remove(self, ticket_key: int):
-        tickets_manager.tickets_dict.pop(ticket_key)
+        with tickets_manager._lock:
+            tickets_manager.tickets_dict.pop(ticket_key)
 
     def save(self, ticket_key: int, notes: str, total: float = 0, ipv4: str = '127.0.0.1', user_id: int = 0, print_many: int = 0, printer_name: str = None, language: str = 'es-MX'):
         """Save at database the Ticket object with the ticket_key and return the ticket id saved at the database"""
-        self.__track_editor(ticket_key, ipv4, user_id, 'save')
-        ticket_info = self.__get(ticket_key).get_info()
-        if len(ticket_info['products']) < 1: 
-            raise ValueError('There are not products on the ticket!')
+        with tickets_manager._lock:
+            self.__track_editor(ticket_key, ipv4, user_id, 'save')
+            ticket_info = self.__get(ticket_key).get_info()
+            if len(ticket_info['products']) < 1: 
+                raise ValueError('There are not products on the ticket!')
 
-        # Normalize COMMONSALE products back to original code before saving
-        ticket_info['products'] = self.__normalize_commonsale_products(ticket_info['products'])
+            # Normalize COMMONSALE products back to original code before saving
+            ticket_info['products'] = self.__normalize_commonsale_products(ticket_info['products'])
 
-        ticket_info['ipv4_sender'] = ipv4
-        ticket_info['total'] = total
-        ticket_info['notes'] = notes
-        ticket_info['user_id'] = user_id
+            ticket_info['ipv4_sender'] = ipv4
+            ticket_info['total'] = total
+            ticket_info['notes'] = notes
+            ticket_info['user_id'] = user_id
 
-        ticket_id = Tickets.create(ticket_info)
+            ticket_id = Tickets.create(ticket_info)
 
+            # Mark the in-memory ticket as no longer shared since it was finalized
+            tickets_manager.tickets_dict[ticket_key]['shared'] = False
+            self.__reset(ticket_key)
+
+        # Print to the end to avoid saving the ticket and cancel the other logic for a printer error
+        # Print outside lock to avoid blocking other operations
         if print_many > 0 and printer_name:
             printers = Printers()
             printers.print_ticket(ticket_info, ticket_id, notes, printer_name, ipv4, print_many, language)
-
-        # Mark the in-memory ticket as no longer shared since it was finalized
-        tickets_manager.tickets_dict[ticket_key]['shared'] = False
-        self.__reset(ticket_key)
         return ticket_id
 
     def get_keys(self, ipv4: str = '127.0.0.1', shared_only: bool = False) -> set:

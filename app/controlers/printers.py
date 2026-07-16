@@ -55,6 +55,70 @@ class Printers:
         self.avaliable_printers[ipv4] = printers
         return printers
 
+    def _find_printer_service_ip(self, printer_name: str, client_ipv4: str = '127.0.0.1') -> str | None:
+        """
+        Find the printer service IP that has the requested printer.
+        
+        This method searches through all registered printer services to find
+        which service has the requested printer available.
+        
+        Args:
+            printer_name: Name of the printer to find (may include IP suffix like ".70")
+            client_ipv4: IP of the client making the request (used as fallback)
+        
+        Returns:
+            IP address of the printer service that has this printer, or None if not found
+        
+        Strategy:
+            1. Strip IP suffix from printer name for flexible matching
+            2. Check client's IP first (most common case)
+            3. Check all cached printer services
+            4. If not found in cache, refresh and check again
+        """
+        # Strip IP suffix for flexible matching
+        clean_printer_name = Printers._strip_ip_suffix(printer_name)
+        
+        # Helper function to check if printer exists in a service
+        def printer_exists_in_service(service_ip: str) -> bool:
+            try:
+                printers = self.dict(service_ip, refresh=False)
+                for available_printer in printers.keys():
+                    if Printers._strip_ip_suffix(available_printer) == clean_printer_name:
+                        return True
+                return False
+            except Exception:
+                return False
+        
+        # 1. Check client's IP first (most common case - local printer)
+        if printer_exists_in_service(client_ipv4):
+            return client_ipv4
+        
+        # 2. Check all cached printer services
+        for service_ip in list(self.avaliable_printers.keys()):
+            if service_ip != client_ipv4 and printer_exists_in_service(service_ip):
+                return service_ip
+        
+        # 3. If not found in cache, refresh all services and check again
+        # This handles the case where a new printer was added
+        for service_ip in list(self.avaliable_printers.keys()):
+            try:
+                self.dict(service_ip, refresh=True)
+                if printer_exists_in_service(service_ip):
+                    return service_ip
+            except Exception:
+                continue
+        
+        # 4. Last resort: try localhost
+        if client_ipv4 != '127.0.0.1':
+            try:
+                self.dict('127.0.0.1', refresh=True)
+                if printer_exists_in_service('127.0.0.1'):
+                    return '127.0.0.1'
+            except Exception:
+                pass
+        
+        return None
+
     def list(self, ipv4: str = '127.0.0.1', refresh: bool = False) -> list:
         return list(self.dict(ipv4, refresh=refresh).keys())
     
@@ -112,21 +176,27 @@ class Printers:
             ticket_id: The ticket identifier
             notes: Notes to include on ticket
             printer_name: Name of the printer to send to
-            ipv4: IP address of the printer service
+            ipv4: IP address of the client (used to search for printer)
             print_many: Number of times to print the ticket
             language: Language code for translations (default: 'es-MX')
         """
         if print_many <= 0 or not printer_name:
             return
         
-        # Verify printer exists
-        if printer_name not in self.list(ipv4):
-            raise ValueError(f'Printer "{printer_name}" not found in available printers on host {ipv4}')
+        # Find the correct printer service IP
+        printer_service_ip = self._find_printer_service_ip(printer_name, ipv4)
+        
+        if not printer_service_ip:
+            raise ValueError(f'Printer "{printer_name}" not found in any available printer service')
+        
+        # Verify printer exists in the found service
+        if printer_name not in self.list(printer_service_ip):
+            raise ValueError(f'Printer "{printer_name}" not found in available printers on host {printer_service_ip}')
         
         # Structure ticket content with headers, content, and footers
         printer_content = Printers.Tasks.struct_ticket(ticket_info, ticket_id, notes, language)
         
-        # Send to printer multiple times
+        # Send to printer multiple times using the correct service IP
         for attempt in range(print_many):
             try:
                 # Create print query with the structured content
@@ -134,7 +204,8 @@ class Printers:
                     'action': 'printer/ticket',
                     'printContext': printer_content
                 }
-                self.__query_service(print_query, ipv4)
+                # Use printer_service_ip instead of client ipv4
+                self.__query_service(print_query, printer_service_ip)
             except Exception as e:
                 # Log warning but don't fail - ticket is already saved
                 print(f'Warning: Failed to print ticket (attempt {attempt + 1}/{print_many}): {str(e)}')

@@ -1,8 +1,83 @@
 import socket
 import json
 import base64
+import logging
 from typing import Any, Dict, List, Optional
 from flask import jsonify
+
+
+
+# ---------------------------------------------------------------------------
+# Log Sanitization - Security Enhancement
+# ---------------------------------------------------------------------------
+
+# Sensitive fields that should never be logged
+SENSITIVE_FIELDS = {
+    'password', 'token', 'secret', 'api_key', 'apikey',
+    'authorization', 'auth', 'jwt', 'session', 'cookie',
+    'secret_key', 'jwt_secret_key'
+}
+
+def sanitize_for_logging(data: Any, max_length: int = 200) -> str:
+    """Sanitize data before logging to remove sensitive information.
+    
+    Args:
+        data: Data to sanitize (dict, list, str, etc.)
+        max_length: Maximum length of output string
+        
+    Returns:
+        Sanitized string safe for logging
+    """
+    if data is None:
+        return 'None'
+    
+    if isinstance(data, dict):
+        sanitized = {}
+        for key, value in data.items():
+            key_lower = str(key).lower()
+            # Check if key contains sensitive field name
+            if any(sensitive in key_lower for sensitive in SENSITIVE_FIELDS):
+                sanitized[key] = '***REDACTED***'
+            elif isinstance(value, (dict, list)):
+                sanitized[key] = sanitize_for_logging(value, max_length)
+            else:
+                sanitized[key] = str(value)[:100]  # Limit individual values
+        result = str(sanitized)
+    elif isinstance(data, list):
+        sanitized = [sanitize_for_logging(item, max_length) for item in data[:10]]  # Limit to 10 items
+        result = str(sanitized)
+    else:
+        result = str(data)
+    
+    # Truncate if too long
+    if len(result) > max_length:
+        result = result[:max_length] + '...[truncated]'
+    
+    return result
+
+
+def log_request_safely(route: str, data: Any = None, error: Exception = None, level: str = 'info'):
+    """Log request information safely without exposing sensitive data.
+    
+    Args:
+        route: Route/endpoint name
+        data: Request data (will be sanitized)
+        error: Exception if any
+        level: Log level ('info', 'warning', 'error')
+    """
+    logger = logging.getLogger(__name__)
+    
+    if error:
+        sanitized_data = sanitize_for_logging(data) if data else 'No data'
+        logger.error(
+            f"Route: {route} | Error: {type(error).__name__}: {str(error)[:200]} | "
+            f"Data: {sanitized_data}"
+        )
+    else:
+        sanitized_data = sanitize_for_logging(data) if data else 'No data'
+        log_method = getattr(logger, level.lower(), logger.info)
+        log_method(f"Route: {route} | Data: {sanitized_data}")
+
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +140,14 @@ def raise_exception_if_missing_keys(data: dict, keys: list[str], description_tag
     errors = collect_missing_keys(data, keys, description_tag)
     if errors:
         raise ValidationError(errors)
+
+
+def format_to_two_decimals(number: float) -> float:
+    """Round and format a number to 2 decimal places to prevent floating-point precision errors.
+    
+    This is the unified rounding function for all monetary calculations in the system.
+    """
+    return round(number, 2)
 
 
 def profit_percentage(cost: float, sale_price: float) -> int:
@@ -349,8 +432,8 @@ def send_to_printer_service(command: dict, printer_name: str = None, ipv4: str =
     
     Args:
         command: Dictionary command to send to printer service
-        printer_name: Optional printer name to use (will update printer before sending)
-        ipv4: IP address of printer service
+        printer_name: Optional printer name to use (will find correct service IP)
+        ipv4: IP address of client (used to search for printer)
         port: Port of printer service (default 9100)
         
     Returns:
@@ -360,17 +443,27 @@ def send_to_printer_service(command: dict, printer_name: str = None, ipv4: str =
         from app.controlers.printers import Printers
         printers_manager = Printers()
         
-        # If printer_name specified, update the printer first
+        # Find the correct printer service IP if printer_name is specified
+        service_ip = ipv4
         if printer_name:
+            found_ip = printers_manager._find_printer_service_ip(printer_name, ipv4)
+            if not found_ip:
+                return {
+                    'status': 'error',
+                    'message': f'Printer "{printer_name}" not found in any available printer service'
+                }
+            service_ip = found_ip
+            
+            # Update the printer on the correct service
             try:
-                printers_manager.update_printer(printer_name, ipv4)
+                printers_manager.update_printer(printer_name, service_ip)
             except Exception as e:
-                print(f"Warning: Could not set printer {printer_name}: {e}")
+                print(f"Warning: Could not set printer {printer_name} on {service_ip}: {e}")
         
-        # Send command to service
+        # Send command to the correct service
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(10)
-            s.connect((ipv4, port))
+            s.connect((service_ip, port))
             s.sendall(json.dumps(command).encode('utf-8'))
             
             # Receive response
@@ -397,13 +490,13 @@ def send_to_printer_service(command: dict, printer_name: str = None, ipv4: str =
                 }
             
     except ConnectionRefusedError:
-        print(f"Error: Printer service not reachable at {ipv4}:{port}")
+        print(f"Error: Printer service not reachable at {service_ip}:{port}")
         return {
             'status': 'error',
-            'message': f'Printer service not reachable at {ipv4}:{port}. Make sure the service is running.'
+            'message': f'Printer service not reachable at {service_ip}:{port}. Make sure the service is running.'
         }
     except socket.timeout:
-        print(f"Error: Printer service timeout at {ipv4}:{port}")
+        print(f"Error: Printer service timeout at {service_ip}:{port}")
         return {
             'status': 'error',
             'message': f'Printer service timeout. The service may be busy or not responding.'

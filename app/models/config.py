@@ -128,6 +128,10 @@ class Config:
 
         @staticmethod
         def login(user: str, password: str) -> dict:
+            from flask_jwt_extended import create_access_token
+            from datetime import timedelta
+            from config.config import Config as AppConfig
+            
             user_obj = User.query.filter_by(user=user).first()
 
             if not user_obj:
@@ -136,11 +140,25 @@ class Config:
             if password != user_obj.password:
                 raise ValueError('User or password are incorrect!')
 
+            # Generate JWT token with configurable expiration
+            if AppConfig.TOKEN_NEVER_EXPIRES:
+                expires_delta = False  # Token never expires
+            else:
+                token_hours = AppConfig.TOKEN_HOURS
+                expires_delta = timedelta(hours=token_hours)
+            
+            access_token = create_access_token(
+                identity=str(user_obj.id),
+                expires_delta=expires_delta
+            )
+
             return {
                 'id': user_obj.id,
                 'user': user_obj.user,
                 'user_name': user_obj.user_name,
                 'role_type': user_obj.role_type,
+                'token': access_token,
+                'language_preference': user_obj.language_preference
             }
 
         @staticmethod

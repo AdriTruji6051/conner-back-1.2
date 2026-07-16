@@ -1,4 +1,5 @@
 from datetime import datetime
+import threading
 
 from sqlalchemy import event
 
@@ -6,6 +7,9 @@ from app.extensions import db
 from app.models.analytics import Analytics, create_products_changes_keys
 from app.helpers.helpers import profit_percentage, raise_exception_if_missing_keys, ValidationError, collect_missing_keys
 from app.models.core_classes import Product, AssociateCode, Department
+
+# Global lock for inventory operations to prevent race conditions
+_inventory_lock = threading.Lock()
 
 QUICKSALE_CODE = 'QUICKSALE'
 COMMONSALE_CODE = 'COMMONSALE'
@@ -112,6 +116,7 @@ def ensure_common_product() -> Product:
 # Keys for validation
 create_product_keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code"]
 update_product_keys = ["code", "description", "sale_type", "cost", "sale_price", "department", "wholesale_price", "priority", "inventory", "parent_code", "original_code"]
+# siblings_codes is optional for updates
 update_department_keys = ["description", "code"]
 create_associates_codes_keys = ["code", "parent_code", "tag"]
 update_associates_codes_keys = ["code", "parent_code", "tag", "original_code"]
@@ -163,6 +168,15 @@ class Products:
         # If keys are missing we can't safely inspect values — return early
         if v.has_errors:
             raise v
+        
+        # Ensure siblings_codes exists (optional field, default to empty list)
+        if 'siblings_codes' not in data:
+            data['siblings_codes'] = []
+
+        # --- Normalize wholesale_price BEFORE validation ---
+        # Convert 0 to None to represent "no wholesale price"
+        if data.get('wholesale_price') == 0:
+            data['wholesale_price'] = None
 
         # --- field-level rules -----------------------------------------------
         if data['cost'] < 0:
@@ -174,11 +188,11 @@ class Products:
         if data['cost'] > data['sale_price']:
             v.add('sale_price', 'Must be greater than or equal to cost')
 
-        if data['wholesale_price'] > data['sale_price']:
-            v.add('sale_price', 'Must be greater than or equal to wholesale_price')
-
-        # Solo validar wholesale_price >= cost cuando wholesale_price > 0
-        if data['wholesale_price'] is not None and data['wholesale_price'] > 0:
+        # Only validate wholesale_price if it's set (not None)
+        if data['wholesale_price'] is not None:
+            if data['wholesale_price'] > data['sale_price']:
+                v.add('sale_price', 'Must be greater than or equal to wholesale_price')
+            
             if data['cost'] is not None and data['cost'] != 0 and data['wholesale_price'] < data['cost']:
                 v.add('wholesale_price', 'Must be greater than or equal to cost')
 
@@ -345,10 +359,6 @@ class Products:
             raise ValueError('Protected placeholder products cannot be used as parent.')
         modified_date = datetime.now().strftime('%Y-%m-%d')
 
-        # Normalizar wholesale_price: convertir 0 a None
-        if data['wholesale_price'] == 0:
-            data['wholesale_price'] = None
-
         product = Product(
             code=data['code'],
             description=data['description'],
@@ -385,10 +395,6 @@ class Products:
         product = Product.query.get(original_code)
         if not product:
             raise ValueError(f'Product with code {original_code} not found')
-
-        # Normalizar wholesale_price: convertir 0 a None
-        if data['wholesale_price'] == 0:
-            data['wholesale_price'] = None
 
         # If code is being changed, handle it
         if original_code != data['code']:
@@ -448,47 +454,51 @@ class Products:
             raise ValueError('Inventory cannot be zero or lower.')
         if _is_protected_placeholder_code(code):
             raise ValueError('Protected placeholder inventory cannot be modified manually.')
-        product = Product.query.get(code)
-        if not product:
-            raise ValueError(f'Product with code {code} not found')
-        product.inventory = cantity
-        db.session.commit()
-        return {'code': product.code, 'description': product.description, 'inventory': product.inventory}
+        
+        with _inventory_lock:
+            product = Product.query.get(code)
+            if not product:
+                raise ValueError(f'Product with code {code} not found')
+            product.inventory = cantity
+            db.session.commit()
+            return {'code': product.code, 'description': product.description, 'inventory': product.inventory}
 
     @staticmethod
     def add_inventory(code: str, cantity: float) -> dict:
         """Product code and cantity to add."""
-        product = Product.query.get(code)
-        if not product:
-            assoc = AssociateCode.query.get(code)
-            if assoc:
-                product = Product.query.get(assoc.parent_code)
+        with _inventory_lock:
+            product = Product.query.get(code)
+            if not product:
+                assoc = AssociateCode.query.get(code)
+                if assoc:
+                    product = Product.query.get(assoc.parent_code)
 
-        if not product or product.inventory is None:
-            raise ValueError(f'Product with code {code} not found or does not track inventory')
+            if not product or product.inventory is None:
+                raise ValueError(f'Product with code {code} not found or does not track inventory')
 
-        product.inventory += cantity
-        db.session.commit()
-        return {'code': product.code, 'description': product.description, 'inventory': product.inventory}
+            product.inventory += cantity
+            db.session.commit()
+            return {'code': product.code, 'description': product.description, 'inventory': product.inventory}
 
     @staticmethod
     def remove_inventory(code: str, cantity: float) -> dict:
         """Product code and cantity to substract."""
-        if not Products.enough_inventory(code, cantity):
-            raise ValueError(f'Not enough inventory for product with code: {code}')
+        with _inventory_lock:
+            if not Products.enough_inventory(code, cantity):
+                raise ValueError(f'Not enough inventory for product with code: {code}')
 
-        product = Product.query.get(code)
-        if not product:
-            assoc = AssociateCode.query.get(code)
-            if assoc:
-                product = Product.query.get(assoc.parent_code)
+            product = Product.query.get(code)
+            if not product:
+                assoc = AssociateCode.query.get(code)
+                if assoc:
+                    product = Product.query.get(assoc.parent_code)
 
-        if not product or product.inventory is None:
-            raise ValueError(f'Product with code {code} not found or does not track inventory')
+            if not product or product.inventory is None:
+                raise ValueError(f'Product with code {code} not found or does not track inventory')
 
-        product.inventory -= cantity
-        db.session.commit()
-        return {'code': product.code, 'description': product.description, 'inventory': product.inventory}
+            product.inventory -= cantity
+            db.session.commit()
+            return {'code': product.code, 'description': product.description, 'inventory': product.inventory}
 
     class Departments:
         @staticmethod
@@ -555,7 +565,8 @@ def _prevent_default_department_delete(mapper, connection, target):
     if is_protected_department(target):
         raise ValueError('Default department cannot be deleted.')
 
-    class Associates_codes: # NOSONAR TODO: Check implementation
+
+class Associates_codes:
         @staticmethod
         def get(code: str) -> dict:
             assoc = AssociateCode.query.get(code)
@@ -637,3 +648,7 @@ def _prevent_default_department_delete(mapper, connection, target):
                 raise ValueError(f'Associate code {code} not found')
             db.session.delete(assoc)
             db.session.commit()
+
+
+# Assign Associates_codes as attribute of Products class
+Products.Associates_codes = Associates_codes

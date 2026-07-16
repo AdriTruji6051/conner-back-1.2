@@ -1,10 +1,10 @@
 from flask import jsonify, Blueprint, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 import logging
 
 from app.controlers.tickets import tickets_manager
 from app.models.tickets import Tickets
-from app.helpers.helpers import AppResponse, ValidationError
+from app.helpers.helpers import AppResponse, ValidationError, log_request_safely
 from app.sockets.tickets import broadcast_ticket_update
 from app.routes_constants import (
     ROUTE_QUICKSALE_TICKET, ROUTE_CREATE_TICKET, ROUTE_GET_TICKET_KEYS,
@@ -31,10 +31,14 @@ def _serialize_ticket_keys(keys):
     ]
 
 @routesTickets.route(ROUTE_CREATE_TICKET, methods=['POST'])
+@jwt_required()
 def create_ticket():
     try:
+        current_user = get_jwt_identity()
         ipv4 = request.remote_addr
-        return AppResponse.created(TICKET_MANAGER.add(ipv4)).to_flask_tuple()
+        ticket_key = TICKET_MANAGER.add(ipv4)
+        log_request_safely(ROUTE_CREATE_TICKET, {'user': current_user, 'ticket_key': ticket_key})
+        return AppResponse.created(ticket_key).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -178,14 +182,25 @@ def toogle_wholesale(ticket_key):
         return AppResponse.server_error('Unexpected error toggling wholesale').to_flask_tuple()
     
 @routesTickets.route(ROUTE_ADD_PRODUCT_TICKET, methods=['POST'])
+@jwt_required()
 def add_product():
     try:
+        current_user = get_jwt_identity()
         data = request.get_json(silent=True) or {}
         product_code = data.get('product_code')
-        ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
-        cantity = float(data.get('cantity')) if data.get('cantity') is not None else None
+        
+        try:
+            ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
+        except (TypeError, ValueError) as e:
+            return AppResponse.validation_error([{'ticket_key': f'Must be a valid integer: {str(e)}'}]).to_flask_tuple()
+        
+        try:
+            cantity = float(data.get('cantity')) if data.get('cantity') is not None else None
+        except (TypeError, ValueError) as e:
+            return AppResponse.validation_error([{'cantity': f'Must be a valid number: {str(e)}'}]).to_flask_tuple()
         
         result = TICKET_MANAGER.add_product(ticket_key, product_code, cantity, ipv4=request.remote_addr)
+        log_request_safely(ROUTE_ADD_PRODUCT_TICKET, {'user': current_user, 'ticket_key': ticket_key, 'product_code': product_code})
         broadcast_ticket_update(ticket_key)
         return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
@@ -197,15 +212,31 @@ def add_product():
         return AppResponse.server_error('Unexpected error adding product to ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_ADD_COMMON_PRODUCT_TICKET, methods=['POST'])
+@jwt_required()
 def add_common_product():
     try:
+        current_user = get_jwt_identity()
         data = request.get_json(silent=True) or {}
-        ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
-        price = float(data.get('price')) if data.get('price') is not None else None
-        cantity = float(data.get('cantity', 1))
+        
+        try:
+            ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
+        except (TypeError, ValueError) as e:
+            return AppResponse.validation_error([{'ticket_key': f'Must be a valid integer: {str(e)}'}]).to_flask_tuple()
+        
+        try:
+            price = float(data.get('price')) if data.get('price') is not None else None
+        except (TypeError, ValueError) as e:
+            return AppResponse.validation_error([{'price': f'Must be a valid number: {str(e)}'}]).to_flask_tuple()
+        
+        try:
+            cantity = float(data.get('cantity', 1))
+        except (TypeError, ValueError) as e:
+            return AppResponse.validation_error([{'cantity': f'Must be a valid number: {str(e)}'}]).to_flask_tuple()
+        
         description = data.get('description', 'COMMONSALE')
         
         result = TICKET_MANAGER.add_common_product(ticket_key, price, cantity, description, ipv4=request.remote_addr)
+        log_request_safely(ROUTE_ADD_COMMON_PRODUCT_TICKET, {'user': current_user, 'ticket_key': ticket_key, 'price': price})
         broadcast_ticket_update(ticket_key)
         return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
@@ -217,14 +248,25 @@ def add_common_product():
         return AppResponse.server_error('Unexpected error adding common product to ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_REMOVE_PRODUCT_TICKET, methods=['POST'])
+@jwt_required()
 def remove_product():
     try:
+        current_user = get_jwt_identity()
         data = request.get_json(silent=True) or {}
         product_code = data.get('product_code')
-        ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
-        cantity = float(data.get('cantity')) if data.get('cantity') is not None else None
+        
+        try:
+            ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
+        except (TypeError, ValueError) as e:
+            return AppResponse.validation_error([{'ticket_key': f'Must be a valid integer: {str(e)}'}]).to_flask_tuple()
+        
+        try:
+            cantity = float(data.get('cantity')) if data.get('cantity') is not None else None
+        except (TypeError, ValueError) as e:
+            return AppResponse.validation_error([{'cantity': f'Must be a valid number: {str(e)}'}]).to_flask_tuple()
         
         result = TICKET_MANAGER.remove_product(ticket_key, product_code, cantity, ipv4=request.remote_addr)
+        log_request_safely(ROUTE_REMOVE_PRODUCT_TICKET, {'user': current_user, 'ticket_key': ticket_key, 'product_code': product_code})
         broadcast_ticket_update(ticket_key)
         return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
@@ -236,14 +278,25 @@ def remove_product():
         return AppResponse.server_error('Unexpected error removing product from ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_SET_PRODUCT_QUANTITY, methods=['POST'])
+@jwt_required()
 def set_product_quantity():
     try:
+        current_user = get_jwt_identity()
         data = request.get_json(silent=True) or {}
         product_code = data.get('product_code')
-        ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
-        quantity = float(data.get('quantity')) if data.get('quantity') is not None else None
+        
+        try:
+            ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
+        except (TypeError, ValueError) as e:
+            return AppResponse.validation_error([{'ticket_key': f'Must be a valid integer: {str(e)}'}]).to_flask_tuple()
+        
+        try:
+            quantity = float(data.get('quantity')) if data.get('quantity') is not None else None
+        except (TypeError, ValueError) as e:
+            return AppResponse.validation_error([{'quantity': f'Must be a valid number: {str(e)}'}]).to_flask_tuple()
         
         result = TICKET_MANAGER.set_product_quantity(ticket_key, product_code, quantity, ipv4=request.remote_addr)
+        log_request_safely(ROUTE_SET_PRODUCT_QUANTITY, {'user': current_user, 'ticket_key': ticket_key, 'product_code': product_code})
         broadcast_ticket_update(ticket_key)
         return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
@@ -255,14 +308,17 @@ def set_product_quantity():
         return AppResponse.server_error('Unexpected error setting product quantity in ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE, methods=['POST'])
+@jwt_required()
 def update_product_wholesale_price():
     try:
+        current_user = get_jwt_identity()
         data = request.get_json(silent=True) or {}
         product_code = data.get('product_code')
         ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
         wholesale_price = float(data.get('new_wholesale_price')) if data.get('new_wholesale_price') is not None else None
 
         result = TICKET_MANAGER.set_product_wholesale_price(ticket_key, product_code, wholesale_price, ipv4=request.remote_addr)
+        log_request_safely(ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE, {'user': current_user, 'ticket_key': ticket_key, 'product_code': product_code})
         broadcast_ticket_update(ticket_key)
         return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
@@ -274,23 +330,41 @@ def update_product_wholesale_price():
         return AppResponse.server_error('Unexpected error updating wholesale price in ticket').to_flask_tuple()
     
 @routesTickets.route(f'{ROUTE_SAVE_TICKET}/<int:ticket_key>', methods=['POST'])
+@jwt_required()
 def save_ticket(ticket_key):
     try:
+        current_user = get_jwt_identity()
         data = request.get_json(silent=True) or {}
         notes = data.get('notes')
         
         total = data.get('total')
         if total is not None:
-            total = float(total)
+            try:
+                total = float(total)
+            except (TypeError, ValueError) as e:
+                return AppResponse.validation_error([{'total': f'Must be a valid number: {str(e)}'}]).to_flask_tuple()
             
         print_many = data.get('print')
         if print_many is not None:
-            print_many = int(print_many)
+            try:
+                print_many = int(print_many)
+            except (TypeError, ValueError) as e:
+                return AppResponse.validation_error([{'print': f'Must be a valid integer: {str(e)}'}]).to_flask_tuple()
             
         printer_name = data.get('printer_name')
         language = data.get('language', 'es-MX')  # Default to Spanish
 
-        saved_id = TICKET_MANAGER.save(notes=notes, ticket_key=ticket_key, total=total, ipv4=request.remote_addr, print_many=print_many, printer_name=printer_name, language=language)
+        saved_id = TICKET_MANAGER.save(
+            notes=notes, 
+            ticket_key=ticket_key, 
+            total=total, 
+            ipv4=request.remote_addr,
+            user_id=current_user.get('id', 0) if isinstance(current_user, dict) else 0,
+            print_many=print_many, 
+            printer_name=printer_name, 
+            language=language
+        )
+        log_request_safely(ROUTE_SAVE_TICKET, {'user': current_user, 'ticket_key': ticket_key, 'saved_id': saved_id})
         # Notify any subscribed clients that the ticket was finalized/updated
         broadcast_ticket_update(ticket_key)
         return AppResponse.success(saved_id).to_flask_tuple()
@@ -303,11 +377,14 @@ def save_ticket(ticket_key):
         return AppResponse.server_error('Unexpected error saving ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_MODIFY_SAVED_TICKET, methods=['PUT'])
+@jwt_required()
 def modify_saved_ticket(ticket_id):
     try:
+        current_user = get_jwt_identity()
         data = request.get_json(silent=True) or {}
         data['id'] = ticket_id
         result = Tickets.modify(data)
+        log_request_safely(ROUTE_MODIFY_SAVED_TICKET, {'user': current_user, 'ticket_id': ticket_id})
         return AppResponse.success(result).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
@@ -321,12 +398,21 @@ def modify_saved_ticket(ticket_id):
         return AppResponse.server_error('Unexpected error modifying saved ticket').to_flask_tuple()
 
 @routesTickets.route(ROUTE_QUICKSALE_TICKET, methods=['POST'])
+@jwt_required()
 def quicksale_ticket(amount):
     try:
+        current_user = get_jwt_identity()
         amount = float(amount)
         data = request.get_json(silent=True) or {}
         printer_name = data.get('printer_name')
-        return AppResponse.created(TICKET_MANAGER.quicksale(amount=amount, ipv4=request.remote_addr, printer_name=printer_name)).to_flask_tuple()
+        ticket_id = TICKET_MANAGER.quicksale(
+            amount=amount, 
+            ipv4=request.remote_addr,
+            user_id=current_user.get('id', 0) if isinstance(current_user, dict) else 0,
+            printer_name=printer_name
+        )
+        log_request_safely(ROUTE_QUICKSALE_TICKET, {'user': current_user, 'amount': amount, 'ticket_id': ticket_id})
+        return AppResponse.created(ticket_id).to_flask_tuple()
     except ValidationError as e:
         return AppResponse.validation_error(e.errors).to_flask_tuple()
     except ValueError as e:
@@ -335,8 +421,10 @@ def quicksale_ticket(amount):
         logging.exception(f'{ROUTE_QUICKSALE_TICKET}. Catch: {e}.')
 
 @routesTickets.route(ROUTE_REPRINT_TICKET, methods=['POST'])
+@jwt_required()
 def reprint_ticket(ticket_id):
     try:
+        current_user = get_jwt_identity()
         data = request.get_json(silent=True) or {}
         printer_name = data.get('printer_name')
         print_many = data.get('print', 1)
@@ -350,6 +438,7 @@ def reprint_ticket(ticket_id):
         
         # Get ticket from database
         ticket = Tickets.get(ticket_id)
+        log_request_safely(ROUTE_REPRINT_TICKET, {'user': current_user, 'ticket_id': ticket_id})
         
         # Get products in ticket
         products = Tickets.Product_in_ticket.get_by_ticket(ticket_id)

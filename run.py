@@ -104,8 +104,12 @@ def create_app():
     # Register templates blueprint LAST to catch all remaining routes for Angular
     app.register_blueprint(routesTemplates)
 
-    # Initialize SocketIO with the app
-    socketio.init_app(app, cors_allowed_origins='*')
+    # Initialize SocketIO with specific allowed origins
+    socketio.init_app(
+        app, 
+        cors_allowed_origins=Config.ALLOWED_ORIGINS,
+        cors_credentials=True
+    )
 
     # Register WebSocket event handlers (the from-import already executes
     # the module and registers the @socketio.on decorators)
@@ -118,7 +122,14 @@ def create_app():
 def run_app():
     application = create_app()
 
-    CORS(application, supports_credentials=True)
+    # Configure CORS with specific origins
+    CORS(
+        application,
+        origins=Config.ALLOWED_ORIGINS,
+        supports_credentials=True,
+        allow_headers=['Content-Type', 'Authorization'],
+        methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+    )
 
     # Create all database tables if they don't exist (replaces DB_manager.create_missing_db)
     with application.app_context():
