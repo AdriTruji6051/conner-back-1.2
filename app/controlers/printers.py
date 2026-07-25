@@ -1,4 +1,5 @@
 import json
+import re
 import socket
 from datetime import datetime
 from num2words import num2words
@@ -25,10 +26,18 @@ class Printers:
         """
         if not printer_name:
             return printer_name
-        
-        import re
-        pattern = r'\.\d{1,3}$'
-        return re.sub(pattern, '', printer_name)
+        return re.sub(r'\.\d{1,3}$', '', printer_name)
+
+    @staticmethod
+    def _extract_ip_suffix(printer_name: str) -> str | None:
+        """
+        Extract the last-octet suffix from a printer name, if present.
+        Example: "80 Printer.200" -> "200", "Canon Printer" -> None
+        """
+        if not printer_name:
+            return None
+        m = re.search(r'\.(\d{1,3})$', printer_name)
+        return m.group(1) if m else None
 
     def __query_service(self, query: object, ipv4: str = '127.0.0.1', port: int = 9100) -> any:
         try:
@@ -57,28 +66,26 @@ class Printers:
 
     def _find_printer_service_ip(self, printer_name: str, client_ipv4: str = '127.0.0.1') -> str | None:
         """
-        Find the printer service IP that has the requested printer.
-        
-        This method searches through all registered printer services to find
-        which service has the requested printer available.
-        
+        Find the real IPv4 of the printer service that owns the requested printer.
+
+        When printer_name carries an IP suffix (e.g. "80 Printer.200") the last
+        octet is matched against the last octets of all known service hosts so
+        that the correct host is returned directly, without using client_ipv4 as
+        a guess.  client_ipv4 is only consulted as a fallback when no suffix is
+        present and the printer could not be located in any cached service.
+
         Args:
-            printer_name: Name of the printer to find (may include IP suffix like ".70")
-            client_ipv4: IP of the client making the request (used as fallback)
-        
+            printer_name: Name of the printer (may include a host last-octet
+                          suffix like ".200").
+            client_ipv4:  IP of the requesting client – used only as a fallback
+                          when no suffix is present.
+
         Returns:
-            IP address of the printer service that has this printer, or None if not found
-        
-        Strategy:
-            1. Strip IP suffix from printer name for flexible matching
-            2. Check client's IP first (most common case)
-            3. Check all cached printer services
-            4. If not found in cache, refresh and check again
+            IPv4 of the printer service that has this printer, or None.
         """
-        # Strip IP suffix for flexible matching
         clean_printer_name = Printers._strip_ip_suffix(printer_name)
-        
-        # Helper function to check if printer exists in a service
+        suffix_octet = Printers._extract_ip_suffix(printer_name)
+
         def printer_exists_in_service(service_ip: str) -> bool:
             try:
                 printers = self.dict(service_ip, refresh=False)
@@ -88,18 +95,30 @@ class Printers:
                 return False
             except Exception:
                 return False
-        
-        # 1. Check client's IP first (most common case - local printer)
-        if printer_exists_in_service(client_ipv4):
-            return client_ipv4
-        
-        # 2. Check all cached printer services
+
+        # 1. If the printer name encodes a host (e.g. ".200"), resolve that host
+        #    directly from the registered services before doing anything else.
+        if suffix_octet:
+            # Search cached services whose last octet matches the suffix
+            for service_ip in list(self.avaliable_printers.keys()):
+                if service_ip.split('.')[-1] == suffix_octet and printer_exists_in_service(service_ip):
+                    return service_ip
+            # Refresh and retry – the service may not have been queried yet
+            for service_ip in list(self.avaliable_printers.keys()):
+                if service_ip.split('.')[-1] == suffix_octet:
+                    try:
+                        self.dict(service_ip, refresh=True)
+                        if printer_exists_in_service(service_ip):
+                            return service_ip
+                    except Exception:
+                        continue
+
+        # 2. No suffix (or suffix didn't resolve): check all cached services
         for service_ip in list(self.avaliable_printers.keys()):
-            if service_ip != client_ipv4 and printer_exists_in_service(service_ip):
+            if printer_exists_in_service(service_ip):
                 return service_ip
-        
-        # 3. If not found in cache, refresh all services and check again
-        # This handles the case where a new printer was added
+
+        # 3. Refresh all cached services and retry
         for service_ip in list(self.avaliable_printers.keys()):
             try:
                 self.dict(service_ip, refresh=True)
@@ -107,16 +126,16 @@ class Printers:
                     return service_ip
             except Exception:
                 continue
-        
-        # 4. Last resort: try localhost
-        if client_ipv4 != '127.0.0.1':
+
+        # 4. Last resort: try localhost, then client_ipv4 (no suffix case only)
+        for fallback_ip in (['127.0.0.1'] + ([client_ipv4] if client_ipv4 != '127.0.0.1' else [])):
             try:
-                self.dict('127.0.0.1', refresh=True)
-                if printer_exists_in_service('127.0.0.1'):
-                    return '127.0.0.1'
+                self.dict(fallback_ip, refresh=True)
+                if printer_exists_in_service(fallback_ip):
+                    return fallback_ip
             except Exception:
-                pass
-        
+                continue
+
         return None
 
     def list(self, ipv4: str = '127.0.0.1', refresh: bool = False) -> list:
@@ -187,11 +206,11 @@ class Printers:
         printer_service_ip = self._find_printer_service_ip(printer_name, ipv4)
         
         if not printer_service_ip:
-            raise ValueError(f'Printer "{printer_name}" not found in any available printer service')
-        
+            return
+
         # Verify printer exists in the found service
         if printer_name not in self.list(printer_service_ip):
-            raise ValueError(f'Printer "{printer_name}" not found in available printers on host {printer_service_ip}')
+            return
         
         # Structure ticket content with headers, content, and footers
         printer_content = Printers.Tasks.struct_ticket(ticket_info, ticket_id, notes, language)

@@ -27,6 +27,11 @@ class Config:
         print("WARNING: JWT_SECRET_KEY should be at least 32 characters long")
         print(f"Current length: {len(JWT_SECRET_KEY)}")
     
+    # JWT enforcement - set DISABLE_JWT=True to bypass token checks (development only)
+    DISABLE_JWT = os.getenv("DISABLE_JWT", "True").lower() in ('true', '1', 'yes', 'y')
+    if DISABLE_JWT:
+        print("WARNING: JWT authentication is DISABLED. All endpoints are unprotected!")
+
     # Token expiration configuration
     TOKEN_NEVER_EXPIRES = os.getenv("TOKEN_NEVER_EXPIRES", "True").lower() in ('true', '1', 'yes', 'y')
     

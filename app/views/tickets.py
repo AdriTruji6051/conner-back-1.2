@@ -1,5 +1,5 @@
 from flask import jsonify, Blueprint, request
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.auth import jwt_protected, get_current_user
 import logging
 
 from app.controlers.tickets import tickets_manager
@@ -31,10 +31,10 @@ def _serialize_ticket_keys(keys):
     ]
 
 @routesTickets.route(ROUTE_CREATE_TICKET, methods=['POST'])
-@jwt_required()
+@jwt_protected()
 def create_ticket():
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         ipv4 = request.remote_addr
         ticket_key = TICKET_MANAGER.add(ipv4)
         log_request_safely(ROUTE_CREATE_TICKET, {'user': current_user, 'ticket_key': ticket_key})
@@ -182,10 +182,10 @@ def toogle_wholesale(ticket_key):
         return AppResponse.server_error('Unexpected error toggling wholesale').to_flask_tuple()
     
 @routesTickets.route(ROUTE_ADD_PRODUCT_TICKET, methods=['POST'])
-@jwt_required()
+@jwt_protected()
 def add_product():
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         data = request.get_json(silent=True) or {}
         product_code = data.get('product_code')
         
@@ -212,10 +212,10 @@ def add_product():
         return AppResponse.server_error('Unexpected error adding product to ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_ADD_COMMON_PRODUCT_TICKET, methods=['POST'])
-@jwt_required()
+@jwt_protected()
 def add_common_product():
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         data = request.get_json(silent=True) or {}
         
         try:
@@ -248,10 +248,10 @@ def add_common_product():
         return AppResponse.server_error('Unexpected error adding common product to ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_REMOVE_PRODUCT_TICKET, methods=['POST'])
-@jwt_required()
+@jwt_protected()
 def remove_product():
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         data = request.get_json(silent=True) or {}
         product_code = data.get('product_code')
         
@@ -278,10 +278,10 @@ def remove_product():
         return AppResponse.server_error('Unexpected error removing product from ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_SET_PRODUCT_QUANTITY, methods=['POST'])
-@jwt_required()
+@jwt_protected()
 def set_product_quantity():
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         data = request.get_json(silent=True) or {}
         product_code = data.get('product_code')
         
@@ -308,10 +308,10 @@ def set_product_quantity():
         return AppResponse.server_error('Unexpected error setting product quantity in ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_UPDATE_PRODUCT_WHOLESALE_PRICE, methods=['POST'])
-@jwt_required()
+@jwt_protected()
 def update_product_wholesale_price():
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         data = request.get_json(silent=True) or {}
         product_code = data.get('product_code')
         ticket_key = int(data.get('ticket_key')) if data.get('ticket_key') is not None else None
@@ -330,10 +330,10 @@ def update_product_wholesale_price():
         return AppResponse.server_error('Unexpected error updating wholesale price in ticket').to_flask_tuple()
     
 @routesTickets.route(f'{ROUTE_SAVE_TICKET}/<int:ticket_key>', methods=['POST'])
-@jwt_required()
+@jwt_protected()
 def save_ticket(ticket_key):
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         data = request.get_json(silent=True) or {}
         notes = data.get('notes')
         
@@ -377,10 +377,10 @@ def save_ticket(ticket_key):
         return AppResponse.server_error('Unexpected error saving ticket').to_flask_tuple()
     
 @routesTickets.route(ROUTE_MODIFY_SAVED_TICKET, methods=['PUT'])
-@jwt_required()
+@jwt_protected()
 def modify_saved_ticket(ticket_id):
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         data = request.get_json(silent=True) or {}
         data['id'] = ticket_id
         result = Tickets.modify(data)
@@ -398,10 +398,10 @@ def modify_saved_ticket(ticket_id):
         return AppResponse.server_error('Unexpected error modifying saved ticket').to_flask_tuple()
 
 @routesTickets.route(ROUTE_QUICKSALE_TICKET, methods=['POST'])
-@jwt_required()
+@jwt_protected()
 def quicksale_ticket(amount):
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         amount = float(amount)
         data = request.get_json(silent=True) or {}
         printer_name = data.get('printer_name')
@@ -421,10 +421,10 @@ def quicksale_ticket(amount):
         logging.exception(f'{ROUTE_QUICKSALE_TICKET}. Catch: {e}.')
 
 @routesTickets.route(ROUTE_REPRINT_TICKET, methods=['POST'])
-@jwt_required()
+@jwt_protected()
 def reprint_ticket(ticket_id):
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         data = request.get_json(silent=True) or {}
         printer_name = data.get('printer_name')
         print_many = data.get('print', 1)

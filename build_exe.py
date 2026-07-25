@@ -124,7 +124,7 @@ def build_and_copy_frontend() -> bool:
         logger.error("Install Angular CLI with: npm install -g @angular/cli")
         return False
     except Exception as e:
-        logger.error(f"✗ Error building frontend: {e}")
+        logger.exception(f"✗ Error building frontend: {e}")
         return False
 
 
@@ -298,7 +298,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx={str(use_upx)},
-    console=True,  # Enable console window for logs
+    console=False,  # Disable console window
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

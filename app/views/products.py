@@ -1,7 +1,7 @@
 from flask import Blueprint, request
 import logging
 from sqlalchemy.exc import IntegrityError
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.auth import jwt_protected, get_current_user
 
 from app.models.products import Products
 from app.helpers.helpers import AppResponse, ValidationError, log_request_safely
@@ -77,10 +77,10 @@ def get_siblings(code):
         return AppResponse.server_error('Unexpected error retrieving siblings').to_flask_tuple()
     
 @routesProducts.route(ROUTE_CREATE_PRODUCT, methods=['POST'])
-@jwt_required()
+@jwt_protected()
 def create_product():
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         data = dict(request.get_json())
         Products.create(data)
         log_request_safely(ROUTE_CREATE_PRODUCT, {'user': current_user, 'code': data.get('code')})
@@ -96,10 +96,10 @@ def create_product():
         return AppResponse.server_error('Unexpected error creating product').to_flask_tuple()
     
 @routesProducts.route(ROUTE_UPDATE_PRODUCT, methods=['PUT'])
-@jwt_required()
+@jwt_protected()
 def update_product():
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         data = dict(request.get_json())
         Products.update(data)
         log_request_safely(ROUTE_UPDATE_PRODUCT, {'user': current_user, 'code': data.get('code')})
@@ -115,10 +115,10 @@ def update_product():
         return AppResponse.server_error('Unexpected error updating product').to_flask_tuple()
     
 @routesProducts.route(ROUTE_UPDATE_INVENTORY, methods=['PUT'])
-@jwt_required()
+@jwt_protected()
 def update_inventory(code: str, cantity: str):
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         try:
             cantity_float = float(cantity)
         except (TypeError, ValueError) as e:
@@ -136,10 +136,10 @@ def update_inventory(code: str, cantity: str):
         return AppResponse.server_error('Unexpected error updating inventory').to_flask_tuple()
     
 @routesProducts.route(ROUTE_ADD_INVENTORY, methods=['PUT'])
-@jwt_required()
+@jwt_protected()
 def add_inventory(code: str, cantity: str):
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         try:
             cantity_float = float(cantity)
         except (TypeError, ValueError) as e:
@@ -157,10 +157,10 @@ def add_inventory(code: str, cantity: str):
         return AppResponse.server_error('Unexpected error adding inventory').to_flask_tuple()
     
 @routesProducts.route(ROUTE_REMOVE_INVENTORY, methods=['PUT'])
-@jwt_required()
+@jwt_protected()
 def remove_inventory(code: str, cantity: str):
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         try:
             cantity_float = float(cantity)
         except (TypeError, ValueError) as e:
@@ -178,10 +178,10 @@ def remove_inventory(code: str, cantity: str):
         return AppResponse.server_error('Unexpected error removing inventory').to_flask_tuple()
     
 @routesProducts.route(ROUTE_DELETE_PRODUCT, methods=['DELETE'])
-@jwt_required()
+@jwt_protected()
 def delete_product(code):
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         Products.delete(code)
         log_request_safely(ROUTE_DELETE_PRODUCT, {'user': current_user, 'code': code})
         return AppResponse.success({'message': 'product deleted'}).to_flask_tuple()
@@ -219,10 +219,10 @@ def get_department(code):
 
 
 @routesProducts.route(ROUTE_CREATE_DEPARTMENT, methods=['POST'])
-@jwt_required()
+@jwt_protected()
 def create_department(description):
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         Products.Departments.create(description)
         log_request_safely(ROUTE_CREATE_DEPARTMENT, {'user': current_user, 'description': description})
         return AppResponse.created({'message': 'department created'}).to_flask_tuple()
@@ -237,10 +237,10 @@ def create_department(description):
         return AppResponse.server_error('Unexpected error creating department').to_flask_tuple()
 
 @routesProducts.route(ROUTE_UPDATE_DEPARTMENT, methods=['PUT'])
-@jwt_required()
+@jwt_protected()
 def update_department(code: int, description: str):
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         Products.Departments.update(code, description)
         log_request_safely(ROUTE_UPDATE_DEPARTMENT, {'user': current_user, 'code': code})
         return AppResponse.success({'message': 'department updated'}).to_flask_tuple()
@@ -253,10 +253,10 @@ def update_department(code: int, description: str):
         return AppResponse.server_error('Unexpected error updating department').to_flask_tuple()
     
 @routesProducts.route(ROUTE_DELETE_DEPARTMENT, methods=['DELETE'])
-@jwt_required()
+@jwt_protected()
 def delete_department(code: int):
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         Products.Departments.delete(code)
         log_request_safely(ROUTE_DELETE_DEPARTMENT, {'user': current_user, 'code': code})
         return AppResponse.success({'message': 'department deleted'}).to_flask_tuple()
@@ -283,10 +283,10 @@ def get_raw_data(parent_code: str):
         return AppResponse.server_error('Unexpected error retrieving associate codes').to_flask_tuple()    
     
 @routesProducts.route(ROUTE_CREATE_ASSOCIATE, methods=['POST'])
-@jwt_required()
+@jwt_protected()
 def create_associate():
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         data = {
             'code': request.args.get('code'),
             'parent_code': request.args.get('parent'),
@@ -307,10 +307,10 @@ def create_associate():
         return AppResponse.server_error('Unexpected error creating associate code').to_flask_tuple()    
     
 @routesProducts.route(ROUTE_UPDATE_ASSOCIATE, methods=['PUT'])
-@jwt_required()
+@jwt_protected()
 def update_associate():
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         data = {
             'code': request.args.get('code'),
             'parent_code': request.args.get('parent'),
@@ -331,10 +331,10 @@ def update_associate():
         return AppResponse.server_error('Unexpected error updating associate code').to_flask_tuple() 
     
 @routesProducts.route(ROUTE_DELETE_ASSOCIATE, methods=['DELETE'])
-@jwt_required()
+@jwt_protected()
 def delete_associate(code: str):
     try:
-        current_user = get_jwt_identity()
+        current_user = get_current_user()
         Products.Associates_codes.delete(code)
         log_request_safely(ROUTE_DELETE_ASSOCIATE, {'user': current_user, 'code': code})
         return AppResponse.success({'message': 'associate product deleted'}).to_flask_tuple()
